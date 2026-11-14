@@ -133,8 +133,9 @@ function B.NavigateTo(mapID, x, y, label)
     local req = { token = NewToken(), mapID = mapID, x = x, y = y, label = label, t = (time and time()) or 0,
         state = "pending", mode = mode }
     if mode == "api" then
+        -- start = true: the player just asked HME for directions.
         local ok, apiToken, reason = pcall(g.API.NavigateTo, { mapID = mapID, x = x, y = y, label = label,
-            source = "HarvestMateEnhanced" })
+            source = "HarvestMateEnhanced", start = true })
         if not ok or not apiToken then return nil, ok and reason or apiToken end
         req.apiToken = apiToken
     else
@@ -278,6 +279,10 @@ local function Hook()
         pcall(api.On, "started", function(token, dest) OnStarted(dest, token) end)
         pcall(api.On, "arrived", function(token, dest) OnArrived(dest, token) end)
         pcall(api.On, "cancelled", function(token) OnCleared(token) end)
+        pcall(api.On, "superseded", function(token)
+            local r = Req()
+            if r and r.apiToken == token and SetState("superseded", "API") then HME.Guidance.OnExternalSuperseded(r.token) end
+        end)
         hooked = true
     elseif type(g.On) == "function" then
         pcall(g.On, "route:started", function(dest) OnStarted(dest) end)
