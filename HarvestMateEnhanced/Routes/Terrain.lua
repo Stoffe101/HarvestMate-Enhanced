@@ -105,7 +105,7 @@ local function Remember(mapID, ax, ay, bx, by, res)
     end
     local e = { s = res.status, y = HME.Num(res.yards), l = HME.Num(res.straight), t = HME.Now(), src = res.src }
     -- Only the turns between the ends are kept, rounded to the map's 0.0001.
-    if (res.status == "path" or res.status == "corridor") and type(res.points) == "table" and #res.points > 4 then
+    if (res.status == "path" or res.status == "corridor" or res.status == "cave") and type(res.points) == "table" and #res.points > 4 then
         local inner = {}
         for i = 3, #res.points - 2 do inner[#inner + 1] = R4(res.points[i]) end
         e.p = inner
@@ -147,7 +147,7 @@ T.Legs = Legs
 
 local function Yards(mapID, ax, ay, bx, by) return HME.Geo.Distance(mapID, ax, ay, bx, by) or 0 end
 
-local GOOD = { straight = true, path = true, corridor = true }
+local GOOD = { straight = true, path = true, corridor = true, cave = true }
 T.GOOD = GOOD
 
 ---------------------------------------------------------------------------
@@ -228,7 +228,7 @@ function T.Assemble(route)
     end
     local legs = Legs(route)
     local path, approxLegs, legOf = {}, {}, {}
-    local walked, approx, detours, missing, corridors = 0, 0, 0, 0, 0
+    local walked, approx, detours, missing, corridors, caves = 0, 0, 0, 0, 0, 0
     local walk, straight = 0, 0
     for k, leg in ipairs(legs) do
         local line = Yards(route.mapID, leg.ax, leg.ay, leg.bx, leg.by)
@@ -239,6 +239,7 @@ function T.Assemble(route)
         if e and GOOD[e.s] then
             walked = walked + 1
             if e.s == "corridor" then corridors = corridors + 1 end
+            if e.s == "cave" then caves = caves + 1 end
             local y = e.y or line
             walk = walk + y
             if line > 0 and y / line >= T.DETOUR then detours = detours + 1 end
@@ -278,7 +279,7 @@ function T.Assemble(route)
     end
     local edited = route.edited and true or nil
     route.terrain = { state = state, legs = #legs, walked = walked, approx = approx, detours = detours, missing = missing,
-                      walk = walk, straight = straight, ratio = straight > 0 and walk / straight or 1, corridors = corridors,
+                      walk = walk, straight = straight, ratio = straight > 0 and walk / straight or 1, corridors = corridors, caves = caves,
                       sig = Sig(route.points), approxLegs = approxLegs, edited = edited,
                       improved = route.terrain and route.terrain.improved or nil }
     route.path = walked > 0 and path or nil
@@ -328,6 +329,7 @@ function T.Text(route)
     if t.state == "full" then parts[#parts + 1] = "terrain-aware: every leg follows the walking grid"
     elseif t.state == "partial" then parts[#parts + 1] = ("partly terrain-aware: %d of %d legs walked, %d approximate"):format(t.walked, t.legs, t.approx)
     else parts[#parts + 1] = "approximate: no leg could be walked on the grid" end
+    if (t.caves or 0) > 0 then parts[#parts + 1] = ("%d leg%s through a cave entrance you marked"):format(t.caves, t.caves == 1 and "" or "s") end
     if (t.corridors or 0) > 0 then parts[#parts + 1] = ("%d leg%s along a route recorded in game"):format(t.corridors, t.corridors == 1 and "" or "s") end
     if t.detours > 0 then parts[#parts + 1] = ("%d leg%s go%s round an obstacle"):format(t.detours, t.detours == 1 and "" or "s", t.detours == 1 and "es" or "") end
     if t.ratio > 1.01 then parts[#parts + 1] = ("walk %d%% longer than the straight lines"):format((t.ratio - 1) * 100 + 0.5) end
@@ -378,8 +380,15 @@ function T.Refine(route, done)
     for _, leg in ipairs(Legs(route)) do
         local line = Yards(route.mapID, leg.ax, leg.ay, leg.bx, leg.by)
         local cached = Lookup(route.mapID, leg.ax, leg.ay, leg.bx, leg.by)
+        -- Into or out of a cave you marked: through its entrance (the grid
+        -- cannot tell a cave floor from the hill above it).
+        local cave = HME.Caves and HME.Caves.Leg(route.mapID, leg.ax, leg.ay, leg.bx, leg.by)
+        if cave then
+            Remember(route.mapID, leg.ax, leg.ay, leg.bx, leg.by, cave)
+            cached = cave
+        end
         -- A recorded corridor outranks the grid, also over a leg walked before.
-        if not (cached and cached.s == "corridor") then
+        if not cave and not (cached and cached.s == "corridor") then
             local corridor = T.Corridor(route.mapID, leg.ax, leg.ay, leg.bx, leg.by, route)
             if corridor then
                 Remember(route.mapID, leg.ax, leg.ay, leg.bx, leg.by, corridor)

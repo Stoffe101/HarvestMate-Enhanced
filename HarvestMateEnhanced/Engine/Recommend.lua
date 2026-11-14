@@ -162,9 +162,12 @@ local function GatherResult(prof, area, profile, query)
         targets[#targets + 1] = { name = mix.name, prof = mix.prof, req = mix.req, share = mix.share, chance = mix.chance,
             itemID = mix.itemID, color = HME.SkillModel.Color(sk and sk.rank, mix.req) }
     end
-    return { key = key, prof = prof, mapID = area.mapID, cx = area.cx, cy = area.cy, area = area, metrics = m,
+    local res = { key = key, prof = prof, mapID = area.mapID, cx = area.cx, cy = area.cy, area = area, metrics = m,
         confidence = conf, targets = targets, radius = area.radius,
         source = (m.confirmedShare > 0 and "bundled spawns + your gathers" or "bundled spawns (QuestieDB via Gatherpedia)") }
+    -- Nodes in a cave: how many, and how many with no known way in (Map/Caves.lua).
+    if HME.Caves then res.caveShare, res.caveBlind = HME.Caves.Share(res) end
+    return res
 end
 
 ---------------------------------------------------------------------------
@@ -301,6 +304,8 @@ function R.Score(results, query, profile)
         local EV = { measured = 1, ["partly measured"] = 0.97, ["known yield"] = 0.94, ["published data"] = 0.9, assumption = 0.87 }
         score = score * (EV[r.evidence and r.evidence.level or "assumption"] or 0.87)
         if r.sizeUnknown then score = score * 0.75 end
+        -- Valuable ore in a cave nobody can say how to reach is not an excellent farm.
+        if (r.caveBlind or 0) > 0 then score = score * (1 - 0.35 * r.caveBlind) end
         -- Your marks (crowded, inefficient) and your open goals.
         if r.correction and r.correction.mult then score = score * r.correction.mult end
         r.forGoal = nil
@@ -373,7 +378,11 @@ function R.Summary(r, query, profile, all)
     if d and d.yield and d.yield.level == "low" and d.profit and d.profit.level ~= "unknown" and (goal == "profit" or goal == "material") then
         warn[#warn + 1] = "drop estimates are uncertain"
     end
-    if (r.caveShare or 0) > 0.2 then warn[#warn + 1] = ("%d%% of the nodes are in a cave"):format(r.caveShare * 100) end
+    if (r.caveBlind or 0) > 0.2 then
+        warn[#warn + 1] = ("%d%% of the nodes are in a cave with no known entrance (Shift+right-click one on the map at the mouth)"):format(r.caveBlind * 100)
+    elseif (r.caveShare or 0) > 0.2 then
+        warn[#warn + 1] = ("%d%% of the nodes are in a cave"):format(r.caveShare * 100)
+    end
     for _, n in ipairs((r.correction and r.correction.notes) or {}) do warn[#warn + 1] = n end
     if r.prof == "Skinning" then
         local n, top = 0, nil

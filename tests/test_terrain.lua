@@ -249,3 +249,32 @@ keep.edited = true
 result = nil
 T.Improve(keep, function(_, ok, info) result = { ok = ok, info = info } end)
 check(result and not result.ok and tostring(result.info):find("yours", 1, true), "kept")
+
+STEP("caves: Gatherpedia's outlines are known; a cave you mark routes through its entrance")
+local Cv = HME.Caves
+local c1 = Cv.At(1438, 0.433, 0.58)
+check(c1 and c1.recorded, "inside one of Gatherpedia's Teldrassil cave outlines")
+eq(Cv.At(1438, 0.10, 0.10), nil, "not everywhere")
+-- A cave of your own in Redridge: node at (0.30, 0.30), mouth at (0.31, 0.32).
+local cave = Cv.Mark(1433, 0.30, 0.30, 0.31, 0.32, "Test cave")
+check(cave, "marked")
+local leg = Cv.Leg(1433, 0.30, 0.30, 0.36, 0.36)
+eq(leg.status, "cave")
+eq(#leg.points, 6, "in through the entrance")
+eq(leg.points[3], 0.31)
+check(leg.yards >= leg.straight, "never shorter than the line")
+HME.db.terrain = nil
+local cr = Route({ mapID = 1433, name = "cave route", points = { 0.30, 0.30, 0.36, 0.36, 0.34, 0.30 } })
+T.Refine(cr)
+check(Wait(cr))
+check(T.Summary(cr).caves >= 1, "legs through the entrance")
+check(T.Text(cr):find("cave entrance", 1, true), T.Text(cr))
+local via = T.Via(cr, 1, 2)
+eq(via[1][1], 0.31, "the arrow goes to the entrance first")
+-- A farm whose nodes sit in a cave nobody can enter ranks lower and says so.
+local fake = { mapID = 1438, area = { sites = { { site = { x = 0.433, y = 0.58 } }, { site = { x = 0.10, y = 0.10 } } } } }
+local share, blind = Cv.Share(fake)
+eq(share, 0.5, "half in a cave")
+eq(blind, 0, "Gatherpedia recorded that cave: it can be followed")
+Cv.Remove(1433, cave.id)
+eq(Cv.At(1433, 0.30, 0.30), nil, "removed")

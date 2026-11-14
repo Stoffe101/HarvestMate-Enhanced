@@ -111,6 +111,7 @@ Routes\Recorder.lua
 Map\Overlay.lua
 Map\Arrow.lua
 Map\Guidance.lua
+Map\Caves.lua
 
 # Integrations
 Integrations\ForeverGPS.lua

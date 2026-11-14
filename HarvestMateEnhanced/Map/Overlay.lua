@@ -115,13 +115,14 @@ local function Pin(i)
             if i2 == 1 then GameTooltip:AddLine(line) else GameTooltip:AddLine(line, 1, 1, 1, true) end
         end
         if self.fix then GameTooltip:AddLine("Right-click: " .. self.fix.label, 0.7, 0.7, 0.7) end
+        if self.fix2 then GameTooltip:AddLine("Shift+right-click: " .. self.fix2.label, 0.7, 0.7, 0.7) end
         GameTooltip:Show()
     end)
     p:SetScript("OnLeave", function() GameTooltip:Hide() end)
     -- Corrections: a wrong or unreachable spawn point, or a wrong beast.
     p:SetScript("OnMouseUp", function(self, button)
         if button ~= "RightButton" or not self.fix or HME.InCombat() then return end
-        self.fix.run()
+        if self.fix2 and IsShiftKeyDown and IsShiftKeyDown() then self.fix2.run() else self.fix.run() end
         GameTooltip:Hide()
         O.Draw()
     end)
@@ -195,6 +196,15 @@ local function Collect(mapID)
                         false, { label = "mark this spawn point wrong or unreachable", run = function()
                             HME.Spawns.Exclude(prof, mapID, site.x, site.y, true)
                             HME.Print("spawn point left out of routes and rankings (Settings, Your data to see the count).")
+                        end }, { label = "it is in a cave: its entrance is where I stand", run = function()
+                            local pm, px, py = HME.Player.Position()
+                            local zm, zx, zy = HME.Geo.ZoneOf(pm, px, py)
+                            if zm ~= mapID or not zx then
+                                HME.Print("stand at the cave's mouth in this zone, then Shift+right-click a node inside.")
+                                return
+                            end
+                            HME.Caves.Mark(mapID, site.x, site.y, zx, zy)
+                            HME.Print(("cave marked: nodes within %d yards of that one are entered here. Routes go through it."):format(HME.Caves.CAVE_YARDS))
                         end } }
                 end
             end
@@ -393,9 +403,9 @@ function O.Draw()
         if g.n > 1 then
             pin.tip = { ("%d spawn points here"):format(g.n), ("%d confirmed, %d predicted. Zoom in to see each."):format(
                 g.confirmed or 0, g.n - (g.confirmed or 0)) }
-            pin.fix = nil
+            pin.fix, pin.fix2 = nil, nil
         else
-            pin.tip, pin.fix = p[6], p[8]
+            pin.tip, pin.fix, pin.fix2 = p[6], p[8], p[9]
         end
         pin:Show()
     end
