@@ -25,7 +25,16 @@ It brings three addons together into one coherent addon, one window, one minimap
 
 Optional addons HME uses when present: Forever-GPS (navigation, prices, and with its API v2 also terrain-aware loops, one-arrow hand-over, the nearest vendor or mailbox, and recipes), GatherMate2 (extra recorded nodes), Auctionator or TradeSkillMaster (prices), TomTom (waypoint arrow). HME works without any of them.
 
-**Forever-GPS API v2 is not in a Forever-GPS release.** It is on the branch `feature/public-api` of github.com/Stoffe101/Forever-GPS (draft pull request 3). To use it: check out that branch, run `python tools/package.py` there, and install the `dist/ForeverGPS-<version>-forever.zip` it makes as Forever-GPS's own docs/INSTALL.md describes (it replaces the released Forever-GPS). HME detects the API and uses each part it finds; with the released Forever-GPS 2.7 it works as before (journey panel, no terrain, map-only Guide me here).
+**Forever-GPS API v2 is not in a Forever-GPS release.** It is on the branch `feature/public-api` of github.com/Stoffe101/Forever-GPS (draft pull request 3). With the released Forever-GPS 2.7, HME works as before: journey panel, straight-line loops, and Guide me here on the map only. To use API v2:
+
+1. In your Forever-GPS checkout: `git fetch origin`, then `git checkout feature/public-api`.
+2. There, `python tools/package.py`: it writes and checks `dist/ForeverGPS-2.7.0-forever.zip`.
+3. Close the game and install that ZIP as Forever-GPS's own `docs/INSTALL.md` describes ("The API branch, for HarvestMate Enhanced"). It replaces the released Forever-GPS folders; keep a copy of the old ones.
+4. In the game, `/hme diag` should say `Forever-GPS: 2.7.0 (API v2)`, `walking grid API yes` and `arrow hold yes`, and `/fgps diag` should say `Game API: all 28 present`.
+
+HME detects the API at login and uses each part it finds. Going back to the released Forever-GPS needs nothing in HME.
+
+**Before trusting it in the game**, run the checklist in [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md) (items 37-56 are new in 0.3.0). Everything so far is tested only headless; see [TESTING.md](TESTING.md#verified-where).
 
 ## Using it
 

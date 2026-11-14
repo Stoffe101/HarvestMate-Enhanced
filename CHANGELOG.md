@@ -13,6 +13,9 @@
 - 0.2.0 measured areas would have counted at "other characters" weight after the per-character change; they are seeded per character on upgrade.
 - No bounds on provider prices: impossible values could inflate rankings.
 - A running session's duplicate-event set grew without bound.
+- Item names outside the field guide (shopping lists, recipe reagents, live materials) asked only for the global `GetItemInfo`, which the WoW Forever client does not have: they would have shown as "item 12345". Now `C_Item.GetItemInfo` first. The test client no longer has the global either.
+- Building a long loop froze the game for a moment when recordings were on the map: every leg was checked against every recorded point in one frame (~0.3 s for 99 stops and 10 recordings). Now a background job with a prepared search.
+- The terrain reorder pass changed the route's stops over several frames and could not be stopped: a route rebuilt meanwhile could be reordered or set back. It now works on a copy, commits once, and stops with the route (rebuild, edit, delete).
 
 ### New
 - **Terrain-aware loops** through Forever-GPS's walking grid (API v2 `LocalPaths`), cached per leg, drawn along the walked turns, approximate legs in orange, the arrow following the turns, lap time from the walked length, and a hybrid reorder pass kept only when really shorter. Real-grid fixture of two real HME loops for tests (docs/TERRAIN.md).
@@ -28,10 +31,13 @@
 - **Records** with minimum farming times; journal text filter.
 - **Heatmap views**: predicted density, your gathering, skill-up potential.
 - **Diagnostics** to copy (`/hme diag`), privacy-scrubbed; a short **first-run setup** (`/hme setup`).
+- **Best beasts** panel in the Farm Finder (Skinning, a material).
+- Walking legs uses 3 ms a frame in batches of 16, and no new batch starts in combat.
 - Save format 3. The test runner fails on any Lua error that reaches the error handler.
 
 ### Forever-GPS (branch feature/public-api, API v2)
 - `HoldArrow`, `ReleaseArrow`, `ArrowHeld`; `ended` and `hold` events; `HasTerrain`, `LocalPath`, `LocalPaths`, `LocalBound`; `NavigateToService`. Tests on the real stack and walking grid (`tests/test_api_v2.lua`).
+- Its Luacheck job failed on `CreateVector2D` (W113): declared as a client function in `.luacheckrc` (EasyFind, EasyFind GPS and WoW Forever-only addons call it); `/fgps diag` now probes it and `C_Map.GetMapPosFromWorldPos`. The code was not changed.
 
 ## 0.2.0
 

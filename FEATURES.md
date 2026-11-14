@@ -69,7 +69,7 @@ Status key: **New** (HME), **Kept** (from upstream, unchanged in behaviour), **I
 - **Record My Route**, recorded corridors, **caves** with entrances.
 - **Per-character calibration**, area reputation, five confidence dimensions, scoped reversible **corrections**, profit per skin/kill/trip.
 - **While farming**: rolling rates, materials vs expected, kill pace, verdict with enough data, now vs before; adaptive loops and the Adaptive circuit mode.
-- **Herbs + Ore priorities**, combined vs separate; **best beasts** for a material.
+- **Herbs + Ore priorities**, combined vs separate; **best beasts** for a material, as a Farm Finder panel (levels, Skinning needed, yield per skin and its basis, an hour's worth, confidence, up to three hunting areas; a click opens the best one).
 - **Expeditions** from shopping lists; nearest vendor/mailbox through Forever-GPS; optional **recipes** from Forever-GPS's client tables.
 - **Records** with minimum times; journal filter; **heatmap views**.
 - **Diagnostics** to copy; **first-run setup**.
@@ -79,7 +79,6 @@ Status key: **New** (HME), **Kept** (from upstream, unchanged in behaviour), **I
 - Heatmaps: density, your gathering and skill-up potential; no profitability heatmap.
 - Progression transitions: grey-farm, cap and tier suggestions (0.2.0) and the live "below prediction" suggestion; no automatic "next area" switch.
 - Combined tracking: reminders only (the game tracks one kind at a time; HME never switches it).
-- Best beasts for a material: in the engine (`Skinning.BestBeasts`) and tested; not yet its own panel in the Farm Finder.
 
 ## Proposals, not implemented
 - Localized HME pages (Swedish and others).

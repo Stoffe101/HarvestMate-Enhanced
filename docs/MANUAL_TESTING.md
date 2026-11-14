@@ -57,7 +57,7 @@ Nothing below has been done yet. Tick items as they are confirmed in the real cl
 36. [ ] HUD compact / normal / detailed do not cover action bars at 1280x800.
 
 ## 0.3.0 additions
-Install Forever-GPS from the branch `feature/public-api` for 37-44 (see README, Install).
+Install Forever-GPS from the branch `feature/public-api` for 37-44 and 54-56 (README, Install). Before starting: `/hme diag` should say `(API v2)`, `walking grid API yes` and `arrow hold yes`. After each session, copy `/hme diag` and BugSack's errors into your notes.
 
 37. [ ] Two arrows (scenario G): Forever-GPS takes you somewhere; walk to an HME farm; HME waits. Guide me here: Forever-GPS's arrow disappears, its HUD steps stay, the journey keeps running; HME's arrow leads. Give arrow back, stop farming, or start a new journey in Forever-GPS: its arrow comes back. Never two arrows.
 38. [ ] The same with Forever-GPS 2.7 (released): Guide me here guides on the map/HUD only; no second arrow.
@@ -75,3 +75,9 @@ Install Forever-GPS from the branch `feature/public-api` for 37-44 (see README, 
 50. [ ] `/hme diag` opens a selectable report with no character or realm name; it closes when combat starts.
 51. [ ] `/hme setup` lists what was found; one-key gathering and soft target buttons only open their consent popups.
 52. [ ] After upgrading from 0.2.0: routes, goals, profiles and measured areas are all there; old wrong-beast marks appear in `/hme corrections`.
+
+### Added after the first 0.3.0 push
+53. [ ] Farm Finder, Skinning, goal "A material", type `Medium Leather`, search, press **Best beasts** (top right of Details): one row per beast with its levels, the Skinning it needs (and for its highest level), yield per skin with "estimate" or "N seen in M skins", an hour's worth, a confidence badge and the best hunting area. Hover: the other areas. Click: that area opens in Details and is selected in the list. **Back** returns. Two materials (`Medium Leather, Medium Hide`): each row names its material.
+54. [ ] Terrain with a long loop: plan a loop of about 100 stops (Mining, a large hilly zone). Watch the frame rate for the half minute to few minutes the legs are walked: no visible hitch when the route is built, at most a small steady dip while walking. Fight something meanwhile: walking stops for the fight and carries on after (the Routes page count keeps going up).
+55. [ ] Rebuild or delete that route while its legs are being walked: no errors; a rebuilt route keeps its new stops (the reorder pass never puts back an old order).
+56. [ ] Item names: a shopping list or `/hme recipe` with an item HME's field guide does not know shows its real name, not "item 12345" (the client has C_Item.GetItemInfo and no global GetItemInfo).

@@ -67,4 +67,11 @@ Investigated, no change needed:
 - Kill time already excluded multi-mob fights; pet-assisted kills count as the character's pace.
 - `PLAYER_ENTERING_WORLD` fires on every loading screen: a held arrow is kept unless Forever-GPS dropped it.
 
-Still unverified in the real client: everything listed in docs/MANUAL_TESTING.md 37-52.
+Still unverified in the real client: everything listed in docs/MANUAL_TESTING.md 37-56.
+
+## Follow-up review (after the first 0.3.0 push)
+
+- **Forever-GPS Luacheck (CI) failed** on `CreateVector2D` in `Core/Bridge.lua` (W113). It is a client function: EasyFind and EasyFind GPS call it, and so do WoW Forever-only addons (interface 16001) installed on the test PC, with no error about it in the saved BugGrabber log. Declared in `.luacheckrc`; the guarded coordinate code was left as it was. `/fgps diag` now probes it and `C_Map.GetMapPosFromWorldPos`. Luacheck was then run locally exactly as CI runs it: 0 warnings.
+- **HME linted once with Luacheck** (no CI job): its global writes are all intended (bindings, slash commands, a pin mixin). Its global reads showed `GetItemInfo` in `Engine/Goals.lua` and `Engine/Session.lua` without the `C_Item` fallback the rest of HME uses. Forever-GPS's real-client report (its docs/REALCLIENT.md) found that this client has no global `GetItemInfo`: names of items outside the field guide would have shown as "item 12345". Fixed through one helper (`ns.ItemNameByID`); the test client no longer has the global, and a test fails on the old code.
+- **Terrain with long loops** (about 100 stops): building a route ran the corridor search for every leg against every recorded point in one frame (~0.3 s with 10 recordings); the reorder pass changed the live route over several frames and could not be cancelled; deleting a route left its walk running; the walks used Forever-GPS's planner share of the frame (4-12 ms) and kept starting batches in combat. All fixed and tested (docs/TERRAIN.md, "Stopping, combat and changes"; docs/PERFORMANCE.md).
+- **Best beasts** now has its Farm Finder panel.

@@ -15,6 +15,7 @@ Everything in HME has only run against the headless fake client. Layout, texture
 
 ## Routing
 - Terrain comes only from Forever-GPS's walking grid (API v2, branch `feature/public-api`, not in the released Forever-GPS). Without it, planned loops are straight lines labelled approximate; recorded routes, corridors and cave entrances still apply.
+- Walking a long loop's legs takes time in the background (about half a minute for 100 stops at 3 ms a frame, estimated from desktop timings) and pauses during fights; until then the loop is drawn with straight legs where not yet walked.
 - The solver orders stops by straight distance; terrain only refines legs and reorders round bad detours afterwards (2-opt with the grid's bounds), so the order is not a full terrain-optimal tour.
 - Walking a 100-leg loop costs several seconds of background CPU in the game (spread over frames); legs longer than 1500 yards are not walked.
 - Caves are known only from Gatherpedia's outlines or your marks; heights and floors are as the grid knows them.
