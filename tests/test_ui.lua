@@ -172,6 +172,35 @@ check(HME.Pages.finderCompare(), "comparison shown")
 HME.Pages.finderSet("Skinning", "level", nil, "safer", { continent = "K" })
 HME.FinishJobs()
 for _, r in ipairs(HME.Pages.finderResults()) do eq(HME.ZoneData.Get(r.mapID).cont, "K", "continent filter: " .. r.zone) end
+STEP("Farm Finder: best beasts for a material")
+HME.Pages.finderSet("Skinning", "material", "Medium Leather", "balanced", {})
+HME.FinishJobs()
+local fpage = HME.Window.frame.pages.finder
+local best = HME.Pages.finderBeasts()
+check(#best > 0, "beasts that give Medium Leather")
+for i = 2, #best do check(best[i - 1].perHour >= best[i].perHour, "best first") end
+local e = best[1]
+check(e.name and e.min and e.max and e.req and e.perSkin > 0, "name, levels, Skinning needed, yield per skin")
+check(e.confidence and #e.areas >= 1 and #e.areas <= HME.Skinning.BEST_AREAS, "confidence and up to 3 hunting areas")
+for i = 2, #e.areas do check(e.areas[i - 1].perHour >= e.areas[i].perHour, "areas best first") end
+local sub = fpage.BeastSub(e)
+check(sub:find("Skinning %d+") and sub:find("per skin", 1, true) and sub:find("an hour", 1, true), "row: " .. sub)
+check(fpage.BeastWhere(e):find(e.areas[1].zone, 1, true), "row names the best area")
+check(HME.Skinning.BeastYieldNote(e):find("estimate", 1, true) or HME.Skinning.BeastYieldNote(e):find("seen", 1, true), "says where the yield comes from")
+eq(HME.Pages.finderOpenBeast(e), e.result, "a click opens the beast's best area")
+-- Two materials: each beast says which one.
+HME.Pages.finderSet("Skinning", "material", "Medium Leather, Medium Hide", "balanced", {})
+HME.FinishJobs()
+local two = HME.Pages.finderBeasts()
+local mats = {}
+for _, x in ipairs(two) do mats[x.itemID] = true end
+check(mats[2319], "Medium Leather rows")
+check(fpage.BeastTitle(two[1]):find(":", 1, true), "a material label when several are typed")
+-- Not Skinning, or no material: an explanation, no rows.
+HME.Pages.finderSet("Skinning", "profit")
+HME.FinishJobs()
+eq(#HME.Pages.finderBeasts(), 0, "needs the material goal")
+check(#(ERRORS or {}) == 0, "no errors: " .. tostring(ERRORS and ERRORS[1]))
 HME.Pages.finderSet("Mining", "material", "%%%[[[")
 check(#HME.Pages.finderResults() >= 0, "odd characters in a search don't break it")
 HME.Pages.finderSet("Combined", "level", nil, "balanced", {})

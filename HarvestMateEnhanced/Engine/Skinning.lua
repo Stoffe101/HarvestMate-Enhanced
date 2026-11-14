@@ -258,8 +258,12 @@ end
 -- For one material: which beast populations are the best use of your time.
 -- From Farm Finder results (Skinning, goal "material", that item as target):
 -- each beast once, at the result where it gives the most of it an hour.
--- { { npcID, name, min, max, req, perSkin, observed = { seen, skins } | nil,
---     zone, mapID, perHour, result, confidence, basis } } best first.
+-- { { npcID, name, min, max, req, reqTop, color, skinShare, perSkin,
+--     observed = { seen, skins } | nil, basis, zone, subarea, mapID, perHour,
+--     result, confidence, killSecs,
+--     areas = { { result, zone, subarea, perHour, confidence } } (best first, up to 3) } }
+-- best first. perHour counts this beast's share of the area's kills only.
+Sk.BEST_AREAS = 3
 function Sk.BestBeasts(results, itemID)
     local best = {}
     for _, r in ipairs(results or {}) do
@@ -272,19 +276,46 @@ function Sk.BestBeasts(results, itemID)
             if per and per > 0 and total > 0 then
                 local perHour = (m.beastsPerHour or 0) * (b.count / total) * per
                 local id = b.beast.npcID
-                if not best[id] or perHour > best[id].perHour then
-                    best[id] = { npcID = id, name = b.beast.name, min = b.beast.min, max = b.beast.max,
-                        req = b.elig and b.elig.reqMin, perSkin = per, perHour = perHour, zone = r.zone, mapID = r.mapID,
-                        result = r, basis = y.basis, observed = (y.seen[itemID] and { seen = y.seen[itemID], skins = y.n }) or nil,
-                        confidence = r.confidence and r.confidence.label, killSecs = m.killSecs }
+                local area = { result = r, zone = r.zone, subarea = r.subarea, perHour = perHour,
+                    confidence = r.confidence and r.confidence.label }
+                local e = best[id]
+                if not e then
+                    e = { npcID = id, name = b.beast.name, min = b.beast.min, max = b.beast.max, areas = {} }
+                    best[id] = e
+                end
+                e.areas[#e.areas + 1] = area
+                if not e.perHour or perHour > e.perHour then
+                    local el = b.elig or {}
+                    e.req, e.reqTop, e.color, e.skinShare = el.reqMin, el.req, el.color, el.skinShare
+                    e.perSkin, e.perHour, e.basis = per, perHour, y.basis
+                    e.observed = (y.seen[itemID] and { seen = y.seen[itemID], skins = y.n }) or nil
+                    e.zone, e.subarea, e.mapID, e.result = r.zone, r.subarea, r.mapID, r
+                    e.confidence, e.killSecs = area.confidence, m.killSecs
                 end
             end
         end
     end
     local out = {}
-    for _, v in pairs(best) do out[#out + 1] = v end
-    table.sort(out, function(a, b) return a.perHour > b.perHour end)
+    for _, v in pairs(best) do
+        table.sort(v.areas, function(a, b) return a.perHour > b.perHour end)
+        for i = #v.areas, Sk.BEST_AREAS + 1, -1 do v.areas[i] = nil end
+        out[#out + 1] = v
+    end
+    table.sort(out, function(a, b)
+        if a.perHour ~= b.perHour then return a.perHour > b.perHour end
+        return a.npcID < b.npcID
+    end)
     return out
+end
+
+-- How sure one best-beast line is, in words: the area's confidence and
+-- whether the yield was seen on this account or is the estimate.
+function Sk.BeastYieldNote(e)
+    if e.observed and (e.observed.skins or 0) > 0 then
+        local of = e.basis == "this beast" and "skins" or "skins of beasts this level"
+        return ("%d seen in %d %s"):format(e.observed.seen, e.observed.skins, of)
+    end
+    return "estimate, not seen yet"
 end
 
 -- "Heavy Leather: 42 observed from 31 skins" (or the estimate, labelled).

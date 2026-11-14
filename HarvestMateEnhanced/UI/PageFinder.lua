@@ -4,6 +4,8 @@
 -- how sure. Right: the chosen farm in plain words first (why, what you'll
 -- find, what you can expect as a range and what it rests on), then Start.
 -- Right-click (or the box) marks farms to compare side by side.
+-- Skinning: "Best beasts" lists, for the materials typed, which beasts give
+-- them best, with levels, Skinning needed, yield, how sure, and where.
 -- The search runs in the background; the game never stutters.
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
 
@@ -41,7 +43,7 @@ end
 local function Targets(prof, text)
     text = U.Trim(text or ""):lower()
     if text == "" then return nil, 0 end
-    local targets, n = {}, 0
+    local targets, n, ids = {}, 0, {}
     local profs = prof == "Combined" and { "Herbalism", "Mining" } or { prof }
     for word in text:gmatch("[^,]+") do
         word = U.Trim(word)
@@ -62,18 +64,21 @@ local function Targets(prof, text)
                         n = n + 1
                         targets[e.id] = true
                         targets[e.name] = true
+                        ids[#ids + 1] = e.id
                     end
                 end
             end
         end
     end
-    return n > 0 and targets or nil, n
+    return n > 0 and targets or nil, n, ids
 end
 
 HME.Pages.finder = function(body, page)
     local results, selected = {}, nil
     local marked = {}
     local comparing = false
+    local beastView = false
+    local beastIDs = {}     -- the materials typed for the last Skinning search
 
     -- Row 1: what
     local profs = K.Segments(body, PROF_KEYS, PROF_LABELS, function() return State().prof end, function(k)
@@ -234,6 +239,39 @@ HME.Pages.finder = function(body, page)
     d.markBtn:SetPoint("LEFT", d.mode, "RIGHT", 8, 0)
     for _, b in ipairs({ d.preview, d.start, d.mode, d.markBtn }) do b:Hide() end
 
+    -- Best beasts for a material (Skinning): one row per beast, at the area
+    -- where it gives the most of it an hour; a click opens that area.
+    local beasts = K.List(d, {
+        width = DW, height = 266, rowHeight = 52,
+        empty = "",
+        makeRow = function(row)
+            row.title = K.Label(row, "", { template = "GameFontNormal", color = C.title, width = DW - 100, wrap = false })
+            row.title:SetPoint("TOPLEFT", 6, -5)
+            row.sub = K.Label(row, "", { template = "GameFontHighlightSmall", width = DW - 20, wrap = false })
+            row.sub:SetPoint("TOPLEFT", 6, -22)
+            row.sub2 = K.Label(row, "", { template = "GameFontDisableSmall", width = DW - 20, wrap = false })
+            row.sub2:SetPoint("TOPLEFT", 6, -36)
+            row.conf = K.Badge(row, 80, 14)
+            row.conf:SetPoint("TOPRIGHT", -4, -5)
+        end,
+        fillRow = function(row, e)
+            row.title:SetText(page.BeastTitle(e))
+            row.sub:SetText(page.BeastSub(e))
+            row.sub2:SetText(page.BeastWhere(e))
+            row.conf:Set((e.confidence or "?") .. " conf.", K.ConfHex(e.confidence))
+        end,
+        onClick = function(e) page.OpenBeastArea(e) end,
+        onEnter = function(row, e) page.BeastTooltip(row, e) end,
+    })
+    beasts:SetPoint("TOPLEFT", 12, -100)
+    beasts:Hide()
+    d.beastsBtn = K.Button(d, "Best beasts", 96, 18, function()
+        if beastView then page.ShowDetail(selected) else page.ShowBeasts() end
+    end, "Skinning: which beasts give the material you typed best, their levels, the Skinning they need, "
+        .. "the yield per skin, how sure, and the hunting areas. Click a beast to open its best area.")
+    d.beastsBtn:SetPoint("TOPRIGHT", -8, -4)
+    d.beastsBtn:Hide()
+
     function page.ToggleMark(r)
         if marked[r.key] then marked[r.key] = nil else marked[r.key] = r end
         local n = U.Count(marked)
@@ -264,7 +302,106 @@ HME.Pages.finder = function(body, page)
         return table.concat(names, ", ")
     end
 
+    local function ItemName(id) return (HME.Goals and HME.Goals.ItemName(id)) or ("item " .. id) end
+
+    function page.BeastTitle(e)
+        local hex = e.color and K.DIFF_HEX[e.color] or "ffffff"
+        local lv = e.min == e.max and ("level %d"):format(e.min) or ("level %d-%d"):format(e.min, e.max)
+        local which = #beastIDs > 1 and ("|cff9a9a9a%s:|r "):format(ItemName(e.itemID)) or ""
+        return ("%s|cff%s%s|r  |cff9a9a9a%s|r"):format(which, hex, e.name or "?", lv)
+    end
+
+    function page.BeastSub(e)
+        local req = e.req and ("Skinning %d"):format(e.req) or "Skinning ?"
+        if e.reqTop and e.req and e.reqTop > e.req then req = req .. (" (%d for level %d)"):format(e.reqTop, e.max) end
+        return ("%s  ·  %.2f per skin (%s)  ·  about %.0f an hour"):format(req, e.perSkin or 0,
+            HME.Skinning.BeastYieldNote(e), e.perHour or 0)
+    end
+
+    function page.BeastWhere(e)
+        local first = e.areas[1]
+        local s = first and ("Best: %s (%s)"):format(first.zone or "?", first.subarea or "?") or "Best: ?"
+        local also = {}
+        for i = 2, #e.areas do also[#also + 1] = e.areas[i].zone end
+        if #also > 0 then s = s .. "  ·  also " .. table.concat(also, ", ") end
+        return s
+    end
+
+    function page.BeastTooltip(row, e)
+        GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(("%s (level %d-%d)"):format(e.name or "?", e.min or 0, e.max or 0))
+        GameTooltip:AddLine(page.BeastSub(e), 1, 1, 1, true)
+        if e.skinShare and e.skinShare < 1 then
+            GameTooltip:AddLine(("You can skin %d%% of its levels now."):format(e.skinShare * 100), 1, 0.82, 0)
+        end
+        if e.killSecs then GameTooltip:AddLine(("A kill takes about %.0f s there."):format(e.killSecs), 0.8, 0.8, 0.8) end
+        for i, a in ipairs(e.areas) do
+            GameTooltip:AddLine(("%d. %s (%s): about %.0f an hour, %s confidence"):format(i, a.zone or "?", a.subarea or "?",
+                a.perHour or 0, a.confidence or "?"), 0.8, 0.8, 0.8)
+        end
+        GameTooltip:AddLine("Click: open the best area. Beast spawns are where beasts appear, not live targets.", 0.7, 0.7, 0.7, true)
+        GameTooltip:Show()
+    end
+
+    -- Every typed material's best beasts, best first.
+    function page.BestBeasts()
+        local out = {}
+        for _, id in ipairs(beastIDs) do
+            for _, e in ipairs(HME.Skinning.BestBeasts(results, id)) do
+                e.itemID = id
+                out[#out + 1] = e
+            end
+        end
+        if #beastIDs > 1 then table.sort(out, function(a, b) return (a.perHour or 0) > (b.perHour or 0) end) end
+        return out
+    end
+
+    local function DetailWidgets(on)
+        scroll:SetShown(on)
+        beasts:SetShown(not on)
+    end
+
+    function page.ShowBeasts()
+        local s = State()
+        beastView = true
+        comparing = false
+        DetailWidgets(false)
+        d:Show()
+        d.beastsBtn:SetText("Back")
+        local names = {}
+        for _, id in ipairs(beastIDs) do names[#names + 1] = ItemName(id) end
+        d.title:SetText(#names > 0 and ("Best beasts for " .. table.concat(names, ", ")) or "Best beasts")
+        d.summary:SetText("Each beast at the hunting area where it gives the most of it an hour (its share of the kills). "
+            .. "Click one to open that area.")
+        local items = {}
+        if s.prof ~= "Skinning" or s.goal ~= "material" then
+            beasts:SetEmptyText("Choose Skinning and the goal \"A material\", then type a leather or hide (e.g. Medium Leather).")
+        elseif #beastIDs == 0 then
+            beasts:SetEmptyText("Type a leather, hide or scale that Skinning gives (e.g. Medium Leather), then search.")
+        else
+            items = page.BestBeasts()
+            beasts:SetEmptyText("No beast in these farms gives it. Try another risk mode or fewer filters.")
+        end
+        beasts:SetItems(items)
+        for _, b in ipairs({ d.preview, d.start, d.markBtn, d.mode }) do b:Hide() end
+        return items
+    end
+
+    function page.OpenBeastArea(e)
+        local r = e and e.result
+        if not r then return end
+        for i, x in ipairs(results) do
+            if x == r then list:Select(i) break end
+        end
+        selected = r
+        page.ShowDetail(r)
+    end
+
     function page.ShowDetail(r)
+        beastView = false
+        DetailWidgets(true)
+        d.beastsBtn:SetText("Best beasts")
+        if not r then return end
         local m = r.metrics
         d:Show()
         d.title:SetText(("%s  |cff9a9a9a%s, around %d, %d|r"):format(r.zone, r.subarea, r.cx * 100, r.cy * 100))
@@ -355,6 +492,9 @@ HME.Pages.finder = function(body, page)
             return
         end
         comparing = true
+        beastView = false
+        DetailWidgets(true)
+        d.beastsBtn:SetText("Best beasts")
         local cmp = HME.Recommend.Compare(rows)
         d.title:SetText("Comparing " .. #rows .. " farms")
         d.summary:SetText("Green: best on that line. A lead resting on unmeasured estimates is shown as an estimate only.")
@@ -391,18 +531,28 @@ HME.Pages.finder = function(body, page)
     function page.Layout()
         local g = State().goal
         mat:SetShown(g == "material")
+        d.beastsBtn:SetShown(State().prof == "Skinning")
     end
 
     local searching = false
     function page.Search()
         local s = State()
-        local targets
+        local targets, ids, _
+        beastIDs = {}
+        if beastView then
+            -- Rows point at the old results: empty until the new ones arrive.
+            beasts:SetItems({})
+            beasts:SetEmptyText("Searching...")
+        end
         if s.goal == "material" then
-            targets = Targets(s.prof, s.material)
+            targets, _, ids = Targets(s.prof, s.material)
+            if s.prof == "Skinning" then beastIDs = ids or {} end
             if not targets then
                 status:SetText(s.material and s.material ~= "" and "No material matches that name for this profession." or "Type one or more materials.")
                 list:SetItems({})
                 list:SetEmptyText("Type a material (e.g. Heavy Leather, Iron Ore). Separate several with commas.")
+                results = {}
+                if beastView then page.ShowBeasts() end
                 return
             end
         end
@@ -430,12 +580,13 @@ HME.Pages.finder = function(body, page)
                     d.title:SetText("")
                     d.summary:SetText("")
                     d.text:SetText("")
+                    if beastView then page.ShowBeasts() end
                 else
                     status:SetText(("%d farms ranked for %d minutes of play%s%s"):format(#results, HME.settings.sessionMinutes or 60,
                         #(skipped or {}) > 0 and (", " .. #skipped .. " zones left out") or "", note))
                     list:Select(1)
                     selected = results[1]
-                    page.ShowDetail(results[1])
+                    if beastView then page.ShowBeasts() else page.ShowDetail(results[1]) end
                     if s.goal == "profit" or s.goal == "balanced" then HME.Suggest.CheckPrices(results) end
                 end
             end, profile)
@@ -470,4 +621,6 @@ HME.Pages.finder = function(body, page)
     HME.Pages.finderResults = function() return results end
     HME.Pages.finderMark = function(r) page.ToggleMark(r) end
     HME.Pages.finderCompare = function() page.ShowCompare() return comparing end
+    HME.Pages.finderBeasts = function() return page.ShowBeasts() end
+    HME.Pages.finderOpenBeast = function(e) page.OpenBeastArea(e) return selected end
 end
