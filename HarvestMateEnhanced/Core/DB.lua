@@ -60,6 +60,7 @@ DB.SETTINGS = {
     arrowScale = 1.0,
     arriveYards = 30,
     hud = true,                  -- the farming HUD while a farm is active
+    skinLevels = false,          -- the "Skinning levels" box (UI/SkinTracker.lua), off until you switch it on
     hudLocked = false,
     hudCompact = false,          -- (0.1.0; schema 2 turns it into hudSize)
     hudSize = "normal",          -- "compact", "normal" or "detailed"

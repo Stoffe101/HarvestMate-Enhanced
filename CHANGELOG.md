@@ -33,6 +33,7 @@
 - **Heatmap views**: predicted density, your gathering, skill-up potential.
 - **Diagnostics** to copy (`/hme diag`), privacy-scrubbed; a short **first-run setup** (`/hme setup`).
 - **Best beasts** panel in the Farm Finder (Skinning, a material).
+- **Skinning levels** box (`/hme skinlevels` or `/hme sl`, or Settings): which beast levels to kill for skill-ups right now, updated on every skill-up, level-up, zone and target change; the next unlock; this zone's beasts in those levels or the two closest zones that have them; a chat line when a higher level becomes skinnable.
 - Walking legs uses 3 ms a frame in batches of 16, and no new batch starts in combat.
 - Save format 3. The test runner fails on any Lua error that reaches the error handler.
 

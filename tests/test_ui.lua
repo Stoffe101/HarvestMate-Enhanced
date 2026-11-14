@@ -238,3 +238,71 @@ HME.Goals.List()[#HME.Goals.List()].name = string.rep("Sehr langer lokalisierter
 HME.OpenWindow("goals")
 HME.Window.frame.pages.goals.Refresh()
 check(#(ERRORS or {}) == 0, "no errors with long names: " .. tostring(ERRORS and ERRORS[1]))
+
+STEP("Skinning levels: which beast levels give points, live")
+local ST = HME.SkinTracker
+local b = ST.Bands(125)
+eq(b.orange[1], 21) eq(b.orange[2], 25)
+eq(b.yellow[1], 18) eq(b.yellow[2], 20)
+eq(b.green[1], 13) eq(b.green[2], 17)
+eq(b.greyTo, 12, "grey at 12 and below")
+eq(b.maxLevel, 25)
+local nl, nreq, naway = ST.Next(125)
+eq(nl, 26) eq(nreq, 130) eq(naway, 5)
+local low = ST.Bands(1)
+eq(low.orange[1], 1) eq(low.orange[2], 10)
+eq(low.maxLevel, 10, "a new skinner: levels 1-10")
+CHAR.level = 40
+PLAYER.map, PLAYER.x, PLAYER.y = 1417, 0.5, 0.5
+PROFS[1] = { line = 393, rank = 125, max = 225 }
+HME.Player.Refresh()
+eq(HME.settings.skinLevels, false, "off until you switch it on")
+check(not ST.Shown(), "hidden")
+SlashCmdList.HARVESTMATEENHANCED("skinlevels")
+check(ST.Shown(), "/hme skinlevels shows it")
+local box = _G.HarvestMateEnhancedSkinLevels
+local text = box.text:GetText()
+check(text:find("Skinning 125", 1, true), text)
+check(text:find("Kill level 21-25", 1, true), "orange levels first: " .. text)
+check(text:find("or level 18-20", 1, true), "then yellow")
+check(text:find("Next: level 26 at 130 Skinning (+5)", 1, true), "the next level")
+check(text:find("Arathi Highlands: no beast in those levels", 1, true), "Arathi's beasts are all higher")
+check(text:find("Closest: Wetlands", 1, true), "so it names the closest zones that have them: " .. text)
+-- A skill-up that unlocks a level: the box moves on and chat says so.
+ClearLog()
+PROFS[1] = { line = 393, rank = 130, max = 225 }
+HME.Player.Refresh()
+text = box.text:GetText()
+check(text:find("Kill level 22-26", 1, true), "updated live: " .. text)
+check(Said("you can now skin level 26"), "announced")
+-- Your target's colour.
+local realExists = UnitExists
+UnitExists = function(u) return u == "player" or u == "target" end
+UNIT_LEVELS = { target = 27 }
+FireEvent("PLAYER_TARGET_CHANGED")
+check(box.text:GetText():find("Target: |cff%x+level 27|r needs 135 Skinning"), "a level too high to skin yet: " .. box.text:GetText())
+UNIT_LEVELS = { target = 24 }
+FireEvent("PLAYER_TARGET_CHANGED")
+check(box.text:GetText():find("level 24|r a point every skin", 1, true), "orange target")
+UnitExists = realExists
+UNIT_LEVELS = nil
+-- Too low to fight the orange levels: capped, and said.
+CHAR.level = 15
+HME.Player.Refresh()
+text = box.text:GetText()
+check(text:find("Kill level 22-26", 1, true) == nil and text:find("above 17 is too high", 1, true), "capped to what you can fight: " .. text)
+CHAR.level = 40
+HME.Player.Refresh()
+-- Off again; a character without Skinning sees nothing.
+SlashCmdList.HARVESTMATEENHANCED("sl off")
+check(not ST.Shown(), "/hme sl off hides it")
+local saved = PROFS[1]
+PROFS[1] = nil
+HME.Player.Refresh()
+ClearLog()
+SlashCmdList.HARVESTMATEENHANCED("sl on")
+check(not ST.Shown() and Said("doesn't know Skinning"), "no Skinning: nothing shown, and said")
+PROFS[1] = saved
+HME.Player.Refresh()
+SlashCmdList.HARVESTMATEENHANCED("sl off")
+check(#(ERRORS or {}) == 0, "no errors: " .. tostring(ERRORS and ERRORS[1]))

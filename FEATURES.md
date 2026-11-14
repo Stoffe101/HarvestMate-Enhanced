@@ -69,6 +69,7 @@ Status key: **New** (HME), **Kept** (from upstream, unchanged in behaviour), **I
 - **Record My Route**, recorded corridors, **caves** with entrances.
 - **Per-character calibration**, area reputation, five confidence dimensions, scoped reversible **corrections**, profit per skin/kill/trip.
 - **While farming**: rolling rates, materials vs expected, kill pace, verdict with enough data, now vs before; adaptive loops and the Adaptive circuit mode.
+- **Skinning levels** (`/hme sl`): a small live box with the beast levels that give Skinning points now (capped at what you can fight), the next level you can skin, beasts in this zone or the closest zones that have them, and your target's colour; it says when a higher level unlocks.
 - **Herbs + Ore priorities**, combined vs separate; **best beasts** for a material, as a Farm Finder panel (levels, Skinning needed, yield per skin and its basis, an hour's worth, confidence, up to three hunting areas; a click opens the best one).
 - **Expeditions** from shopping lists; nearest vendor/mailbox through Forever-GPS; optional **recipes** from Forever-GPS's client tables.
 - **Records** with minimum times; journal filter; **heatmap views**.

@@ -43,6 +43,7 @@ HME detects the API at login and uses each part it finds. Going back to the rele
 - **Leveling Guides:** Gatherpedia's 1-300 guides with your status on top: cap, next milestone, whether you can train, and advice when your farm goes grey.
 - **Materials:** the field guide, with known zones, your own counts, prices and "Farm this".
 - **Profits & Stats:** sessions (predicted vs actual; filter by zone, material, route or character), measured rates per area, records (with minimum farming times) and achievements.
+- **Skinning levels** (`/hme sl`): a small box that says which beast levels to kill for Skinning points right now, and keeps up as you skin.
 - **Expeditions** (Goals page): a shopping list across professions and zones becomes staged farms with travel.
 - **Record My Route** (Routes page): ride your own loop; it becomes a route to follow, edit and share.
 - **Setup** (`/hme setup`) and **diagnostics** (`/hme diag`: a report to copy after a test).

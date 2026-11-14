@@ -189,6 +189,9 @@ HME.Pages.settings = function(body, page)
         function() return S().arrow end, function(v) S().arrow = v; if not v then HME.Arrow.Hide() else HME.Guidance.PointAtStop() end end)
     Switch("Farming HUD", "A small display of the session while a farm is active.", function() return S().hud end,
         function(v) S().hud = v; if HME.HUD then HME.HUD.Update() end end)
+    Switch("Skinning levels", "A small box that says which beast levels give Skinning points now, the next level you can skin, "
+        .. "beasts in this zone in those levels and your target's colour. Updates as you skin. Also /hme skinlevels.",
+        function() return S().skinLevels end, function(v) HME.SkinTracker.Toggle(v) end)
     Switch("Spawn pins for the farm", "Pins on the world map for the farm you preview or follow.", function() return S().nodePins end,
         function(v) S().nodePins = v end)
     Switch("Spawn pins always", "Pins for your gathering professions on every map (busier).", function() return S().nodePinsAlways end,

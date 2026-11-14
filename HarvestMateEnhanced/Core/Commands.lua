@@ -23,6 +23,7 @@ local function Help()
         "/hme recipe [n] <item>  the gathered materials a recipe still needs, as a shopping list",
         "/hme corrections  your marks on spawn points, beasts and areas   ·   /hme uncorrect <n>  undo one",
         "/hme session start|pause|end   ·   /hme hud  show or hide the HUD",
+        "/hme skinlevels (or /hme sl) [on|off]  which beast levels give Skinning points now, live",
         "/hme glimmer [on|off|preview]   ·   /hme soft [off]   ·   /hme key [KEY]",
         "/hme export  ·  /hme import <name>  copy data from HarvestMate/Gatherpedia/GatherPath",
         "/hme diag  report addons, data and timings",
@@ -158,6 +159,10 @@ function cmds.recipe(rest)
 end
 function cmds.giveback() HME.Guidance.GiveBack() end
 function cmds.hud() HME.HUD.Toggle() end
+function cmds.skinlevels(rest)
+    if rest == "on" or rest == "off" then HME.SkinTracker.Toggle(rest == "on") else HME.SkinTracker.Toggle() end
+end
+cmds.sl = cmds.skinlevels
 
 function cmds.session(rest)
     if rest == "start" then HME.Session.Start()

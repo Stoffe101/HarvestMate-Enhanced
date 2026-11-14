@@ -131,6 +131,7 @@ UI\PageTrainers.lua
 UI\PageSettings.lua
 UI\PageSetup.lua
 UI\HUD.lua
+UI\SkinTracker.lua
 UI\Minimap.lua
 Core\Diagnostics.lua
 Core\Commands.lua
