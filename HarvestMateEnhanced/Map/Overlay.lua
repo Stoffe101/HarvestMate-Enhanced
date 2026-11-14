@@ -88,6 +88,13 @@ local function EnsureHolder()
     return holder
 end
 
+-- Profession colours for the pin centres (the ring is your skill colour).
+O.PROF_COLOR = { Herbalism = { 0.40, 0.85, 0.35 }, Mining = { 0.92, 0.60, 0.25 }, Fishing = { 0.35, 0.68, 1.00 },
+    Skinning = { 0.92, 0.38, 0.30 } }
+O.CROWD_PX = 22    -- pins closer than this on screen become one pin with a count
+
+local lines, labels = {}, {}
+
 local function Pin(i)
     local p = pins[i]
     if p then return p end
@@ -98,6 +105,8 @@ local function Pin(i)
     p.dot = p:CreateTexture(nil, "OVERLAY")
     p.dot:SetPoint("CENTER")
     p.dot:SetTexture(DISC)
+    p.count = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    p.count:SetPoint("CENTER")
     p:EnableMouse(true)
     p:SetScript("OnEnter", function(self)
         if not self.tip then return end
@@ -105,9 +114,17 @@ local function Pin(i)
         for i2, line in ipairs(self.tip) do
             if i2 == 1 then GameTooltip:AddLine(line) else GameTooltip:AddLine(line, 1, 1, 1, true) end
         end
+        if self.fix then GameTooltip:AddLine("Right-click: " .. self.fix.label, 0.7, 0.7, 0.7) end
         GameTooltip:Show()
     end)
     p:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    -- Corrections: a wrong or unreachable spawn point, or a wrong beast.
+    p:SetScript("OnMouseUp", function(self, button)
+        if button ~= "RightButton" or not self.fix or HME.InCombat() then return end
+        self.fix.run()
+        GameTooltip:Hide()
+        O.Draw()
+    end)
     pins[i] = p
     return p
 end
@@ -121,19 +138,44 @@ local function Disc(i)
     return d
 end
 
+local function Line(i)
+    local l = lines[i]
+    if l then return l end
+    l = holder:CreateLine(nil, "ARTWORK")
+    l:SetColorTexture(1, 1, 1, 1)
+    lines[i] = l
+    return l
+end
+
+local function Label(i)
+    local l = labels[i]
+    if l then return l end
+    l = holder:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    labels[i] = l
+    return l
+end
+
 function O.Hide()
     for _, p in ipairs(pins) do p:Hide() end
     for _, d in ipairs(discs) do d:Hide() end
+    for _, l in ipairs(lines) do l:Hide() end
+    for _, l in ipairs(labels) do l:Hide() end
 end
 
--- What to draw for the map on screen: a list of { x, y, r, g, b, solid, tip }
--- pins and { x, y, radius (map units), r, g, b } discs.
+-- What to draw on a map:
+--   pins   { x, y, ring rgb, prof rgb, solid, tip, small, fix }
+--   discs  { x, y, radius (map share), rgb, alpha }
+--   outlines { { x1, y1, x2, y2, ... }, rgb }
+--   labels { x, y, text }
 local function Collect(mapID)
-    local out = { pins = {}, discs = {} }
+    local out = { pins = {}, discs = {}, outlines = {}, labels = {} }
     local s = HME.settings or {}
+    local detail = s.mapDetail or "detailed"
     local profile = HME.Player.Profile()
+    local W = HME.Geo.MapYards(mapID) or 1500
     local function addSites(prof, filter, area)
         local skill = profile.skills[prof] and profile.skills[prof].rank
+        local pc = O.PROF_COLOR[prof] or { 1, 1, 1 }
         for _, site in ipairs(HME.Spawns.Sites(prof, mapID)) do
             local inside = not area or HME.Geo.Distance(mapID, site.x, site.y, area.x, area.y) <= area.r
             if inside then
@@ -146,37 +188,49 @@ local function Collect(mapID)
                     end
                 end
                 if bestReq then
-                    local color = skill and SM.Color(skill, bestReq) or "yellow"
-                    local c = SM.COLORS[color]
+                    local c = SM.COLORS[skill and SM.Color(skill, bestReq) or "yellow"]
                     table.sort(names)
-                    local src = site.confirmed and "confirmed (you or GatherMate2)" or "predicted spawn point"
-                    out.pins[#out.pins + 1] = { site.x, site.y, c[1], c[2], c[3], site.confirmed,
-                        { table.concat(names, ", "), src } }
+                    local src = site.confirmed and "confirmed by you or GatherMate2" or "a predicted spawn point (bundled data)"
+                    out.pins[#out.pins + 1] = { site.x, site.y, c, pc, site.confirmed, { table.concat(names, ", "), src },
+                        false, { label = "mark this spawn point wrong or unreachable", run = function()
+                            HME.Spawns.Exclude(prof, mapID, site.x, site.y, true)
+                            HME.Print("spawn point left out of routes and rankings (Settings, Your data to see the count).")
+                        end } }
                 end
             end
         end
     end
-    local function addHunt(planned, result)
+    local function addHunt(planned)
         local skill = profile.skills.Skinning and profile.skills.Skinning.rank or 0
-        local w = HME.Geo.MapYards(mapID) or 1500
-        for _, a in ipairs(planned.areas or {}) do
-            out.discs[#out.discs + 1] = { a.x, a.y, (a.r + 20) / w, 0.85, 0.42, 0.32 }
+        local pc = O.PROF_COLOR.Skinning
+        for i, a in ipairs(planned.areas or {}) do
+            -- A light fill and a clear boundary, not a big opaque circle.
+            out.discs[#out.discs + 1] = { a.x, a.y, (a.r + 15) / W, pc, 0.35 }
+            if a.hull and #a.hull >= 6 then out.outlines[#out.outlines + 1] = { a.hull, pc } end
+            out.labels[#out.labels + 1] = { a.x, a.y - (a.r + 25) / W, ("Area %d · %d spawns"):format(i, a.spawns or 0) }
         end
+        if detail == "simple" then return end
         local want = {}
         for _, id in ipairs(planned.beasts or {}) do want[id] = true end
         for _, b in ipairs(HME.Spawns.BeastPoints(mapID)) do
             if want[b.npcID] then
                 local lvl = math.floor((b.min + b.max) / 2 + 0.5)
                 local c = SM.COLORS[SM.Color(skill, SM.SkinReq(lvl)) or "grey"]
+                local known = HME.Spawns.Skinnable(b.npcID)
                 for _, p in ipairs(b.pts) do
-                    out.pins[#out.pins + 1] = { p[1], p[2], c[1], c[2], c[3], false,
+                    out.pins[#out.pins + 1] = { p[1], p[2], c, pc, known == true,
                         { ("%s (level %d-%d)"):format(b.name, b.min, b.max),
-                          ("needs %d Skinning · a spawn point, not a live beast"):format(SM.SkinReq(b.max)) }, true }
+                          ("%d+ Skinning · a spawn point, not a live beast%s"):format(SM.SkinReq(b.min),
+                              known == nil and " · not yet checked in game" or "") }, true,
+                        { label = "mark this beast wrong (not skinnable or not here)", run = function()
+                            HME.db.obs.badBeasts = HME.db.obs.badBeasts or {}
+                            HME.db.obs.badBeasts[b.npcID] = true
+                            HME.Print(b.name .. " is left out of skinning recommendations from now on.")
+                        end } }
                 end
             end
         end
     end
-    -- Preview or the active farm on this map
     local result = shown.result
     local planned
     if result and result.mapID == mapID then
@@ -187,18 +241,49 @@ local function Collect(mapID)
     end
     if planned then
         if planned.prof == "Skinning" then
-            if s.huntAreas ~= false then addHunt(planned, result) end
-        elseif planned.prof and planned.prof ~= "Fishing" then
-            local area = { x = planned.cx, y = planned.cy, r = ((planned.radius or 300) * 1.25 + 60) / ((HME.Geo.MapYards(mapID)) or 1500) }
-            addSites(planned.prof, planned.types, { x = planned.cx, y = planned.cy, r = (planned.radius or 300) * 1.25 + 60 })
-        else
+            if s.huntAreas ~= false then addHunt(planned) end
+        elseif planned.prof == "Fishing" then
             addSites("Fishing")
+        elseif planned.prof then
+            local area = { x = planned.cx, y = planned.cy, r = (planned.radius or 300) * 1.25 + 60 }
+            for _, p in ipairs(HME.Gathering.Profs(planned.prof)) do
+                if detail ~= "simple" then addSites(p, planned.types, area) end
+            end
+            out.discs[#out.discs + 1] = { planned.cx, planned.cy, area.r / W, O.PROF_COLOR[planned.prof] or { 1, 0.82, 0 }, 0.15 }
         end
     elseif s.nodePinsAlways then
         for prof in pairs(profile.skills) do
             if prof ~= "Skinning" then addSites(prof) end
         end
     end
+    -- The farm being followed: where the loop starts.
+    local g = HME.Guidance.Active()
+    if g and g.mapID == mapID then
+        local route = HME.Guidance.Route(g.routeID)
+        local stops = route and HME.Guidance.Stops(route) or {}
+        if stops[1] then out.labels[#out.labels + 1] = { stops[1][1], stops[1][2] - 0.012, "Start", true } end
+    end
+    return out
+end
+O.Collect = Collect
+
+-- Heatmap: spawn points counted on a grid; confirmed points weigh full,
+-- predicted ones half (lighter where the data is unconfirmed).
+local function Heat(data, W, H)
+    local cell = 0.03
+    local grid, maxv = {}, 0
+    for _, p in ipairs(data.pins) do
+        local k = math.floor(p[1] / cell) .. ":" .. math.floor(p[2] / cell)
+        local e = grid[k]
+        if not e then
+            e = { x = (math.floor(p[1] / cell) + 0.5) * cell, y = (math.floor(p[2] / cell) + 0.5) * cell, v = 0, c = p[4] }
+            grid[k] = e
+        end
+        e.v = e.v + (p[5] and 1 or 0.5)
+        if e.v > maxv then maxv = e.v end
+    end
+    local out = {}
+    for _, e in pairs(grid) do out[#out + 1] = { e.x, e.y, cell * 0.75, e.c, 0.15 + 0.6 * e.v / math.max(maxv, 1) } end
     return out
 end
 
@@ -223,9 +308,15 @@ function O.Draw()
         return
     end
     local data = Collect(mapID)
+    local s = HME.settings or {}
     local scale = CanvasScale()
-    local size = math.max(6, 11 / scale) * ((HME.settings and HME.settings.pinScale) or 1)
-    local alpha = ((HME.settings and HME.settings.huntAlpha) or 30) / 100
+    local size = math.max(6, 11 / scale) * (s.pinScale or 1)
+    local alphaScale = (s.huntAlpha or 30) / 100
+    if s.mapDetail == "heatmap" then
+        for _, d in ipairs(Heat(data, W, H)) do data.discs[#data.discs + 1] = d end
+        data.pins = {}
+    end
+    -- Discs (fills)
     local nd = 0
     for _, dsc in ipairs(data.discs) do
         nd = nd + 1
@@ -234,33 +325,83 @@ function O.Draw()
         d:SetSize(r * 2, r * 2)
         d:ClearAllPoints()
         d:SetPoint("CENTER", h, "TOPLEFT", dsc[1] * W, -dsc[2] * H)
-        d:SetVertexColor(dsc[4], dsc[5], dsc[6], alpha)
+        d:SetVertexColor(dsc[4][1], dsc[4][2], dsc[4][3], (dsc[5] or 0.3) * alphaScale)
         d:Show()
     end
     for i = nd + 1, #discs do discs[i]:Hide() end
+    -- Outlines (hunting-area boundaries)
+    local nl = 0
+    for _, o in ipairs(data.outlines) do
+        local poly, c = o[1], o[2]
+        local n = #poly / 2
+        for i = 1, n do
+            local j = i % n + 1
+            nl = nl + 1
+            local l = Line(nl)
+            l:SetStartPoint("TOPLEFT", h, poly[2 * i - 1] * W, -poly[2 * i] * H)
+            l:SetEndPoint("TOPLEFT", h, poly[2 * j - 1] * W, -poly[2 * j] * H)
+            l:SetThickness(math.max(1.5, 2 / scale))
+            l:SetVertexColor(c[1], c[2], c[3], 0.75)
+            l:Show()
+        end
+    end
+    for i = nl + 1, #lines do lines[i]:Hide() end
+    -- Labels
+    for i, lb in ipairs(data.labels) do
+        local l = Label(i)
+        l:ClearAllPoints()
+        l:SetPoint("CENTER", h, "TOPLEFT", lb[1] * W, -lb[2] * H)
+        l:SetText(lb[3])
+        l:SetTextColor(lb[4] and 0.3 or 1, lb[4] and 1 or 0.82, lb[4] and 0.4 or 0.3)
+        l:Show()
+    end
+    for i = #data.labels + 1, #labels do labels[i]:Hide() end
+    -- Pins, grouped where they crowd on screen.
     local limit = MaxPins()
-    local n = 0
+    local crowd = O.CROWD_PX * scale
+    local cells = {}
+    local groups = {}
     for _, p in ipairs(data.pins) do
+        local k = math.floor(p[1] * W / crowd) .. ":" .. math.floor(p[2] * H / crowd)
+        local g = cells[k]
+        if not g then
+            g = { p = p, n = 0 }
+            cells[k] = g
+            groups[#groups + 1] = g
+        end
+        g.n = g.n + 1
+        if p[5] then g.confirmed = (g.confirmed or 0) + 1 end
+    end
+    local n = 0
+    for _, g in ipairs(groups) do
         if n >= limit then break end
         n = n + 1
+        local p = g.p
         local pin = Pin(n)
-        local sz = p[8] and size * 0.6 or size
+        local sz = (p[7] and size * 0.65 or size) * (g.n > 1 and 1.35 or 1)
         pin:SetSize(sz, sz)
         pin.dot:SetSize(sz * 0.55, sz * 0.55)
         pin:ClearAllPoints()
         pin:SetPoint("CENTER", h, "TOPLEFT", p[1] * W, -p[2] * H)
-        pin.ring:SetVertexColor(p[3], p[4], p[5], 1)
-        pin.dot:SetVertexColor(p[3], p[4], p[5], p[6] and 1 or 0.25)
-        pin.tip = p[7]
+        pin.ring:SetVertexColor(p[3][1], p[3][2], p[3][3], 1)
+        pin.dot:SetVertexColor(p[4][1], p[4][2], p[4][3], p[5] and 1 or 0.3)
+        pin.count:SetText(g.n > 1 and tostring(g.n) or "")
+        if g.n > 1 then
+            pin.tip = { ("%d spawn points here"):format(g.n), ("%d confirmed, %d predicted. Zoom in to see each."):format(
+                g.confirmed or 0, g.n - (g.confirmed or 0)) }
+            pin.fix = nil
+        else
+            pin.tip, pin.fix = p[6], p[8]
+        end
         pin:Show()
     end
     for i = n + 1, #pins do pins[i]:Hide() end
     O.lastCount = n
-    O.truncated = #data.pins > limit
+    O.lastGroups = #groups
+    O.truncated = #groups > limit
     HME.Perf.Add("overlay:draw", HME.Clock() - t0)
 end
 
--- Opens the world map on a Farm Finder result and shows it.
 function O.Preview(result)
     shown = { kind = "preview", result = result }
     if HME.InCombat() then

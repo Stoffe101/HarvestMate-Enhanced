@@ -173,13 +173,28 @@ local function BuildRoutes(p)
         r.rebuild:SetPoint("LEFT", r.edit, "RIGHT", 6, 0)
         r.rebuild:SetScript("OnClick", function(self)
             if self.disabled or not r.route then return end
-            GP:RebuildRoute(r.route)
+            local route = r.route
+            if route.edited or route.recorded then
+                GP:Confirm(("|cffffd100%s|r was %s. Rebuilding works the loop out again and replaces those waypoints."):format(
+                    route.name, route.edited and "edited by hand" or "recorded in game"), "Rebuild", function() GP:RebuildRoute(route, true) end)
+                return
+            end
+            GP:RebuildRoute(route)
         end)
         T.Disabler(r.rebuild, { r.rebuild })
         T.Tooltip(r.rebuild, "Rebuild", "Reads this route's nodes from GatherMate2 again (it may know more by now) "
             .. "and finds the shortest loop again.")
         r.delete = FlatButton(r, "Delete", 70, 20)
         r.delete:SetPoint("LEFT", r.rebuild, "RIGHT", 6, 0)
+        r.points = FlatButton(r, "Waypoints", 90, 20)
+        r.points:SetPoint("LEFT", r.delete, "RIGHT", 6, 0)
+        r.points:SetScript("OnClick", function() if r.route then HME.RouteEditor.Start(r.route) end end)
+        T.Tooltip(r.points, "Waypoints", "Edit this route on the world map: left-click adds a waypoint, right-click removes one, "
+            .. "with Reverse, Undo and Cancel. Use it to steer round a cliff or into a cave entrance.")
+        r.follow = FlatButton(r, "Follow", 70, 20)
+        r.follow:SetPoint("LEFT", r.points, "RIGHT", 6, 0)
+        r.follow:SetScript("OnClick", function() if r.route then HME.Guidance.Start(r.route) end end)
+        T.Tooltip(r.follow, "Follow", "Guide me round this route (Forever-GPS takes the trip there if it is far).")
         r.info = Text(r, "", "GameFontDisableSmall")
         r.info:SetPoint("TOPLEFT", 40, -38)
         r.info:SetWidth(INFO_W)
@@ -226,8 +241,9 @@ local function BuildRoutes(p)
                 local line2 = "\n" .. GP:LapTime(route):gsub("^%l", string.upper) .. " a lap"
                     .. (GP.db.speed and "" or " on foot")
                     .. ((route.sight or 0) > 0 and ("  -  passes within " .. route.sight .. " yards") or "")
-                r.info:SetText(("%d nodes  -  %s round  -  %s%s"):format(GP:RouteNodes(route),
-                    GP.FormatYards(route.length or GP:RouteLength(route)), table.concat(kinds, ", "), line2))
+                r.info:SetText(("%d nodes  -  %s round  -  %s%s\n%s"):format(GP:RouteNodes(route),
+                    GP.FormatYards(route.length or GP:RouteLength(route)), table.concat(kinds, ", "), line2,
+                    HME.RouteEditor.Quality(route).text))
             end
             r.rebuild:SetDisabled(GP:Busy())
             r.edit:SetDisabled(route.working)

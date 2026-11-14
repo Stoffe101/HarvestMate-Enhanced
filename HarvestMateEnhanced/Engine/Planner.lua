@@ -147,7 +147,7 @@ end
 -- A route already made for this result (same farm key), if any.
 function P.Existing(key)
     for _, r in ipairs((HME.Routes and HME.Routes.db and HME.Routes.db.routes) or {}) do
-        if r.planned and r.planned.key == key then return r end
+        if r.planned and r.planned.key == key and not r.edited then return r end
     end
 end
 
@@ -159,6 +159,7 @@ function P.Create(result, goal, done)
     local GP = HME.Routes
     if not (GP and GP.db) then return nil end
     local existing = P.Existing(result.key)
+    if existing and existing.edited then existing = nil end   -- never replan a route you edited
     if existing then
         existing.planned = Describe(result, goal)
         if existing.working then return existing end
@@ -166,7 +167,12 @@ function P.Create(result, goal, done)
         P.WhenBuilt(existing, done)
         return existing
     end
-    local name = ("%s - %s %s"):format(result.zone or HME.ZoneData.Name(result.mapID), result.prof, GOAL_NAMES[goal] or goal)
+    local base = ("%s - %s %s"):format(result.zone or HME.ZoneData.Name(result.mapID), result.prof, GOAL_NAMES[goal] or goal)
+    local name, n = base, 1
+    while GP:RouteNamed(result.mapID, name) do
+        n = n + 1
+        name = ("%s (%d)"):format(base, n)
+    end
     local route = GP:NewRoute({
         mapID = result.mapID, kinds = {}, name = name,
         sight = result.prof == "Skinning" and 0 or P.DETECT,

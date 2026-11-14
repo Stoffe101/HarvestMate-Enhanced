@@ -147,3 +147,52 @@ check(#HME.db.routes.routes > 0, "routes kept")
 HME.DBM.ResetLearned()
 eq(HME.U.Count(HME.db.obs.nodes), 0, "learned nodes gone")
 check(#HME.db.routes.routes > 0, "routes still kept")
+
+STEP("upgrade from 0.1.0 data")
+local old = {
+    schema = 1, settings = { hudCompact = true, riskMode = "safer" },
+    stats = { ["Skinning@1431:1:2"] = { hours = 2, sessions = 2, beasts = 300, value = 50000 } },
+    sessions = { { t = 1, secs = 1800, value = 9000, skillups = 10, counts = { herb = 0, mine = 0, skin = 30, fish = 0, kills = 30 } } },
+    routes = { routes = { { id = 1, mapID = 1429, name = "Kept", points = { 0.1, 0.1, 0.2, 0.2, 0.3, 0.1 }, kinds = {} } } },
+}
+local up = HME.DBM.Prepare(old)
+eq(up.schema, 2, "schema 2")
+eq(up.settings.hudSize, "compact", "the compact HUD carries over")
+eq(up.settings.riskMode, "safer", "settings kept")
+eq(up.stats["Skinning@1431:1:2"].travelHours, 0, "travel time starts at zero for old areas")
+eq(up.sessions[1].farmSecs, 1800, "old sessions keep their time")
+check(up.sessions[1].mixedTravel, "and are marked as possibly including travel")
+eq(up.routes.routes[1].name, "Kept", "routes untouched")
+
+STEP("damaged saves are repaired, not fatal")
+local bad = {
+    schema = 2, settings = { scale = "huge", riskMode = 5 }, obs = { nodes = { [1429] = "junk", junk = {}, [1436] = { a = { x = 0.1 }, b = { p = "Mining", x = 0.2, y = 0.3 } } },
+        skins = { [1] = "x", [2] = { n = 3, qty = {} } }, deaths = { "x", { m = 1 } }, loot = { [5] = 7 } },
+    stats = { bad = "x" }, sessions = { "x", { value = 1 } },
+}
+HME.repaired = 0
+local fixed = HME.DBM.Prepare(bad)
+check(HME.repaired >= 8, "bad entries counted (" .. HME.repaired .. ")")
+eq(fixed.settings.scale, 1.0, "a broken setting back to its default")
+check(fixed.obs.nodes[1429] == nil and fixed.obs.nodes.junk == nil, "broken maps dropped")
+check(fixed.obs.nodes[1436].b and not fixed.obs.nodes[1436].a, "only the broken node goes")
+check(fixed.obs.skins[2] and not fixed.obs.skins[1], "good skins kept")
+eq(#fixed.sessions, 0, "broken sessions dropped")
+eq(#fixed.obs.deaths, 1, "good deaths kept")
+local char = HME.DBM.PrepareChar({ goals = "x", profiles = { "y", { name = "ok" } }, session = 5 })
+eq(#char.goals, 0, "broken goals list replaced")
+eq(#char.profiles, 1, "only good profiles kept")
+eq(char.session, nil, "a broken saved session is dropped")
+
+STEP("imports are size-limited")
+local huge = "HME1:00000000:" .. string.rep("s1:a", 10)
+check(not HME.DBM.ReadImport(huge), "a forged checksum is refused")
+
+STEP("imported routes are validated")
+local payload = { v = 1, routes = { { mapID = 1429, name = "ok", points = { 0.1, 0.1, 0.2, 0.2 } },
+    { mapID = 1429, name = "bad", points = { 0.1, "x", 5, 0.2 } }, { mapID = 1429, name = "neg", points = { -1, 0, 0, 0 } } } }
+local before = #HME.db.routes.routes
+local added = HME.DBM.ApplyImport(payload)
+eq(added.routes, 1, "only the valid route")
+check(HME.db.routes.routes[before + 1].imported, "marked imported")
+check(not HME.DBM.ReadImport(string.rep("x", 2000001)), "over 2 MB refused")

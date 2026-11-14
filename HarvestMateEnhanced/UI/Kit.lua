@@ -303,6 +303,7 @@ end
 function K.Button(parent, text, w, h, onClick, tip)
     local b = T.FlatButton(parent, text, w or 110, h or 22)
     T.Disabler(b, { b })
+    b.disabled = false
     if onClick then
         b:SetScript("OnClick", function(self, ...)
             if self.disabled then return end

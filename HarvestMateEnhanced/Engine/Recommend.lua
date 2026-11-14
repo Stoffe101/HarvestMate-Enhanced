@@ -300,6 +300,16 @@ function R.Score(results, query, profile)
         local EV = { measured = 1, ["partly measured"] = 0.97, ["known yield"] = 0.94, ["published data"] = 0.9, assumption = 0.87 }
         score = score * (EV[r.evidence and r.evidence.level or "assumption"] or 0.87)
         if r.sizeUnknown then score = score * 0.75 end
+        -- No price known at all (no auction addon, item data not loaded yet):
+        -- still list the farm, ranked by how much it yields, and say so.
+        r.noPrice = nil
+        if (goal == "profit" or goal == "balanced") and score <= 0 then
+            local units = m.materialPerHour or m.beastsPerHour or m.nodesPerHour or m.catchesPerHour or 0
+            if units > 0 then
+                score = units * 1e-6 * penalty
+                r.noPrice = true
+            end
+        end
         r.score = score
         r.scoreBase = base
         r.riskPenalty = penalty
@@ -328,6 +338,7 @@ function R.Summary(r, query, profile)
     local m = r.metrics
     local good, warn = {}, {}
     local goal = query.goal
+    if r.noPrice then warn[1] = "no prices known yet, so this is ranked by how much it yields" end
     if r.prof == "Skinning" then
         local n, top = 0, nil
         for _, t in ipairs(r.targets or {}) do

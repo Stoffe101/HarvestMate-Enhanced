@@ -125,3 +125,63 @@ eq(HME.Window.frame.currentTab, "finder", "/hme finder")
 SlashCmdList.HARVESTMATEENHANCED("diag")
 check(Said("data ok"), "/hme diag")
 check(SlashCmdList.HMEHARVESTMATE and SlashCmdList.HMEGATHERPEDIA, "/hm and /gp answered while those addons are absent")
+
+STEP("Goals & Plans page: add, progress, plan")
+HME.OpenWindow("goals")
+local gp = HME.Window.frame.pages.goals
+check(HME.Window.frame.currentTab == "goals", "the page opens")
+HME.Goals.Add({ type = "skill", prof = "Skinning", target = 225 })
+HME.Goals.Add({ type = "item", itemID = 2318, target = 40 })
+gp.Refresh()
+check(#(ERRORS or {}) == 0, "no errors: " .. tostring(ERRORS and ERRORS[1]))
+HME.Guide.Plan("Skinning", 225, function() end)
+HME.FinishJobs()
+gp.Refresh()
+
+STEP("Farm Finder: compare two farms, filters, invalid search")
+HME.OpenWindow("finder")
+HME.Pages.finderSet("Skinning", "profit")
+HME.FinishJobs()
+local res = HME.Pages.finderResults()
+check(#res >= 2, "results")
+HME.Pages.finderMark(res[1])
+HME.Pages.finderMark(res[2])
+check(HME.Pages.finderCompare(), "comparison shown")
+HME.Pages.finderSet("Skinning", "level", nil, "safer", { continent = "K" })
+HME.FinishJobs()
+for _, r in ipairs(HME.Pages.finderResults()) do eq(HME.ZoneData.Get(r.mapID).cont, "K", "continent filter: " .. r.zone) end
+HME.Pages.finderSet("Mining", "material", "%%%[[[")
+check(#HME.Pages.finderResults() >= 0, "odd characters in a search don't break it")
+HME.Pages.finderSet("Combined", "level", nil, "balanced", {})
+HME.FinishJobs()
+check(#(ERRORS or {}) == 0, "no errors: " .. tostring(ERRORS and ERRORS[1]))
+
+STEP("Dashboard quick start from a saved profile")
+HME.Profiles.Save("Leather run", { prof = "Skinning", goal = "profit", minutes = 30 })
+HME.OpenWindow("dashboard")
+local dash = HME.Window.frame.pages.dashboard
+dash.Refresh()
+local found
+for _, f in ipairs(ALL_FRAMES) do if f.__kind == "Button" and f.__text == "Leather run" and f:IsVisible() then found = f end end
+check(found, "a quick-start button")
+Click(found)
+eq(HME.Window.frame.currentTab, "finder", "starts the profile in the Farm Finder")
+
+STEP("Stats views with filters, and long text")
+HME.OpenWindow("stats")
+local stats = HME.Window.frame.pages.stats
+stats.Refresh()
+for _, f in ipairs(ALL_FRAMES) do
+    if f.__kind == "Button" and (f.__text == "Overview" or f.__text == "Measured areas") then Click(f) end
+end
+HME.Session.Start()
+HME.Signal("GATHER_LOOT", "mine", "Copper Vein", { [2770] = 2 }, {})
+FAKE_TIME = FAKE_TIME + 120
+Tick(1.1)
+HME.Session.Stop("test")
+stats.Refresh()
+HME.Goals.Add({ type = "item", itemID = 2318, target = 5 })
+HME.Goals.List()[#HME.Goals.List()].name = string.rep("Sehr langer lokalisierter Name ", 6)
+HME.OpenWindow("goals")
+HME.Window.frame.pages.goals.Refresh()
+check(#(ERRORS or {}) == 0, "no errors with long names: " .. tostring(ERRORS and ERRORS[1]))

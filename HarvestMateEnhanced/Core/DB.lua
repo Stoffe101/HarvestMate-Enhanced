@@ -161,12 +161,66 @@ function DB.Prepare(saved)
     Section(saved, "stats")
     Section(saved, "sessions")
     Section(saved, "migrations")
+    DB.Sanitize(saved)
     return saved
+end
+
+-- Damaged or hand-edited saves: entries of the wrong shape are dropped (and
+-- counted in HME.repaired) instead of breaking the addon later. Only the bad
+-- entries go; everything else stays as it was.
+function DB.Sanitize(saved)
+    local fixed = 0
+    local function keepTables(t, check)
+        for k, v in pairs(t) do
+            if type(v) ~= "table" or (check and not check(v)) then
+                t[k] = nil
+                fixed = fixed + 1
+            end
+        end
+    end
+    for mapID, cells in pairs(saved.obs.nodes) do
+        if type(mapID) ~= "number" or type(cells) ~= "table" then
+            saved.obs.nodes[mapID] = nil
+            fixed = fixed + 1
+        else
+            keepTables(cells, function(rec) return type(rec.x) == "number" and type(rec.y) == "number" and type(rec.p) == "string" end)
+        end
+    end
+    keepTables(saved.obs.skins, function(rec) return type(rec.n) == "number" and type(rec.qty) == "table" end)
+    keepTables(saved.obs.loot, function(rec) return type(rec.n) == "number" end)
+    keepTables(saved.stats, function(st) return type(st.hours) == "number" end)
+    for i = #saved.sessions, 1, -1 do
+        local s = saved.sessions[i]
+        if type(s) ~= "table" or type(s.counts) ~= "table" or type(s.value) ~= "number" then
+            table.remove(saved.sessions, i)
+            fixed = fixed + 1
+        end
+    end
+    for i = #saved.obs.deaths, 1, -1 do
+        if type(saved.obs.deaths[i]) ~= "table" then
+            table.remove(saved.obs.deaths, i)
+            fixed = fixed + 1
+        end
+    end
+    for k, v in pairs(DB.SETTINGS) do
+        if type(saved.settings[k]) ~= type(v) then
+            saved.settings[k] = type(v) == "table" and U.Copy(v) or v
+            fixed = fixed + 1
+        end
+    end
+    if fixed > 0 then HME.repaired = (HME.repaired or 0) + fixed end
+    return fixed
 end
 
 function DB.PrepareChar(saved)
     if type(saved) ~= "table" then saved = {} end
     Fill(saved, CHAR_DEFAULTS)
+    for _, k in ipairs({ "goals", "profiles", "favorites", "recents" }) do
+        if type(saved[k]) ~= "table" then saved[k] = {} end
+        for i = #saved[k], 1, -1 do if type(saved[k][i]) ~= "table" then table.remove(saved[k], i) end end
+    end
+    if type(saved.guidance) ~= "table" then saved.guidance = {} end
+    if saved.session ~= nil and (type(saved.session) ~= "table" or type(saved.session.counts) ~= "table") then saved.session = nil end
     if type(saved.plan.skills) ~= "table" then saved.plan.skills = {} end
     if type(saved.eff.kill) ~= "table" then saved.eff.kill = {} end
     return saved
@@ -353,7 +407,20 @@ end
 
 -- Returns the decoded payload without changing anything (the UI shows what
 -- would be added, then calls DB.ApplyImport).
+DB.IMPORT_MAX_BYTES = 2000000
+DB.IMPORT_MAX_ROUTES = 200
+DB.IMPORT_MAX_POINTS = 2000
+
+local function ValidPoints(p)
+    if type(p) ~= "table" or #p < 4 or #p % 2 ~= 0 or #p > DB.IMPORT_MAX_POINTS * 2 then return false end
+    for i = 1, #p do
+        if type(p[i]) ~= "number" or p[i] < 0 or p[i] > 1 then return false end
+    end
+    return true
+end
+
 function DB.ReadImport(text)
+    if type(text) == "string" and #text > DB.IMPORT_MAX_BYTES then return nil, "Too large to import (over 2 MB)." end
     text = U.Trim(text or "")
     local sum, body = text:match("^HME1:(%x+):(.*)$")
     if not sum then return nil, "This is not a HarvestMate Enhanced export." end
@@ -373,12 +440,17 @@ function DB.ApplyImport(data)
     r.taboos = r.taboos or {}
     r.skip = r.skip or {}
     r.nextID = r.nextID or 1
-    for _, route in ipairs(type(data.routes) == "table" and data.routes or {}) do
-        if type(route) == "table" and type(route.mapID) == "number" and type(route.points) == "table" then
+    for i, route in ipairs(type(data.routes) == "table" and data.routes or {}) do
+        if i > DB.IMPORT_MAX_ROUTES then break end
+        if type(route) == "table" and type(route.mapID) == "number" and ValidPoints(route.points) then
             local copy = U.Copy(route)
             copy.id = r.nextID
             r.nextID = r.nextID + 1
             copy.working = nil
+            copy.imported = true
+            copy.edited, copy.verified, copy.laps = nil, nil, nil
+            copy.kinds = type(copy.kinds) == "table" and copy.kinds or {}
+            copy.color = type(copy.color) == "table" and copy.color or { 1, 0.82, 0 }
             local base = type(copy.name) == "string" and copy.name or "Imported route"
             local name, n = base, 1
             local taken = true
@@ -401,7 +473,7 @@ function DB.ApplyImport(data)
         if type(mapID) == "number" and type(list) == "table" then
             r.taboos[mapID] = r.taboos[mapID] or {}
             for _, poly in ipairs(list) do
-                if type(poly) == "table" and #poly >= 6 then
+                if ValidPoints(poly) and #poly >= 6 then
                     table.insert(r.taboos[mapID], U.Copy(poly))
                     added.taboos = added.taboos + 1
                 end
@@ -416,7 +488,8 @@ function DB.ApplyImport(data)
             local mine = HME.db.obs.nodes[mapID] or {}
             HME.db.obs.nodes[mapID] = mine
             for cell, rec in pairs(cells) do
-                if type(rec) == "table" and mine[cell] == nil and type(rec.x) == "number" then
+                if type(rec) == "table" and mine[cell] == nil and type(rec.x) == "number" and type(rec.y) == "number"
+                    and type(rec.p) == "string" and rec.x >= 0 and rec.x <= 1 and rec.y >= 0 and rec.y <= 1 then
                     mine[cell] = U.Copy(rec)
                     mine[cell].imp = true   -- came from someone else: shown as imported
                     added.nodes = added.nodes + 1

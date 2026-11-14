@@ -102,6 +102,7 @@ UI\Theme.lua
 Routes\Routes.lua
 Routes\Pin.xml
 Routes\RoutesUI.lua
+Routes\Editor.lua
 Map\Overlay.lua
 Map\Arrow.lua
 Map\Guidance.lua

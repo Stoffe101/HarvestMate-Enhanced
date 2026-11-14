@@ -741,7 +741,13 @@ function GP:NewRoute(opts)
 end
 
 -- Reads the nodes again (GatherMate2 may know more by now) and finds the loop again
-function GP:RebuildRoute(route)
+function GP:RebuildRoute(route, force)
+    -- A route edited by hand or recorded in game keeps its waypoints unless
+    -- the player confirmed (force).
+    if (route.edited or route.recorded) and not force then
+        Print(route.name .. " was edited or recorded by hand; Rebuild on the Routes page asks before replacing it.")
+        return false
+    end
     if self.job then
         Print("still working out the last route. Try again in a moment.")
         return false
