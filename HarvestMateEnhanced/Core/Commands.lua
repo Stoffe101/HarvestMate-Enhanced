@@ -18,6 +18,7 @@ local function Help()
         "/hme farm skin|herb|mine|fish [level|profit]  open the Farm Finder on it",
         "/hme stop  stop following the farm   ·   /hme nav  navigate to it",
         "/hme here  guide the loop beside another Forever-GPS journey   ·   /hme giveback  hand the arrow back",
+        "/hme rec [start name|pause|resume|stop|cancel]  record your own route as you ride it",
         "/hme session start|pause|end   ·   /hme hud  show or hide the HUD",
         "/hme glimmer [on|off|preview]   ·   /hme soft [off]   ·   /hme key [KEY]",
         "/hme export  ·  /hme import <name>  copy data from HarvestMate/Gatherpedia/GatherPath",
@@ -45,6 +46,22 @@ function cmds.nav() HME.Guidance.Navigate() end
 -- Guide me here: HME's arrow round the loop although another journey runs
 -- (that journey is never stopped); /hme giveback hands the arrow back.
 function cmds.here() HME.Guidance.TakeOver() end
+
+-- Record my route: /hme rec [start [name] | pause | resume | stop | cancel]
+function cmds.rec(rest)
+    local R = HME.Recorder
+    local verb, arg = (rest or ""):match("^(%S*)%s*(.-)$")
+    if verb == "" then verb = R.Active() and "stop" or "start" end
+    if verb == "start" then
+        local ok, why = R.Start(arg ~= "" and arg or nil)
+        if not ok then HME.Print("can't record: " .. tostring(why) .. ".") end
+    elseif verb == "pause" then R.Pause()
+    elseif verb == "resume" then R.Resume()
+    elseif verb == "stop" or verb == "save" then R.Stop()
+    elseif verb == "cancel" then R.Cancel()
+    else HME.Print("/hme rec start [name] | pause | resume | stop | cancel") end
+end
+cmds.record = cmds.rec
 function cmds.giveback() HME.Guidance.GiveBack() end
 function cmds.hud() HME.HUD.Toggle() end
 

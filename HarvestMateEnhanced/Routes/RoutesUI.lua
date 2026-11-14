@@ -130,6 +130,25 @@ local function BuildRoutes(p)
     T.Tooltip(make, "New route", "Make a route in the zone picked here.")
     refs.routesNew = make
 
+    -- HME: Record my route.
+    local rec = FlatButton(p, "Record my route", 140)
+    rec:SetPoint("RIGHT", make, "LEFT", -8, 0)
+    rec:SetScript("OnClick", function()
+        local R = HME.Recorder
+        if R.Active() then R.Stop() else
+            local ok, why = R.Start()
+            if not ok then HME.Print("can't record: " .. tostring(why) .. ".") end
+        end
+        GP:RefreshConfig()
+    end)
+    T.Tooltip(rec, "Record my route", "Ride round your farm the way you like: HME writes your path down once a "
+        .. "second (standing still writes nothing) and saves it as a route you can edit, reverse, trim, export and "
+        .. "follow. What you gather on the way is kept with it. /hme rec pause | resume | cancel.")
+    refs.routesRec = rec
+    HME.Listen("RECORDING_CHANGED", function()
+        rec:SetText((HME.Recorder and HME.Recorder.Active()) and "Stop & save" or "Record my route")
+    end)
+
     local holder = CreateFrame("Frame", nil, p)
     holder:SetPoint("TOPLEFT", 0, -34)
     holder:SetSize(PAGE_W, BODY_H - 34)
@@ -215,6 +234,8 @@ local function BuildRoutes(p)
     end
 
     AddRefresher(function()
+        local recState = HME.Recorder and HME.Recorder.State()
+        refs.routesRec:SetText(recState and "Stop & save" or "Record my route")
         PickRoutesZone()
         zone.keys = RoutesZoneChoices()
         zone:Refresh()
@@ -241,7 +262,17 @@ local function BuildRoutes(p)
                 local line2 = "\n" .. GP:LapTime(route):gsub("^%l", string.upper) .. " a lap"
                     .. (GP.db.speed and "" or " on foot")
                     .. ((route.sight or 0) > 0 and ("  -  passes within " .. route.sight .. " yards") or "")
-                r.info:SetText(("%d nodes  -  %s round  -  %s%s\n%s"):format(GP:RouteNodes(route),
+                -- HME: what was gathered along a recording.
+                if route.recordedBy then
+                    local seen = {}
+                    for k, s in ipairs(HME.Recorder.Seen(route)) do
+                        if k > 3 then break end
+                        seen[#seen + 1] = ("%d %s"):format(s.count, s.name or s.kind or "?")
+                    end
+                    if #seen > 0 then kinds[#kinds + 1] = "seen: " .. table.concat(seen, ", ") end
+                end
+                r.info:SetText(("%d %s  -  %s round  -  %s%s\n%s"):format(GP:RouteNodes(route),
+                    route.recordedBy and "points" or "nodes",
                     GP.FormatYards(route.length or GP:RouteLength(route)), table.concat(kinds, ", "), line2,
                     HME.RouteEditor.Quality(route).text))
             end

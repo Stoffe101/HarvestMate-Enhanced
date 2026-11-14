@@ -221,6 +221,12 @@ function DB.PrepareChar(saved)
     end
     if type(saved.guidance) ~= "table" then saved.guidance = {} end
     if saved.session ~= nil and (type(saved.session) ~= "table" or type(saved.session.counts) ~= "table") then saved.session = nil end
+    -- A recording in progress (Routes/Recorder.lua) must have its points and map.
+    local rec = saved.recording
+    if rec ~= nil and (type(rec) ~= "table" or type(rec.points) ~= "table" or type(rec.mapID) ~= "number"
+        or #rec.points % 2 ~= 0 or type(rec.obs) ~= "table") then
+        saved.recording = nil
+    end
     if type(saved.plan.skills) ~= "table" then saved.plan.skills = {} end
     if type(saved.eff.kill) ~= "table" then saved.eff.kill = {} end
     return saved
@@ -395,7 +401,15 @@ function DB.Export(what)
     what = what or { routes = true, taboos = true, nodes = false }
     local payload = { v = 1 }
     local r = HME.db.routes
-    if what.routes then payload.routes = r.routes end
+    if what.routes then
+        -- Without the drawn polylines and terrain summaries: the importer walks its own.
+        payload.routes = {}
+        for i, route in ipairs(r.routes or {}) do
+            local copy = U.Copy(route)
+            copy.path, copy.pathLeg, copy.terrain, copy.walkLength, copy.working = nil, nil, nil, nil, nil
+            payload.routes[i] = copy
+        end
+    end
     if what.taboos then
         payload.taboos = r.taboos
         payload.skip = r.skip
@@ -449,6 +463,18 @@ function DB.ApplyImport(data)
             copy.working = nil
             copy.imported = true
             copy.edited, copy.verified, copy.laps = nil, nil, nil
+            copy.path, copy.pathLeg, copy.terrain, copy.walkLength = nil, nil, nil, nil
+            -- Someone else's recording is not yours: still a recording, labelled imported.
+            if copy.recordedBy then copy.recordedBy = "import" end
+            local obs = {}
+            for _, o in ipairs(type(copy.obs) == "table" and copy.obs or {}) do
+                if #obs < 300 and type(o) == "table" and type(o.x) == "number" and type(o.y) == "number"
+                    and o.x >= 0 and o.x <= 1 and o.y >= 0 and o.y <= 1 then
+                    obs[#obs + 1] = { k = type(o.k) == "string" and o.k:sub(1, 12) or nil,
+                                      n = type(o.n) == "string" and o.n:sub(1, 40) or nil, x = o.x, y = o.y }
+                end
+            end
+            copy.obs = #obs > 0 and obs or nil
             copy.kinds = type(copy.kinds) == "table" and copy.kinds or {}
             copy.color = type(copy.color) == "table" and copy.color or { 1, 0.82, 0 }
             local base = type(copy.name) == "string" and copy.name or "Imported route"

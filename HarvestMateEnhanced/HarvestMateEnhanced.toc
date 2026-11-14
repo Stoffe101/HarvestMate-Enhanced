@@ -104,6 +104,7 @@ Routes\Pin.xml
 Routes\RoutesUI.lua
 Routes\Editor.lua
 Routes\Terrain.lua
+Routes\Recorder.lua
 Map\Overlay.lua
 Map\Arrow.lua
 Map\Guidance.lua

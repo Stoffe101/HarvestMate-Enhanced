@@ -51,6 +51,10 @@ local function Stops(route)
     local out = {}
     local p = route and route.points or {}
     for i = 1, #p - 1, 2 do out[#out + 1] = { p[i], p[i + 1] } end
+    -- A there-and-back recording is followed out and back as one loop.
+    if route and route.backforth and #out > 2 then
+        for i = #out - 1, 2, -1 do out[#out + 1] = { out[i][1], out[i][2] } end
+    end
     if route and route.reversed and #out > 1 then
         local rev = {}
         for i = #out, 1, -1 do rev[#rev + 1] = out[i] end

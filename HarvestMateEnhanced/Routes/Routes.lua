@@ -437,7 +437,25 @@ GP.APPROX_COLOR = { 1, 0.45, 0.2 }
 function GP:DrawPoints(route)
     local path = HME.Terrain and HME.Terrain.Path(route)
     if path then return path, route.pathLeg end
+    if route.backforth and #route.points > 4 then
+        -- There and back: the way back runs along the way out, not straight across.
+        local p, out = route.points, {}
+        for i = 1, #p do out[i] = p[i] end
+        for i = #p / 2 - 1, 2, -1 do out[#out + 1], out[#out + 2] = p[2 * i - 1], p[2 * i] end
+        return out, nil
+    end
     return route.points, nil
+end
+
+-- HME: the routes to draw, and the route being recorded now (Routes/Recorder.lua).
+function GP:DrawnRoutes()
+    local rec = HME.Recorder and HME.Recorder.State()
+    if not (rec and #rec.points >= 4) then return self.db.routes end
+    local out = {}
+    for i, r in ipairs(self.db.routes) do out[i] = r end
+    out[#out + 1] = { mapID = rec.mapID, points = rec.points, shown = true, open = true, live = true,
+                      color = { 1, 0.3, 0.3 }, name = "recording" }
+    return out
 end
 
 -- Nodes the route takes you past
@@ -1252,7 +1270,7 @@ function Pin:Draw()
         -- the canvas is zoomed; keep lines the same width on screen
         local scale = self:GetEffectiveScale() / max(0.01, map:GetEffectiveScale())
         local alpha = db.worldAlpha / 100
-        for _, route in ipairs(db.routes) do
+        for _, route in ipairs(GP:DrawnRoutes()) do
             local stops = GP:NodeCount(route)
             -- HME: the walked polyline where the legs were walked on the grid.
             local p, legOf = GP:DrawPoints(route)
@@ -1270,7 +1288,7 @@ function Pin:Draw()
                     end
                     for i = 1, n do
                         local j = i % n + 1
-                        if not (stops == 2 and i == n) then
+                        if not ((stops == 2 or route.open) and i == n) then
                             local line = pool:Get()
                             -- HME: a leg the walking grid could not walk is drawn in the warning colour.
                             local leg = legOf and legOf[i]
@@ -1626,7 +1644,7 @@ function GP:DrawMinimap(force)
     local join   -- the nearest point of any route: { x, y, distance, color }
     pool:Begin()
     arrows:Begin()
-    for _, route in ipairs(db.routes) do
+    for _, route in ipairs(self:DrawnRoutes()) do
         local at = maps[route.mapID]
         local stops = self:NodeCount(route)
         local p = self:DrawPoints(route)
@@ -1644,7 +1662,7 @@ function GP:DrawMinimap(force)
             end
             for i = 1, n do
                 local j = i % n + 1
-                if not (stops == 2 and i == n) then
+                if not ((stops == 2 or route.open) and i == n) then
                     local ax, ay, bx, by = clip(sx[i], sy[i], sx[j], sy[j], inside)
                     if ax then
                         local line = pool:Get()

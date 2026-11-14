@@ -17,6 +17,11 @@
 --                            detour most when the walked loop gets shorter,
 --                            and keeps the old order otherwise
 --
+-- Where several sources know a leg, the most trusted leads: your own edited
+-- waypoints are never touched; then a route recorded in game that passes both
+-- ends (yours first, then Gatherpedia's), as "corridor"; then Forever-GPS's
+-- walking grid; then the straight line, marked approximate.
+--
 -- Legs are cached account-wide (HarvestMateEnhancedDB.terrain, bounded) by
 -- their ends; a route whose points change is walked again only where its legs
 -- changed. Recorded routes are already the way someone walked: never refined.
@@ -69,11 +74,23 @@ local function Key(mapID, ax, ay, bx, by) return ("%d:%.4f:%.4f:%.4f:%.4f"):form
 T.Key = Key
 
 -- A leg either way round (a walk back is the same way, reversed).
+local function RouteByID(id)
+    for _, r in ipairs((HME.Routes and HME.Routes.db and HME.Routes.db.routes) or {}) do
+        if r.id == id then return r end
+    end
+end
+
+-- A corridor whose recording was deleted is no corridor any more.
+local function Live(e)
+    if e and e.s == "corridor" and not RouteByID(e.src) then return nil end
+    return e
+end
+
 local function Lookup(mapID, ax, ay, bx, by)
     local c = Store()
-    local e = c.legs[Key(mapID, ax, ay, bx, by)]
+    local e = Live(c.legs[Key(mapID, ax, ay, bx, by)])
     if e then return e, false end
-    e = c.legs[Key(mapID, bx, by, ax, ay)]
+    e = Live(c.legs[Key(mapID, bx, by, ax, ay)])
     if e then return e, true end
     return nil
 end
@@ -86,9 +103,9 @@ local function Remember(mapID, ax, ay, bx, by, res)
         c.order[#c.order + 1] = key
         while #c.order > T.CACHE_MAX do c.legs[table.remove(c.order, 1)] = nil end
     end
-    local e = { s = res.status, y = HME.Num(res.yards), l = HME.Num(res.straight), t = HME.Now() }
+    local e = { s = res.status, y = HME.Num(res.yards), l = HME.Num(res.straight), t = HME.Now(), src = res.src }
     -- Only the turns between the ends are kept, rounded to the map's 0.0001.
-    if res.status == "path" and type(res.points) == "table" and #res.points > 4 then
+    if (res.status == "path" or res.status == "corridor") and type(res.points) == "table" and #res.points > 4 then
         local inner = {}
         for i = 3, #res.points - 2 do inner[#inner + 1] = R4(res.points[i]) end
         e.p = inner
@@ -130,7 +147,77 @@ T.Legs = Legs
 
 local function Yards(mapID, ax, ay, bx, by) return HME.Geo.Distance(mapID, ax, ay, bx, by) or 0 end
 
-local GOOD = { straight = true, path = true }
+local GOOD = { straight = true, path = true, corridor = true }
+T.GOOD = GOOD
+
+---------------------------------------------------------------------------
+-- Recorded corridors: a leg along a route someone actually rode
+---------------------------------------------------------------------------
+T.CORRIDOR_REACH = 25     -- both ends this near the recorded path
+T.CORRIDOR_MAX = 2.5      -- and the way along it at most this times the line
+
+-- The way along recorded route r from A to B, or nil.
+local function Along(r, mapID, ax, ay, bx, by, line)
+    local p = HME.Routes:DrawPoints(r)
+    local n = math.floor(#p / 2)
+    if n < 2 then return nil end
+    local ia, da, ib, db = nil, T.CORRIDOR_REACH, nil, T.CORRIDOR_REACH
+    for i = 1, n do
+        local d1 = Yards(mapID, ax, ay, p[2 * i - 1], p[2 * i])
+        if d1 <= da then ia, da = i, d1 end
+        local d2 = Yards(mapID, bx, by, p[2 * i - 1], p[2 * i])
+        if d2 <= db then ib, db = i, d2 end
+    end
+    if not (ia and ib) or ia == ib then return nil end
+    local closed = not (r.open or (r.loop == false and not r.backforth))
+    local function Walk(step)
+        local pts, yards, i = {}, da + db, ia
+        while i ~= ib do
+            local j = i + step
+            if j > n then j = closed and 1 or nil elseif j < 1 then j = closed and n or nil end
+            if not j then return nil end
+            yards = yards + Yards(mapID, p[2 * i - 1], p[2 * i], p[2 * j - 1], p[2 * j])
+            i = j
+            if i ~= ib then pts[#pts + 1], pts[#pts + 2] = p[2 * i - 1], p[2 * i] end
+        end
+        return pts, yards
+    end
+    local best, bestY
+    for _, step in ipairs({ 1, -1 }) do
+        local pts, yards = Walk(step)
+        if pts and (not bestY or yards < bestY) then best, bestY = pts, yards end
+    end
+    if not best or bestY > line * T.CORRIDOR_MAX + 20 then return nil end
+    -- The recorded points nearest the ends join the leg's own ends.
+    table.insert(best, 1, p[2 * ia])
+    table.insert(best, 1, p[2 * ia - 1])
+    best[#best + 1], best[#best + 2] = p[2 * ib - 1], p[2 * ib]
+    return best, bestY
+end
+
+-- A leg along a recorded route: { status = "corridor", yards, straight,
+-- points (ends included), src = route id } or nil. Yours before Gatherpedia's.
+function T.Corridor(mapID, ax, ay, bx, by, except)
+    local line = Yards(mapID, ax, ay, bx, by)
+    if line < 3 then return nil end
+    local best, bestRank
+    for _, r in ipairs((HME.Routes and HME.Routes.db and HME.Routes.db.routes) or {}) do
+        if r ~= except and r.recorded and r.mapID == mapID and r.points and #r.points >= 4 then
+            local pts, yards = Along(r, mapID, ax, ay, bx, by, line)
+            if pts then
+                local rank = yards * (r.recordedBy == "you" and 1 or 1.3)
+                if not bestRank or rank < bestRank then
+                    bestRank = rank
+                    local all = { ax, ay }
+                    for i = 1, #pts do all[#all + 1] = pts[i] end
+                    all[#all + 1], all[#all + 2] = bx, by
+                    best = { status = "corridor", yards = yards, straight = line, points = all, src = r.id }
+                end
+            end
+        end
+    end
+    return best
+end
 
 -- Builds route.path and route.terrain from the cache (no searching).
 function T.Assemble(route)
@@ -141,7 +228,7 @@ function T.Assemble(route)
     end
     local legs = Legs(route)
     local path, approxLegs, legOf = {}, {}, {}
-    local walked, approx, detours, missing = 0, 0, 0, 0
+    local walked, approx, detours, missing, corridors = 0, 0, 0, 0, 0
     local walk, straight = 0, 0
     for k, leg in ipairs(legs) do
         local line = Yards(route.mapID, leg.ax, leg.ay, leg.bx, leg.by)
@@ -151,6 +238,7 @@ function T.Assemble(route)
         legOf[#path / 2] = k
         if e and GOOD[e.s] then
             walked = walked + 1
+            if e.s == "corridor" then corridors = corridors + 1 end
             local y = e.y or line
             walk = walk + y
             if line > 0 and y / line >= T.DETOUR then detours = detours + 1 end
@@ -190,7 +278,7 @@ function T.Assemble(route)
     end
     local edited = route.edited and true or nil
     route.terrain = { state = state, legs = #legs, walked = walked, approx = approx, detours = detours, missing = missing,
-                      walk = walk, straight = straight, ratio = straight > 0 and walk / straight or 1,
+                      walk = walk, straight = straight, ratio = straight > 0 and walk / straight or 1, corridors = corridors,
                       sig = Sig(route.points), approxLegs = approxLegs, edited = edited,
                       improved = route.terrain and route.terrain.improved or nil }
     route.path = walked > 0 and path or nil
@@ -240,6 +328,7 @@ function T.Text(route)
     if t.state == "full" then parts[#parts + 1] = "terrain-aware: every leg follows the walking grid"
     elseif t.state == "partial" then parts[#parts + 1] = ("partly terrain-aware: %d of %d legs walked, %d approximate"):format(t.walked, t.legs, t.approx)
     else parts[#parts + 1] = "approximate: no leg could be walked on the grid" end
+    if (t.corridors or 0) > 0 then parts[#parts + 1] = ("%d leg%s along a route recorded in game"):format(t.corridors, t.corridors == 1 and "" or "s") end
     if t.detours > 0 then parts[#parts + 1] = ("%d leg%s go%s round an obstacle"):format(t.detours, t.detours == 1 and "" or "s", t.detours == 1 and "es" or "") end
     if t.ratio > 1.01 then parts[#parts + 1] = ("walk %d%% longer than the straight lines"):format((t.ratio - 1) * 100 + 0.5) end
     if t.improved then parts[#parts + 1] = ("reordered round the terrain: %s shorter"):format(HME.U.Yards(t.improved.saved)) end
@@ -269,15 +358,35 @@ function T.Refine(route, done)
     end
     local ok, why = T.Available(route.mapID)
     if not ok then
+        -- Without the grid, recorded corridors still count.
+        for _, leg in ipairs(Legs(route)) do
+            local c = T.Corridor(route.mapID, leg.ax, leg.ay, leg.bx, leg.by, route)
+            if c then
+                Remember(route.mapID, leg.ax, leg.ay, leg.bx, leg.by, c)
+            elseif not Lookup(route.mapID, leg.ax, leg.ay, leg.bx, leg.by) then
+                -- Straight and approximate for now; asked again once the grid is there.
+                Remember(route.mapID, leg.ax, leg.ay, leg.bx, leg.by, { status = "nodata",
+                    straight = Yards(route.mapID, leg.ax, leg.ay, leg.bx, leg.by) })
+            end
+        end
         T.Assemble(route)
-        route.terrain.state, route.terrain.why = "unavailable", why
+        if route.terrain.walked == 0 then route.terrain.state, route.terrain.why = "unavailable", why end
         if done then done(route, route.terrain) end
         return false, why
     end
     local want = {}
     for _, leg in ipairs(Legs(route)) do
         local line = Yards(route.mapID, leg.ax, leg.ay, leg.bx, leg.by)
-        if not Lookup(route.mapID, leg.ax, leg.ay, leg.bx, leg.by) then
+        local cached = Lookup(route.mapID, leg.ax, leg.ay, leg.bx, leg.by)
+        -- A recorded corridor outranks the grid, also over a leg walked before.
+        if not (cached and cached.s == "corridor") then
+            local corridor = T.Corridor(route.mapID, leg.ax, leg.ay, leg.bx, leg.by, route)
+            if corridor then
+                Remember(route.mapID, leg.ax, leg.ay, leg.bx, leg.by, corridor)
+                cached = corridor
+            end
+        end
+        if not cached or cached.s == "nodata" then
             if line > T.MAX_LEG then
                 Remember(route.mapID, leg.ax, leg.ay, leg.bx, leg.by, { status = "far", straight = line })
             elseif line < 3 then
