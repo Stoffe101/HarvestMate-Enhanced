@@ -189,7 +189,8 @@ local function Collect(mapID)
                     end
                 end
                 if bestReq then
-                    local c = SM.COLORS[skill and SM.Color(skill, bestReq) or "yellow"]
+                    local ckey = skill and SM.Color(skill, bestReq) or "yellow"
+                    local c = SM.COLORS[ckey]
                     table.sort(names)
                     local src = site.confirmed and "confirmed by you or GatherMate2" or "a predicted spawn point (bundled data)"
                     out.pins[#out.pins + 1] = { site.x, site.y, c, pc, site.confirmed, { table.concat(names, ", "), src },
@@ -205,7 +206,7 @@ local function Collect(mapID)
                             end
                             HME.Caves.Mark(mapID, site.x, site.y, zx, zy)
                             HME.Print(("cave marked: nodes within %d yards of that one are entered here. Routes go through it."):format(HME.Caves.CAVE_YARDS))
-                        end } }
+                        end }, ckey }
                 end
             end
         end
@@ -283,23 +284,51 @@ O.Collect = Collect
 
 -- Heatmap: spawn points counted on a grid; confirmed points weigh full,
 -- predicted ones half (lighter where the data is unconfirmed).
-local function Heat(data, W, H)
+-- Heatmap views (Settings > Heatmap shows). None of them is live: the label
+-- on the map says what is shown.
+--   density   predicted spawn density (bundled data; confirmed sites weigh more)
+--   observed  where YOU gathered (your own node observations)
+--   skill     density weighted by skill-up chance for you (orange 1, yellow
+--             0.75, green 0.35, grey 0)
+O.HEAT_VIEWS = { "density", "observed", "skill" }
+O.HEAT_LABEL = { density = "Heatmap: predicted spawn density (bundled data), not live nodes",
+                 observed = "Heatmap: where you have gathered (your observations), not live nodes",
+                 skill = "Heatmap: spawn density weighted by your skill-up chance, not live nodes" }
+local SKILL_W = { orange = 1, yellow = 0.75, green = 0.35, grey = 0, red = 0 }
+
+local function Heat(data, W, H, view, mapID)
     local cell = 0.03
     local grid, maxv = {}, 0
-    for _, p in ipairs(data.pins) do
-        local k = math.floor(p[1] / cell) .. ":" .. math.floor(p[2] / cell)
+    local function Add(x, y, w, c)
+        if w <= 0 then return end
+        local k = math.floor(x / cell) .. ":" .. math.floor(y / cell)
         local e = grid[k]
         if not e then
-            e = { x = (math.floor(p[1] / cell) + 0.5) * cell, y = (math.floor(p[2] / cell) + 0.5) * cell, v = 0, c = p[4] }
+            e = { x = (math.floor(x / cell) + 0.5) * cell, y = (math.floor(y / cell) + 0.5) * cell, v = 0, c = c }
             grid[k] = e
         end
-        e.v = e.v + (p[5] and 1 or 0.5)
+        e.v = e.v + w
         if e.v > maxv then maxv = e.v end
+    end
+    if view == "observed" then
+        local cells = HME.db and HME.db.obs.nodes[mapID] or {}
+        for _, rec in pairs(cells) do
+            if type(rec) == "table" and rec.x and rec.y then
+                Add(rec.x, rec.y, rec.c or 1, O.PROF_COLOR[rec.p] or { 1, 0.82, 0 })
+            end
+        end
+    else
+        for _, p in ipairs(data.pins) do
+            local w = p[5] and 1 or 0.5
+            if view == "skill" then w = SKILL_W[p[10] or "yellow"] or 0.5 end
+            Add(p[1], p[2], w, p[4])
+        end
     end
     local out = {}
     for _, e in pairs(grid) do out[#out + 1] = { e.x, e.y, cell * 0.75, e.c, 0.15 + 0.6 * e.v / math.max(maxv, 1) } end
-    return out
+    return out, maxv
 end
+O.Heat = Heat
 
 function O.Draw()
     local map = _G.WorldMapFrame
@@ -327,8 +356,12 @@ function O.Draw()
     local size = math.max(6, 11 / scale) * (s.pinScale or 1)
     local alphaScale = (s.huntAlpha or 30) / 100
     if s.mapDetail == "heatmap" then
-        for _, d in ipairs(Heat(data, W, H)) do data.discs[#data.discs + 1] = d end
+        local view = s.heatView or "density"
+        local heat = Heat(data, W, H, view, mapID)
+        for _, d in ipairs(heat) do data.discs[#data.discs + 1] = d end
         data.pins = {}
+        data.labels[#data.labels + 1] = { 0.5, 0.03, (#heat > 0 and O.HEAT_LABEL[view])
+            or (view == "observed" and "Heatmap: you have not gathered here yet" or "Heatmap: nothing to show here") }
     end
     -- Discs (fills)
     local nd = 0

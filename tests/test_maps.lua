@@ -33,6 +33,17 @@ check(#O.Collect(mining[1].mapID).pins == 0, "areas only: no pins")
 HME.settings.mapDetail = "heatmap"
 O.Draw()
 check(O.lastCount == 0, "heatmap: shading instead of pins")
+local dataH = O.Collect(mining[1].mapID)
+local dens = O.Heat(dataH, 1000, 700, "density", mining[1].mapID)
+local skillHeat = O.Heat(dataH, 1000, 700, "skill", mining[1].mapID)
+check(#dens > 0, "predicted density")
+check(#skillHeat <= #dens, "skill-up potential leaves out grey sites")
+local obs = O.Heat(dataH, 1000, 700, "observed", mining[1].mapID)
+eq(#obs, 0, "nothing observed by you here yet")
+HME.db.obs.nodes[mining[1].mapID] = { a = { p = "Mining", n = "Copper Vein", x = 0.5, y = 0.5, c = 3 } }
+eq(#O.Heat(dataH, 1000, 700, "observed", mining[1].mapID), 1, "your own gathering, once you have")
+check(O.HEAT_LABEL.observed:find("not live", 1, true) and O.HEAT_LABEL.density:find("not live", 1, true), "never shown as live")
+HME.db.obs.nodes[mining[1].mapID] = nil
 HME.settings.mapDetail = "detailed"
 
 STEP("scenario 9 from the map: right-click a wrong spawn point")

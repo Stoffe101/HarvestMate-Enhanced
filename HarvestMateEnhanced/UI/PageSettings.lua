@@ -198,6 +198,10 @@ HME.Pages.settings = function(body, page)
         .. "shaded density of spawn points (lighter where data is unconfirmed).", { "detailed", "simple", "heatmap" },
         { detailed = "Detailed pins", simple = "Areas only", heatmap = "Heatmap" },
         function() return S().mapDetail end, function(k) S().mapDetail = k end)
+    Drop("Heatmap shows", "Predicted density (bundled spawn data), where you have gathered (your own observations), or "
+        .. "density weighted by your skill-up chance. None of them shows live nodes or beasts.", { "density", "observed", "skill" },
+        { density = "Predicted density", observed = "Where you gathered", skill = "Skill-up potential" },
+        function() return S().heatView end, function(k) S().heatView = k; if HME.MapOverlay then HME.Try(HME.MapOverlay.Draw) end end)
     Drop("Guidance", "Guided: the arrow leads stop by stop. Free: the area stays highlighted, no arrow. Minimal: the arrow fades "
         .. "while you are on the loop.", { "guided", "free", "minimal" }, { guided = "Guided circuit", free = "Free farming", minimal = "Minimal arrow" },
         function() return S().huntMode end, function(k) HME.Guidance.SetMode(k) end)

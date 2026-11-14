@@ -64,6 +64,7 @@ DB.SETTINGS = {
     hudCompact = false,          -- (0.1.0; schema 2 turns it into hudSize)
     hudSize = "normal",          -- "compact", "normal" or "detailed"
     huntMode = "guided",         -- "guided", "free" or "minimal" arrow while farming
+    heatView = "density",        -- heatmap: "density", "observed" (yours) or "skill"
     mapDetail = "detailed",      -- "detailed" pins, "simple" areas only, or "heatmap"
     idleMinutes = 5,             -- no activity this long: that stretch is idle, not farming
     suggest = {},                -- [kind] = false switches a suggestion kind off
