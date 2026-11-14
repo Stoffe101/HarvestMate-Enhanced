@@ -93,6 +93,8 @@ function H.Update()
             lines[#lines + 1] = ("%s farming  ·  %d nodes  ·  %d skins  ·  %d catches"):format(U.Duration(r.farmSecs), r.nodes, r.skins, r.catches)
         end
         if g then lines[#lines + 1] = g.phaseText or "" end
+        local owner = HME.Guidance.ArrowOwner()
+        if g and owner then lines[#lines + 1] = "|cff9d9d9dArrow: " .. owner .. "|r" end
     end
     if size == "detailed" then
         if r then

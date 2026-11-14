@@ -430,6 +430,16 @@ end
 -- Stops on the loop (fewer than nodes when the route only passes near them)
 function GP:NodeCount(route) return floor(#route.points / 2) end
 
+-- HME: what to draw for a route: the walked polyline (Routes/Terrain.lua) when
+-- its legs were walked for these stops, else the stops themselves; and which
+-- leg each drawn point starts.
+GP.APPROX_COLOR = { 1, 0.45, 0.2 }
+function GP:DrawPoints(route)
+    local path = HME.Terrain and HME.Terrain.Path(route)
+    if path then return path, route.pathLeg end
+    return route.points, nil
+end
+
 -- Nodes the route takes you past
 function GP:RouteNodes(route) return route.nodes or self:NodeCount(route) end
 
@@ -581,6 +591,9 @@ local function Build(route)
     route.nodes = #pts
     route.taboo = #raw - #pts   -- left out: in taboo areas
     route.length = GP:RouteLength(route)
+    route.walkLength = nil
+    -- HME: each leg walked on Forever-GPS's walking grid when it can (Routes/Terrain.lua).
+    if HME.Terrain then HME.After(0, function() HME.Terrain.Auto(route) end) end
     return #pts
 end
 
@@ -662,7 +675,9 @@ end
 
 -- About how long one lap of a route takes at Speed(), in words
 function GP:LapTime(route)
-    local secs = (route.length or self:RouteLength(route)) / self:Speed()
+    -- HME: the walked length when the legs were walked on the grid.
+    local walked = HME.Terrain and HME.Terrain.Summary(route) and route.walkLength
+    local secs = (walked or route.length or self:RouteLength(route)) / self:Speed()
     if secs < 60 then return "under a minute" end
     local mins = floor(secs / 60 + 0.5)
     if mins < 60 then return ("about %d min"):format(mins) end
@@ -1238,22 +1253,28 @@ function Pin:Draw()
         local scale = self:GetEffectiveScale() / max(0.01, map:GetEffectiveScale())
         local alpha = db.worldAlpha / 100
         for _, route in ipairs(db.routes) do
-            local p, n = route.points, GP:NodeCount(route)
-            if route.shown and not route.working and n >= 2 then
+            local stops = GP:NodeCount(route)
+            -- HME: the walked polyline where the legs were walked on the grid.
+            local p, legOf = GP:DrawPoints(route)
+            local n = floor(#p / 2)
+            if route.shown and not route.working and stops >= 2 then
                 local ox, oy, sx, sy, own = Placement(route.mapID, shownMap)
                 if ox then
                     -- thinner on a bigger map, where the route is small
                     local width = (own and db.worldWidth or max(1, db.worldWidth * 0.5)) / scale
                     local color = GP:LineColor(route, "world")
+                    local approx = route.terrain and route.terrain.approxLegs
                     local xs, ys = {}, {}
                     for i = 1, n do
                         xs[i], ys[i] = (ox + p[2 * i - 1] * sx) * w, -(oy + p[2 * i] * sy) * h
                     end
                     for i = 1, n do
                         local j = i % n + 1
-                        if not (n == 2 and i == 2) then
+                        if not (stops == 2 and i == n) then
                             local line = pool:Get()
-                            Paint(line, color, alpha, width)
+                            -- HME: a leg the walking grid could not walk is drawn in the warning colour.
+                            local leg = legOf and legOf[i]
+                            Paint(line, (approx and leg and approx[leg]) and GP.APPROX_COLOR or color, alpha, width)
                             line:SetStartPoint("TOPLEFT", self, xs[i], ys[i])
                             line:SetEndPoint("TOPLEFT", self, xs[j], ys[j])
                         end
@@ -1607,10 +1628,11 @@ function GP:DrawMinimap(force)
     arrows:Begin()
     for _, route in ipairs(db.routes) do
         local at = maps[route.mapID]
-        local n = self:NodeCount(route)
-        if at and route.shown and not route.working and n >= 2 then
+        local stops = self:NodeCount(route)
+        local p = self:DrawPoints(route)
+        local n = floor(#p / 2)
+        if at and route.shown and not route.working and stops >= 2 then
             local w, h = Yards(route.mapID)
-            local p = route.points
             local color = self:LineColor(route, "minimap")
             -- every node, in pixels from the minimap's middle (right and up)
             local sx, sy = {}, {}
@@ -1622,7 +1644,7 @@ function GP:DrawMinimap(force)
             end
             for i = 1, n do
                 local j = i % n + 1
-                if not (n == 2 and i == 2) then
+                if not (stops == 2 and i == n) then
                     local ax, ay, bx, by = clip(sx[i], sy[i], sx[j], sy[j], inside)
                     if ax then
                         local line = pool:Get()

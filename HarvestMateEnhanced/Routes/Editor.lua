@@ -189,6 +189,8 @@ function E.Finish()
     End()
     HME.Routes:Changed()
     HME.Print(("|cffffd100%s|r saved (%s)."):format(r.name, r.edited and "edited by you" or "unchanged"))
+    -- Your waypoints stay as they are; only the legs between them are walked on the grid.
+    if r.edited and HME.Terrain then HME.Terrain.Auto(r) end
 end
 
 function E.Cancel()
@@ -206,35 +208,68 @@ HME.On("PLAYER_REGEN_DISABLED", function() if st then E.Finish() end end)
 ---------------------------------------------------------------------------
 -- Route quality
 ---------------------------------------------------------------------------
--- { source, trust = "verified"|"recorded"|"approximate"|"imported", text, longLegs, laps }
+-- { label, source, trust, text, longLegs, laps, terrain }
+-- label (what the Routes page and the map say), most trusted first:
+--   "Recorded and observed"  recorded in game and ridden with HME since
+--   "Recorded"               recorded in game (by you, or Gatherpedia's guides)
+--   "User-corrected"         waypoints edited by you
+--   "Terrain-aware"          every leg walked on Forever-GPS's walking grid
+--   "Partly terrain-aware"   some legs walked, the rest straight lines
+--   "Approximate"            straight lines, terrain unknown
+-- A route ridden two laps or more is also "observed". Waypoints an algorithm
+-- returned never make a route verified by themselves.
+-- trust (kept for older callers): "recorded" | "verified" | "terrain" |
+-- "partial" | "approximate" | "imported"
 function E.Quality(route)
     local q = { laps = route.laps or 0 }
+    local T = HME.Terrain
+    local t = T and T.Summary(route)
+    q.terrain = t
     if route.recorded then
-        q.source, q.trust = "recorded in game (Gatherpedia)", "recorded"
+        q.source = route.recordedBy == "you" and "recorded by you" or "recorded in game (Gatherpedia)"
+        q.trust, q.label = "recorded", q.laps > 0 and "Recorded and observed" or "Recorded"
     elseif route.edited then
-        q.source, q.trust = "edited by you", "verified"
+        q.source, q.trust, q.label = "edited by you", "verified", "User-corrected"
     elseif route.imported then
-        q.source, q.trust = "imported", "imported"
-    elseif route.source == "GatherPath" then
-        q.source, q.trust = "from GatherPath", "approximate"
+        q.source, q.trust, q.label = "imported", "imported", "Unverified"
     else
-        q.source, q.trust = route.planned and "planned by the Farm Finder" or "made from nodes", "approximate"
+        q.source = route.source == "GatherPath" and "from GatherPath"
+            or (route.planned and "planned by the Farm Finder" or "made from nodes")
+        q.trust, q.label = "approximate", "Approximate"
     end
-    -- Long straight legs are where cliffs, water or walls may hide.
+    if not route.recorded and t then
+        if t.state == "full" then
+            q.label = route.edited and "User-corrected" or "Terrain-aware"
+            if q.trust == "approximate" then q.trust = "terrain" end
+        elseif t.state == "partial" then
+            q.label = route.edited and "User-corrected" or "Partly terrain-aware"
+            if q.trust == "approximate" then q.trust = "partial" end
+        end
+    end
+    -- Long straight legs are where cliffs, water or walls may hide (walked legs excepted).
     local p = route.points or {}
     local w, h = HME.Geo.MapYards(route.mapID)
     w, h = w or 1500, h or 1000
     local long = 0
+    local walkedLegs = t and (t.state == "full" or t.state == "partial")
     for i = 1, #p / 2 do
         local j = i % (#p / 2) + 1
-        if U.Dist(p[2 * i - 1] * w, p[2 * i] * h, p[2 * j - 1] * w, p[2 * j] * h) > 350 then long = long + 1 end
+        if U.Dist(p[2 * i - 1] * w, p[2 * i] * h, p[2 * j - 1] * w, p[2 * j] * h) > 350 then
+            local approx = not walkedLegs or (t.approxLegs and t.approxLegs[i])
+            if approx then long = long + 1 end
+        end
     end
     q.longLegs = long
-    if q.trust == "approximate" and q.laps >= 2 then q.trust = "verified" end
-    local parts = { q.source }
-    if q.trust == "approximate" then parts[#parts + 1] = "straight lines, terrain unknown" end
+    if q.laps >= 2 and q.trust ~= "recorded" and q.trust ~= "verified" then
+        q.trust = "verified"
+        q.observed = true
+    end
+    local parts = { q.label, q.source }
+    if q.label == "Approximate" then parts[#parts + 1] = "straight lines, terrain unknown" end
+    local tt = T and T.Text(route)
+    if tt and not route.recorded then parts[#parts + 1] = tt end
     if long > 0 and q.trust ~= "recorded" then parts[#parts + 1] = long .. " long leg" .. (long == 1 and "" or "s") .. " to check" end
-    if q.laps > 0 then parts[#parts + 1] = q.laps .. " lap" .. (q.laps == 1 and "" or "s") .. " ridden" end
+    if q.laps > 0 then parts[#parts + 1] = q.laps .. " lap" .. (q.laps == 1 and "" or "s") .. " ridden" .. (q.observed and " (observed)" or "") end
     q.text = table.concat(parts, " · ")
     return q
 end

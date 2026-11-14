@@ -45,9 +45,14 @@ FG.Planner = {
         return true
     end,
 }
+-- Forever-GPS's arrow modes, as Journey.ApplyArrow sets them: "held" while
+-- another addon holds the arrow (API v2).
+FG.arrowMode = "hud"
+FG.Journey = { ApplyArrow = function() FG.arrowMode = (FG.API.ArrowHeld and FG.API.ArrowHeld()) and "held" or "hud" end }
 local chunk = assert(loadfile(apiPath))
 chunk("ForeverGPS", {})
-check(FG.API and FG.API.VERSION == 1, "Forever-GPS's real API loaded")
+check(FG.API and FG.API.VERSION >= 1, "Forever-GPS's real API loaded")
+local V2 = FG.API.VERSION >= 2
 
 local ns, HME = LoadHME()
 PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
@@ -94,6 +99,58 @@ G.Stop()
 eq(stopped, before, "and never stopped the player's journey")
 check(route ~= nil, "which still runs")
 route = nil
+
+if V2 then
+STEP("scenario G with the real API v2: Guide me here beside another journey, one arrow, journey untouched")
+-- The player is on their way somewhere else in Forever-GPS.
+FG.Planner.Inspect({ data = { mapID = 1453, x = 0.6, y = 0.6, name = "Stormwind" } })
+RunTimers(0.1)
+FG.Planner.Start()
+local theirs = route
+StartFar()
+eq(G.Active().owner, "fgps", "HME asked Forever-GPS for its farm")
+-- They carry on with their own journey: HME's request is superseded when it starts.
+FG.Planner.Inspect({ data = { mapID = 1453, x = 0.61, y = 0.61, name = "Stormwind bank" } })
+RunTimers(0.1)
+FG.Planner.Start()
+theirs = route
+local rr = G.Route(G.Active().routeID)
+PLAYER.map, PLAYER.x, PLAYER.y = rr.mapID, rr.points[1], rr.points[2]
+before = stopped
+Tick(1.1)
+eq(G.Active().phase, "farm", "at the farm")
+eq(G.Active().present, "external", "their journey leads")
+check(not HME.Arrow.Shown(), "HME's arrow waits")
+eq(FG.arrowMode, "hud", "Forever-GPS's arrow is up")
+G.TakeOver()
+eq(G.Active().present, "hme", "the player chose HME's loop")
+check(HME.Arrow.Shown(), "HME's arrow")
+eq(FG.arrowMode, "held", "Forever-GPS paused its arrow: one arrow")
+check(FG.API.ArrowHeld(), "the hold stands in Forever-GPS")
+eq(route, theirs, "their journey is untouched")
+eq(stopped, before, "and was never stopped")
+eq(G.ArrowOwner(), "HME")
+G.GiveBack()
+eq(FG.arrowMode, "hud", "handed back: Forever-GPS points again")
+check(not HME.Arrow.Shown(), "and HME waits")
+G.TakeOver()
+eq(FG.arrowMode, "held")
+-- The player starts yet another journey: their newest choice leads.
+FG.Planner.Inspect({ data = { mapID = 1453, x = 0.4, y = 0.4, name = "Trade district" } })
+RunTimers(0.1)
+FG.Planner.Start()
+eq(FG.arrowMode, "hud", "Forever-GPS let go of the hold for the new journey")
+eq(G.Active().present, "external", "HME steps aside")
+check(not HME.Arrow.Shown(), "one arrow")
+G.TakeOver()
+check(FG.API.ArrowHeld(), "held again")
+G.Stop()
+check(not FG.API.ArrowHeld(), "stopping HME's guidance gives the arrow back")
+eq(FG.arrowMode, "hud")
+eq(stopped, before, "their journey was never stopped")
+route = nil
+PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
+end
 
 STEP("walking in: HME releases only its own API journey")
 StartFar()

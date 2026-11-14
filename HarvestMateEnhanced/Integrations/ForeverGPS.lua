@@ -210,6 +210,46 @@ function B.Release(token)
     return false
 end
 
+---------------------------------------------------------------------------
+-- The arrow (API v2): HME may ask Forever-GPS to pause its arrow while HME
+-- guides a loop beside another journey. The journey is never touched.
+---------------------------------------------------------------------------
+-- Version 2 or later; each feature is checked where it is used.
+local function APIv2()
+    local api = API()
+    if api and (tonumber(api.VERSION) or 0) >= 2 then return api end
+    return nil
+end
+B.APIv2 = APIv2
+
+function B.CanHoldArrow()
+    local api = APIv2()
+    return api ~= nil and type(api.HoldArrow) == "function" and type(api.ReleaseArrow) == "function"
+end
+
+function B.HoldArrow(reason)
+    local api = APIv2()
+    if not (api and B.CanHoldArrow()) then return nil end
+    local ok, id = pcall(api.HoldArrow, "HarvestMateEnhanced", reason)
+    return ok and type(id) == "string" and id or nil
+end
+
+function B.ReleaseArrow(id)
+    local api = APIv2()
+    if not (api and id) then return false end
+    local ok, done = pcall(api.ReleaseArrow, id)
+    return ok and done == true
+end
+
+function B.ArrowHoldStands(id)
+    local api = APIv2()
+    if not (api and id and type(api.ArrowHeld) == "function") then return false end
+    local ok, held, list = pcall(api.ArrowHeld)
+    if not (ok and held and type(list) == "table") then return false end
+    for _, h in ipairs(list) do if h.id == id then return true end end
+    return false
+end
+
 -- Forgets the request (HME's farm stopped). Releases it first if it is HME's.
 function B.Forget()
     B.Release()
@@ -221,13 +261,17 @@ end
 ---------------------------------------------------------------------------
 local function OnStarted(dest, apiToken)
     local r = Req()
-    if not r or not (r.state == "pending" or r.state == "active") then return end
-    local ours = (apiToken and r.apiToken and apiToken == r.apiToken) or (not apiToken and Matches(dest, r))
+    local live = r and (r.state == "pending" or r.state == "active")
+    local ours = live and ((apiToken and r.apiToken and apiToken == r.apiToken) or (not apiToken and Matches(dest, r)))
     if ours then
         if SetState("active") then HME.Guidance.OnExternalStarted(r.token) end
-    elseif SetState("superseded", "another destination started") then
+        return
+    end
+    if live and SetState("superseded", "another destination started") then
         HME.Guidance.OnExternalSuperseded(r.token)
     end
+    -- Not HME's journey: whatever HME shows steps aside for it.
+    HME.Guidance.OnExternalStarted(nil)
 end
 
 local function OnArrived(dest, apiToken)
@@ -283,6 +327,9 @@ local function Hook()
             local r = Req()
             if r and r.apiToken == token and SetState("superseded", "API") then HME.Guidance.OnExternalSuperseded(r.token) end
         end)
+        -- v2: every journey's end, and holds Forever-GPS let go of by itself.
+        pcall(api.On, "ended", function() HME.Guidance.OnExternalChanged() end)
+        pcall(api.On, "hold", function(id, held) if not held then HME.Guidance.OnHoldDropped(id) end end)
         hooked = true
     elseif type(g.On) == "function" then
         pcall(g.On, "route:started", function(dest) OnStarted(dest) end)

@@ -68,6 +68,14 @@ HME.Pages.dashboard = function(body, page)
     farm.nav = K.Button(farm, "Navigate", 100, 20, function() HME.Guidance.Navigate() end,
         "Get there: Forever-GPS plans the journey when it is installed; otherwise HME's arrow points the way.")
     farm.nav:SetPoint("RIGHT", farm.stop, "LEFT", -8, 0)
+    -- Guide me here: shown only while another Forever-GPS journey leads at the farm.
+    farm.here = K.Button(farm, "Guide me here", 120, 20, function()
+        local g = HME.Guidance.Active()
+        if g and g.tookOver then HME.Guidance.GiveBack() else HME.Guidance.TakeOver() end
+    end, "Follow HME's loop arrow here. Your other Forever-GPS journey keeps running: Forever-GPS only pauses its "
+        .. "arrow, and gets it back when you stop farming, hand it back, or start a new journey.")
+    farm.here:SetPoint("BOTTOMRIGHT", farm.nav, "TOPRIGHT", 0, 6)
+    farm.here:Hide()
     farm.find = K.Button(farm, "Open Farm Finder", 150, 20, function() HME.OpenWindow("finder") end)
     farm.find:SetPoint("BOTTOMLEFT", 12, 10)
 
@@ -158,11 +166,21 @@ HME.Pages.dashboard = function(body, page)
             refs.farm.text:SetText(table.concat(lines, "\n"))
             refs.farm.stop:Show()
             refs.farm.nav:Show()
+            if HME.Guidance.CanTakeOver() then
+                refs.farm.here:SetText("Guide me here")
+                refs.farm.here:Show()
+            elseif g.tookOver then
+                refs.farm.here:SetText("Give arrow back")
+                refs.farm.here:Show()
+            else
+                refs.farm.here:Hide()
+            end
         else
             refs.farm.name:SetText("No farm selected")
             refs.farm.text:SetText("Pick one in the Farm Finder: it draws the route, points the way and tracks how it goes.")
             refs.farm.stop:Hide()
             refs.farm.nav:Hide()
+            refs.farm.here:Hide()
         end
         local r = HME.Session.Rates()
         if r then
