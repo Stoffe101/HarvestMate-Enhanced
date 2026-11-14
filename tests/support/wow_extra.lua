@@ -192,3 +192,9 @@ function UnitIsTapDenied() return false end
 function UnitPlayerControlled() return false end
 function UnitTokenFromGUID() return nil end
 C_TooltipInfo = nil
+
+-- The world map's scrolling canvas (Map/Overlay.lua draws on its child)
+WorldMapFrame.ScrollContainer = NewObj("Frame", nil, WorldMapFrame)
+WorldMapFrame.ScrollContainer.Child = NewObj("Frame", nil, WorldMapFrame.ScrollContainer)
+WorldMapFrame.ScrollContainer.Child.__w, WorldMapFrame.ScrollContainer.Child.__h = 1000, 667
+function WorldMapFrame.ScrollContainer:GetCanvasScale() return 1 end

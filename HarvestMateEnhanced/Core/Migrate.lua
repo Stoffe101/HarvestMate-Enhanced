@@ -8,7 +8,7 @@
 -- The old tables are only read, never changed or cleared: the old addon keeps
 -- working if the player goes back to it. Each import happens once; the time is
 -- kept in HarvestMateEnhancedDB.migrations, and /hme import <name> repeats it
--- (it then only adds what is missing).
+-- (it then only adds what is missing; counts are never doubled).
 --
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
 
@@ -50,14 +50,15 @@ local function Merge(dst, src, depth)
 end
 M.Merge = Merge
 
--- Numeric counters add up (gathers per zone, item counts).
-local function AddCounts(dst, src)
+-- Counters (gathers per zone, item counts) take the larger of the two, so
+-- importing the same data again never counts it twice.
+local function MaxCounts(dst, src)
     for k, v in pairs(src) do
         if type(v) == "number" then
-            dst[k] = (type(dst[k]) == "number" and dst[k] or 0) + v
+            dst[k] = math.max(type(dst[k]) == "number" and dst[k] or 0, v)
         elseif type(v) == "table" then
             dst[k] = type(dst[k]) == "table" and dst[k] or {}
-            AddCounts(dst[k], v)
+            MaxCounts(dst[k], v)
         end
     end
 end
@@ -100,7 +101,7 @@ function IMPORT.gatherpedia(old, db)
     for _, k in ipairs({ "counts", "gathers" }) do
         if type(old[k]) == "table" then
             gp[k] = type(gp[k]) == "table" and gp[k] or {}
-            AddCounts(gp[k], old[k])
+            MaxCounts(gp[k], old[k])
             n = n + 1
         end
     end

@@ -48,6 +48,7 @@ Sk.MIN_CLUSTER = 4
 
 -- The safety limits by risk mode: how far above your level a beast may be.
 Sk.LEVEL_ABOVE = { fastest = 3, balanced = 2, safer = 1 }
+Sk.ELITE_BELOW = { fastest = 5, balanced = 8 }
 
 -- beast: { npcID, name, min, max, elite }. Returns a table:
 --   req, canSkin, chance, color, levelDiff, killable, why (when not)
@@ -75,7 +76,10 @@ function Sk.Eligible(beast, profile, mode)
         return out
     end
     local above = Sk.LEVEL_ABOVE[mode or "balanced"] or 2
-    if beast.elite and level > profile.level - 5 then
+    -- Elites: only well below you (8 levels in balanced, 5 in fastest), and
+    -- never in lower-risk mode. Their kill time (x3.5) still counts.
+    local eliteBelow = Sk.ELITE_BELOW[mode or "balanced"]
+    if beast.elite and (not eliteBelow or level > profile.level - eliteBelow) then
         out.why = "elite"
         return out
     end

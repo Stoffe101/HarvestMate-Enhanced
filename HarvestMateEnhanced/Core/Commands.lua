@@ -148,3 +148,6 @@ end
 BINDING_HEADER_HARVESTMATEENHANCED = "HarvestMate Enhanced"
 BINDING_NAME_HARVESTMATEENHANCED_TOGGLE = "Open or close HarvestMate Enhanced"
 BINDING_NAME_HARVESTMATEENHANCED_ROUTE = "Stop the farm (or open the Farm Finder)"
+BINDING_NAME_HARVESTMATEENHANCED_NEXTTAB = "Next page of the window"
+BINDING_NAME_HARVESTMATEENHANCED_PREVTAB = "Previous page of the window"
+function HarvestMateEnhanced_CycleTab(delta) HME.Window.CycleTab(delta) end

@@ -1,0 +1,149 @@
+-- The data layer: packed spawn points, sites (shared spawns counted once),
+-- where each point came from, migrations from the old addons (their data
+-- untouched), export/import, limits, schema upgrades and resets.
+
+-- Saved data from the three replaced addons, as if they were still enabled
+-- for this login.
+HarvestMateDB = {
+    opt = { gatherKey = true, gatherKeyBind = "G", nearby = false, announceParty = true },
+    learned = { lowest = { ["Iron Deposit"] = 120 }, drops = { ["Peacebloom"] = { n = 10, items = { [2447] = 10 }, qty = { [2447] = 18 } } } },
+    stats = { gathers = { herb = 5 } },
+}
+GatherpediaDB = {
+    counts = { [2447] = { ["Elwynn Forest"] = 12 } },
+    gathers = { Herbalism = { ["Elwynn Forest"] = 7 } },
+    skinMobs = { yes = { [1] = true }, no = { [2] = true } },
+    sparkle = { enabled = true },
+}
+GatherpediaCharDB = { learnedOrder = { "Mining", "Herbalism" }, showAllProfessions = true }
+GatherPathForeverDB = {
+    worldWidth = 7,
+    routes = { { id = 3, mapID = 1429, name = "Old loop", kinds = {}, points = { 0.1, 0.1, 0.2, 0.2, 0.3, 0.1 }, color = { 1, 0, 0 }, shown = true } },
+    taboos = { [1429] = { { 0.4, 0.4, 0.5, 0.4, 0.5, 0.5 } } },
+    skip = { ["Wilted Peacebloom"] = true },
+    nextID = 4,
+}
+local function Snapshot(t)
+    local out = {}
+    for k, v in pairs(t) do out[k] = type(v) == "table" and Snapshot(v) or v end
+    return out
+end
+local function Same(a, b)
+    if type(a) ~= type(b) then return false end
+    if type(a) ~= "table" then return a == b end
+    for k, v in pairs(a) do if not Same(v, b[k]) then return false end end
+    for k in pairs(b) do if a[k] == nil then return false end end
+    return true
+end
+local oldHM, oldGP, oldGPF = Snapshot(HarvestMateDB), Snapshot(GatherpediaDB), Snapshot(GatherPathForeverDB)
+
+local ns, HME = LoadHME()
+
+STEP("packed points decode to map positions")
+local pts = {}
+HME.U.EachPacked("0a0bzzzz", function(x, y) pts[#pts + 1] = { x, y } end)
+eq(#pts, 2, "two points")
+near(pts[1][1], (0 * 36 + 10) / 1000, 1e-9, "x")
+near(pts[1][2], (0 * 36 + 11) / 1000, 1e-9, "y")
+near(pts[2][1], (35 * 36 + 35) / 1000, 1e-9, "the largest value")
+
+STEP("migration copies old data in once, leaving the old tables as they were")
+check(Same(oldHM, HarvestMateDB) and Same(oldGP, GatherpediaDB) and Same(oldGPF, GatherPathForeverDB), "old saved data untouched")
+local db = HarvestMateEnhancedDB
+check(db.migrations.harvestmate and db.migrations.gatherpedia and db.migrations.gatherpath, "each import noted")
+eq(db.hm.learned.lowest["Iron Deposit"], 120, "HarvestMate's learned requirement")
+eq(db.hm.opt.gatherKey, false, "the gather key is NOT carried over on: HME asks again")
+eq(db.hm.wasGatherKey, "G", "but the old key is remembered for the offer")
+eq(db.hm.opt.nearby, false, "a display choice carries over")
+eq(db.hm.opt.announceParty, false, "announcing to the group is not carried over on")
+eq(db.gp.counts[2447]["Elwynn Forest"], 12, "Gatherpedia's counts")
+eq(db.obs.mobs[1], true, "Gatherpedia's skinnable beasts feed the shared checks")
+eq(db.obs.mobs[2], false, "and the not-skinnable ones")
+eq(HarvestMateEnhancedCharDB.learnedOrder[1], "Mining", "per-character order")
+local found
+for _, r in ipairs(db.routes.routes) do if r.name == "Old loop" then found = r end end
+check(found and found.source == "GatherPath", "GatherPath's route, marked where it came from")
+check(db.routes.taboos[1429] and db.routes.skip["Wilted Peacebloom"], "taboo areas and the skip list")
+eq(db.routes.worldWidth, 7, "display settings")
+local n = #db.routes.routes
+HME.Migrate.Run(false)
+eq(#db.routes.routes, n, "running again does nothing")
+HME.Migrate.Run(true)
+eq(#db.routes.routes, n, "forced again: no duplicate routes")
+eq(db.gp.counts[2447]["Elwynn Forest"], 12, "counts are not doubled by importing again")
+
+STEP("sites: shared spawn points count once, with shares")
+local sites = HME.Spawns.Sites("Mining", 1434)   -- Stranglethorn: shared ore spawns
+check(#sites > 50, "sites found")
+local shared = 0
+for _, s in ipairs(sites) do
+    local total, kinds = 0, 0
+    for _, share in pairs(s.types) do total = total + share; kinds = kinds + 1 end
+    near(total, 1, 1e-9, "shares add to one")
+    if kinds > 1 then shared = shared + 1 end
+    check(s.sources.db, "bundled source noted")
+    check(not s.confirmed, "a bundled point is a prediction")
+end
+check(shared > 0, "some sites hold more than one ore (" .. shared .. ")")
+
+STEP("what you gather confirms a site, and an unknown spot becomes one")
+local s1 = sites[1]
+HME.Spawns.Observe("Mining", 1434, s1.x, s1.y, next(s1.types))
+local after = HME.Spawns.Sites("Mining", 1434)
+local confirmed = 0
+for _, s in ipairs(after) do if s.confirmed then confirmed = confirmed + 1 end end
+eq(confirmed, 1, "the gathered site is confirmed")
+eq(#after, #sites, "no extra site for a known spot")
+HME.Spawns.Observe("Mining", 1434, 0.999, 0.001, "Tin Vein")
+eq(#HME.Spawns.Sites("Mining", 1434), #sites + 1, "a new spot from your own gathering")
+
+STEP("learned data stays within its limits")
+local cells = {}
+for i = 1, HME.DBM.LIMITS.nodesPerMap + 50 do cells["c" .. i] = { t = i, x = 0.5, y = 0.5, p = "Mining" } end
+HME.db.obs.nodes[9999] = cells
+HME.DBM.TrimMap(cells, HME.DBM.LIMITS.nodesPerMap)
+eq(HME.U.Count(cells), HME.DBM.LIMITS.nodesPerMap, "trimmed to the limit")
+check(cells.c1 == nil and cells["c" .. (HME.DBM.LIMITS.nodesPerMap + 50)] ~= nil, "oldest dropped first")
+HME.db.obs.nodes[9999] = nil
+for i = 1, HME.DBM.LIMITS.deaths + 20 do HME.Risk.NoteDeath(1429, 0.5, 0.5) end
+eq(#HME.db.obs.deaths, HME.DBM.LIMITS.deaths, "deaths bounded")
+
+STEP("export and import: round trip, never replacing")
+local text = HME.DBM.Export({ routes = true, taboos = true })
+check(text:sub(1, 5) == "HME1:", "has the header")
+local data, err = HME.DBM.ReadImport(text)
+check(data, "reads back: " .. tostring(err))
+local routes = #HME.db.routes.routes
+local added = HME.DBM.ApplyImport(data)
+eq(added.routes, routes, "every route added again")
+eq(#HME.db.routes.routes, routes * 2, "alongside the originals")
+local names = {}
+for _, r in ipairs(HME.db.routes.routes) do
+    local key = r.mapID .. "|" .. r.name
+    check(not names[key], "no two routes share a name in a zone: " .. key)
+    names[key] = true
+end
+check(not HME.DBM.ReadImport(text:sub(1, -3)), "a cut-short export is refused")
+local tampered = text:gsub("Old loop", "Evil loop")
+check(not HME.DBM.ReadImport(tampered), "a changed export fails its checksum")
+check(not HME.DBM.ReadImport("return os.exit()"), "anything else is refused, and never run")
+local bad = HME.DBM.Deserialize("{s1:an5;}")
+check(bad and bad.a == 5, "the reader handles plain tables")
+check(HME.DBM.Deserialize("{s1:a") == nil, "and refuses broken ones")
+
+STEP("schema: a newer save is kept, an older one upgraded")
+local newer = HME.DBM.Prepare({ schema = 99, settings = { scale = 1.2 }, futureThing = { x = 1 } })
+eq(newer.schema, 99, "newer schema kept")
+check(newer.futureThing.x == 1, "unknown sections kept")
+local older = HME.DBM.Prepare({})
+eq(older.schema, HME.DBM.SCHEMA, "fresh data gets the current schema")
+check(older.settings.riskMode == "balanced", "with defaults")
+
+STEP("resets")
+HME.settings.competition = 70
+HME.DBM.ResetSettings()
+eq(HME.settings.competition, 25, "settings back to defaults")
+check(#HME.db.routes.routes > 0, "routes kept")
+HME.DBM.ResetLearned()
+eq(HME.U.Count(HME.db.obs.nodes), 0, "learned nodes gone")
+check(#HME.db.routes.routes > 0, "routes still kept")

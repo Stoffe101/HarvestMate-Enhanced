@@ -6,4 +6,10 @@
   <Binding name="HARVESTMATEENHANCED_ROUTE" category="ADDONS">
     HarvestMateEnhanced_ToggleRoute()
   </Binding>
+  <Binding name="HARVESTMATEENHANCED_NEXTTAB" category="ADDONS">
+    HarvestMateEnhanced_CycleTab(1)
+  </Binding>
+  <Binding name="HARVESTMATEENHANCED_PREVTAB" category="ADDONS">
+    HarvestMateEnhanced_CycleTab(-1)
+  </Binding>
 </Bindings>

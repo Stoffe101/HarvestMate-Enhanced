@@ -102,13 +102,10 @@ end
 -- Key capture safety: the capture window never outlives a fight or HME's
 -- window, and a key captured as a lone modifier is never stored.
 ---------------------------------------------------------------------------
+-- Hiding is enough: a hidden frame gets no keys, and Hide is never protected.
 local function CloseCapture()
     local f = _G.HarvestMateEnhancedKeyCapture
-    if f and f.IsShown and f:IsShown() then
-        if f.EnableKeyboard then f:EnableKeyboard(false) end
-        f:Hide()
-        if f.EnableKeyboard then f:EnableKeyboard(true) end
-    end
+    if f and f.IsShown and f:IsShown() then f:Hide() end
 end
 HME.CloseKeyCapture = CloseCapture
 HME.On("PLAYER_REGEN_DISABLED", CloseCapture)

@@ -31,14 +31,18 @@ local shown = {}   -- { mapID, kind = "preview"|"farm"|"always", result }
 
 local function Canvas()
     local f = _G.WorldMapFrame
-    if not f then return nil end
-    if f.ScrollContainer then return f.ScrollContainer.Child or f.ScrollContainer end
+    if type(f) ~= "table" then return nil end
+    local sc = rawget(f, "ScrollContainer")
+    if type(sc) == "table" then
+        local child = rawget(sc, "Child")
+        return type(child) == "table" and child or sc
+    end
     return f
 end
 
 local function CanvasScale()
-    local sc = _G.WorldMapFrame and _G.WorldMapFrame.ScrollContainer
-    if sc and sc.GetCanvasScale then
+    local sc = _G.WorldMapFrame and rawget(_G.WorldMapFrame, "ScrollContainer")
+    if type(sc) == "table" and sc.GetCanvasScale then
         local ok, v = pcall(sc.GetCanvasScale, sc)
         if ok and HME.Num(v) and v > 0 then return v end
     end
@@ -54,11 +58,11 @@ local function EnsureHolder()
     if not canvas then return nil end
     if not holder then
         holder = CreateFrame("Frame", nil, canvas)
-        local last
-        holder:SetScript("OnUpdate", function(self, dt)
-            self.t = (self.t or 0) + dt
-            if self.t < 0.2 then return end
-            self.t = 0
+        local last, acc = nil, 0
+        holder:SetScript("OnUpdate", function(_, dt)
+            acc = acc + dt
+            if acc < 0.2 then return end
+            acc = 0
             local s = CanvasScale()
             if s ~= last then
                 last = s

@@ -1,6 +1,6 @@
 -- HarvestMate Enhanced: Routes/Routes.lua
 -- Saved farming routes, drawn on the world map and the minimap. Adapted from
--- GatherPath Forever 1.12.1 Core.lua by severd8 (MIT; upstream/GatherPath-*).
+-- GatherPath Forever 1.12.1 Core.lua by severd8 (MIT; upstream/GatherPath-1.12.1).
 --
 -- A route belongs to one map (zone). It is either made by hand from the kinds
 -- of node you pick (Peacebloom, Copper Vein...) or planned by the Farm Finder

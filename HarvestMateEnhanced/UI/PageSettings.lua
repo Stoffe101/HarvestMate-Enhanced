@@ -123,8 +123,9 @@ HME.Pages.settings = function(body, page)
         function() return S().minimapButton end, function(v) S().minimapButton = v end)
     Switch("Chat notifications", "Short notes in chat: imports, arrivals, advice.",
         function() return S().notifications end, function(v) S().notifications = v end)
-    Switch("Controller-friendly window", "Page Up / Page Down move between tabs while the window is open; other keys pass to the game as usual. "
-        .. "HME never takes over controller buttons.", function() return S().controller end, function(v) S().controller = v end)
+    Switch("Controller-friendly lists", "Lists keep their selection when they change, so a controller cursor stays put. "
+        .. "HME never takes over keys or controller buttons; set 'Next/Previous page' in the game's Key Bindings if you "
+        .. "want to page with a key or button.", function() return S().controller end, function(v) S().controller = v end)
     EndRow()
     Slider("Window scale", "Size of HME's window (60-150%).", function() return math.floor((S().scale or 1) * 100 + 0.5) end,
         function(v) S().scale = v / 100 end, 60, 150, 5, "%")

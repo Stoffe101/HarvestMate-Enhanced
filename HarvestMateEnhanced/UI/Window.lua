@@ -86,21 +86,15 @@ function W.Build()
         win:ClearAllPoints()
         win:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
     end
-    win:SetScript("OnKeyDown", function(self, key)
-        -- Controller / keyboard: page up/down through the tabs while the
-        -- window has focus. Everything else passes to the game.
-        if self.SetPropagateKeyboardInput then self:SetPropagateKeyboardInput(true) end
-        if HME.InCombat() then return end
-        if key == "PAGEDOWN" or key == "PAGEUP" then
-            if self.SetPropagateKeyboardInput then self:SetPropagateKeyboardInput(false) end
-            W.CycleTab(key == "PAGEDOWN" and 1 or -1)
-        end
-    end)
-    if win.EnableKeyboard then win:EnableKeyboard(s.controller ~= false) end
+    -- The window never takes the keyboard (EnableKeyboard is protected in
+    -- combat on Forever, and a window that eats keys gets in the way). Tab
+    -- cycling is offered as two key bindings the player can choose to set
+    -- (Bindings.xml), and the Gamepad UI's cursor clicks everything here.
     return win
 end
 
 function W.CycleTab(delta)
+    if not (W.frame and W.frame:IsShown()) then return end
     local keys = {}
     for _, t in ipairs(Tabs()) do if t.key then keys[#keys + 1] = t.key end end
     local cur = 1
