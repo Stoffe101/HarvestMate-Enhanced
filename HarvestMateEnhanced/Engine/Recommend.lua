@@ -89,7 +89,8 @@ end
 local function Travel(profile, mapID, x, y)
     if not profile.mapID then return nil, "unknown" end
     local fromMap, fx, fy = Geo.ZoneOf(profile.mapID, profile.x, profile.y)
-    return Geo.TravelTime(fromMap, fx, fy, mapID, x, y, { speed = profile.speed, faction = profile.faction })
+    return Geo.TravelTime(fromMap, fx, fy, mapID, x, y, { speed = profile.speed, faction = profile.faction,
+        fromPlayer = profile.real ~= false })
 end
 
 -- Share of a planned session left after travelling there.

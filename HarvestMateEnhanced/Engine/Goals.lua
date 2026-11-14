@@ -208,6 +208,37 @@ function Goals.Check()
     HME.Signal("GOALS_CHANGED")
 end
 
+-- A gathered material by name: exact first, then the first containing it.
+function Goals.FindItem(text)
+    text = U.Trim(text or ""):lower()
+    if text == "" then return nil end
+    local id
+    for itemID, rec in pairs(ns.itemIndex or {}) do
+        if rec.entry.name and rec.entry.name:lower() == text then id = itemID end
+    end
+    if id then return id end
+    local best
+    for itemID, rec in pairs(ns.itemIndex or {}) do
+        local name = rec.entry.name and rec.entry.name:lower()
+        if name and name:find(text, 1, true) and (not best or #name < #best[2]) then best = { itemID, name } end
+    end
+    return best and best[1]
+end
+
+-- "50 Heavy Leather, 30 Iron Ore, 20 Goldthorn" -> { { itemID, target } },
+-- with the parts it could not read.
+function Goals.ParseList(text)
+    local items, unknown = {}, {}
+    for part in (text or ""):gmatch("[^,;]+") do
+        local n, name = part:match("^%s*(%d+)%s*x?%s+(.-)%s*$")
+        if not n then name, n = part:match("^%s*(.-)%s+x?(%d+)%s*$") end
+        local id = name and Goals.FindItem(name)
+        if id and tonumber(n) then items[#items + 1] = { itemID = id, target = tonumber(n) }
+        elseif U.Trim(part) ~= "" then unknown[#unknown + 1] = U.Trim(part) end
+    end
+    return items, unknown
+end
+
 -- Items your open goals still miss: { [itemID] = { missing, goal } }.
 function Goals.Needed()
     local out = {}

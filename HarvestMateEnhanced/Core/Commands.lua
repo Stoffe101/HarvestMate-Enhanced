@@ -19,6 +19,7 @@ local function Help()
         "/hme stop  stop following the farm   ·   /hme nav  navigate to it",
         "/hme here  guide the loop beside another Forever-GPS journey   ·   /hme giveback  hand the arrow back",
         "/hme rec [start name|pause|resume|stop|cancel]  record your own route as you ride it",
+        "/hme exp [plan|go|next|skip n|replan|stop]  a farming expedition for your shopping list",
         "/hme session start|pause|end   ·   /hme hud  show or hide the HUD",
         "/hme glimmer [on|off|preview]   ·   /hme soft [off]   ·   /hme key [KEY]",
         "/hme export  ·  /hme import <name>  copy data from HarvestMate/Gatherpedia/GatherPath",
@@ -62,6 +63,46 @@ function cmds.rec(rest)
     else HME.Print("/hme rec start [name] | pause | resume | stop | cancel") end
 end
 cmds.record = cmds.rec
+
+-- Expeditions: /hme exp [plan | go | next | skip [n] | replan | stop]
+-- "plan" uses your first open shopping list (or item goal).
+function cmds.exp(rest)
+    local X = HME.Expedition
+    local verb, arg = (rest or ""):match("^(%S*)%s*(.-)$")
+    local function Show(plan)
+        HME.Print(("%s (%s farming, %s travel):"):format(plan.name or "Expedition", HME.U.Duration(plan.hours * 3600),
+            HME.U.Duration(plan.travel)))
+        for _, l in ipairs(X.Lines(plan)) do print("  " .. l) end
+    end
+    if verb == "plan" then
+        for _, g in ipairs(HME.Goals.List()) do
+            if not g.doneAt and (g.type == "list" or g.type == "item") then
+                HME.Print("planning an expedition for " .. (g.name or "your goal") .. "...")
+                X.Plan(X.FromGoal(g), {}, function(plan)
+                    if #plan.stages == 0 then
+                        HME.Print("no farm in reach gives those materials.")
+                        for _, l in ipairs(X.Lines(plan)) do print("  " .. l) end
+                        return
+                    end
+                    X.Start(plan, g.name)
+                    Show(plan)
+                    HME.Print("/hme exp go starts stage 1.")
+                end)
+                return
+            end
+        end
+        HME.Print("make a shopping list or material goal first (Goals page).")
+    elseif verb == "go" then X.Go(tonumber(arg))
+    elseif verb == "next" then local ok, why = X.Next() if not ok and why then HME.Print(why .. ".") end
+    elseif verb == "skip" then X.Skip(tonumber(arg))
+    elseif verb == "replan" then X.Replan(function(plan) Show(plan) end)
+    elseif verb == "stop" then X.Stop()
+    else
+        local plan = X.Current()
+        if plan then Show(plan) else HME.Print("/hme exp plan | go | next | skip [n] | replan | stop") end
+    end
+end
+cmds.expedition = cmds.exp
 function cmds.giveback() HME.Guidance.GiveBack() end
 function cmds.hud() HME.HUD.Toggle() end
 

@@ -125,7 +125,9 @@ function Geo.TravelTime(fromMap, fx, fy, toMap, tx, ty, opts)
     local speed = opts.speed or (HME.Player and HME.Player.Speed()) or 7
     local faction = opts.faction or (HME.Player and HME.Player.Faction()) or "Neutral"
     if not fromMap or not toMap then return nil, "unknown" end
-    if Geo.external then
+    -- Forever-GPS estimates from where the player stands: only for trips that
+    -- start there (opts.fromPlayer), never for a leg between two other places.
+    if Geo.external and opts.fromPlayer then
         local secs, quality = Geo.external(fromMap, fx, fy, toMap, tx, ty)
         if secs then return secs, quality or "measured" end
     end

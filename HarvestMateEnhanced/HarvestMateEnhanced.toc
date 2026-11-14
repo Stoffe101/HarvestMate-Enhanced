@@ -82,6 +82,7 @@ Engine\Recommend.lua
 Engine\Planner.lua
 Engine\Guide.lua
 Engine\Goals.lua
+Engine\Expedition.lua
 Engine\Suggest.lua
 
 # HarvestMate's gathering engine, continued (needs the session)
