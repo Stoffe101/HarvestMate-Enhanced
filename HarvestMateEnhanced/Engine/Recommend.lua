@@ -299,6 +299,7 @@ function R.Score(results, query, profile)
         -- Measured beats assumed when the estimates are close.
         local EV = { measured = 1, ["partly measured"] = 0.97, ["known yield"] = 0.94, ["published data"] = 0.9, assumption = 0.87 }
         score = score * (EV[r.evidence and r.evidence.level or "assumption"] or 0.87)
+        if r.sizeUnknown then score = score * 0.75 end
         r.score = score
         r.scoreBase = base
         r.riskPenalty = penalty
@@ -362,6 +363,46 @@ function R.Summary(r, query, profile)
     s = s .. "."
     if #warn > 0 then s = s .. " Watch: " .. table.concat(warn, "; ", 1, math.min(3, #warn)) .. "." end
     return s
+end
+
+-- Side by side: rows of the chosen results with the figures to compare, and
+-- per column which is best, where "best" is only claimed when the data
+-- behind it is at least partly measured or the margin is large (25%+):
+-- a weakly supported top figure is shown as "highest estimate", not best.
+R.COMPARE_COLUMNS = {
+    { key = "skill", label = "Skill-ups/h", get = function(r) return r.metrics.skillRange and r.metrics.skillRange.mid end },
+    { key = "gold", label = "Gold/h (farming)", get = function(r) return r.metrics.range and r.metrics.range.mid end, money = true },
+    { key = "trip", label = "Gold/h (trip)", get = function(r) return r.tripGph end, money = true },
+    { key = "units", label = "Materials/h", get = function(r) return r.metrics.materialPerHour or r.metrics.nodesPerHour or r.metrics.beastsPerHour end },
+    { key = "travel", label = "Travel", get = function(r) return r.travel end, lower = true, duration = true },
+    { key = "risk", label = "Risk", get = function(r) return r.risk and r.risk.score end, lower = true },
+    { key = "loop", label = "Route length", get = function(r) return r.metrics.loopYards end, lower = true },
+}
+
+function R.Compare(results)
+    local out = { rows = results, best = {}, notes = {} }
+    for _, col in ipairs(R.COMPARE_COLUMNS) do
+        local best, second, bv, sv
+        for i, r in ipairs(results) do
+            local v = col.get(r)
+            if v then
+                local better = not bv or (col.lower and v < bv) or (not col.lower and v > bv)
+                if better then second, sv = best, bv; best, bv = i, v
+                elseif not sv or (col.lower and v < sv) or (not col.lower and v > sv) then second, sv = i, v end
+            end
+        end
+        if best then
+            local r = results[best]
+            local strong = r.evidence and HME.Evidence.ORDER[r.evidence.level] <= 2
+            local margin = sv and bv and sv ~= 0 and math.abs(bv - sv) / math.abs(sv) or 1
+            out.best[col.key] = { index = best, sure = strong or margin >= 0.25 or col.key == "travel" or col.key == "risk" or col.key == "loop" }
+            if not out.best[col.key].sure then
+                out.notes[#out.notes + 1] = ("%s: %s has the highest estimate, but it is not measured and the lead is small."):format(
+                    col.label, r.zone)
+            end
+        end
+    end
+    return out
 end
 
 -- Why this result ranks where it does, in short lines.
@@ -456,6 +497,14 @@ function R.Find(query, done, profile)
                     r.travel, r.travelQuality = Travel(profile, mapID, r.cx, r.cy)
                     r.risk = Risk.Assess({ mapID = mapID, x = r.cx, y = r.cy, radius = r.radius or 150,
                         beasts = BeastsNear(mapID, r.cx, r.cy, (r.radius or 150) + 60) }, profile)
+                    -- No size from the client or the bundled table: distances and
+                    -- density are guesses (a 1500 x 1000 default), so say so.
+                    if not Geo.MapYards(mapID) then
+                        r.sizeUnknown = true
+                        r.confidence.value = r.confidence.value * 0.7
+                        r.confidence.label = ConfLabel(r.confidence.value)
+                        table.insert(r.confidence.reasons, "this zone's size is unknown here, so density and distances are rough")
+                    end
                     HME.Evidence.Apply(r)
                     r.tripShare = TimeShare(r.travel)
                     r.tripGph = r.metrics.range.mid * r.tripShare

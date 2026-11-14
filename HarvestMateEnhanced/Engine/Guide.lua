@@ -102,6 +102,79 @@ function G.GreyShare(result, skill)
     return grey / total
 end
 
+---------------------------------------------------------------------------
+-- A staged leveling plan, e.g. Skinning 175 -> 300. Stages break at the
+-- rank thresholds and every 40 points; each stage asks the Farm Finder what
+-- is best at the skill it starts at (as if the character were there), with
+-- two alternatives, the training it needs at its end, and hours at the
+-- forecast rate (a range). The plan is rebuilt when the skill runs past a
+-- stage, so it follows how fast you really climb.
+---------------------------------------------------------------------------
+G.STAGE = 40
+
+function G.Stages(prof, from, to)
+    local cuts = { from }
+    local s = from
+    while s < to do
+        local nextCut = math.min(to, s + G.STAGE)
+        for _, r in ipairs(HME.Player.RANKS) do
+            if r.cap > s and r.cap < nextCut then nextCut = r.cap end
+        end
+        cuts[#cuts + 1] = nextCut
+        s = nextCut
+    end
+    local stages = {}
+    for i = 1, #cuts - 1 do stages[#stages + 1] = { from = cuts[i], to = cuts[i + 1] } end
+    return stages
+end
+
+-- Builds the plan in the background; done(plan) with
+-- { prof, from, to, stages = { { from, to, farm, alternatives, train, hours = {low, mid, high} } }, hours }
+function G.Plan(prof, to, done, base)
+    base = base or HME.Player.Profile()
+    local s = base.skills[prof]
+    local from = s and s.rank or 1
+    to = math.min(300, math.max(from + 1, to or 300))
+    local plan = { prof = prof, from = from, to = to, stages = G.Stages(prof, from, to), t = (time and time()) or 0 }
+    local function work()
+        local total = { low = 0, mid = 0, high = 0 }
+        for _, st in ipairs(plan.stages) do
+            local p = HME.U.Copy(base)
+            p.skills[prof] = { rank = st.from, max = math.max(st.to, st.from) }
+            local needLevel = 1
+            for _, r in ipairs(HME.Player.RANKS) do
+                if st.from >= r.from and r.cap >= st.to then needLevel = math.max(needLevel, r.level) break end
+            end
+            p.level = math.max(p.level, needLevel)
+            local results = HME.Recommend.Find({ prof = prof, goal = "level", limit = 3 }, nil, p)
+            st.farm = results[1]
+            st.alternatives = { results[2], results[3] }
+            st.level = p.level
+            -- Training needed to go past this stage's end.
+            for _, r in ipairs(HME.Player.RANKS) do
+                if r.cap == st.to and st.to < 300 then
+                    local nextRank
+                    for _, r2 in ipairs(HME.Player.RANKS) do if r2.from <= st.to and r2.cap > st.to then nextRank = r2 end end
+                    st.train = nextRank
+                end
+            end
+            local range = st.farm and st.farm.metrics.skillRange
+            if range and range.mid > 0 then
+                local pts = st.to - st.from
+                st.hours = { low = pts / range.high, mid = pts / range.mid, high = pts / math.max(range.low, 0.1) }
+                total.low, total.mid, total.high = total.low + st.hours.low, total.mid + st.hours.mid, total.high + st.hours.high
+            end
+            HME.Yield()
+        end
+        plan.hours = total
+        return plan
+    end
+    if done then
+        return HME.RunJob("plan:" .. prof, work, function(p) if HME.char then HME.char.plans = HME.char.plans or {}; HME.char.plans[prof] = { to = p.to, t = p.t } end done(p) end, { key = "plan" })
+    end
+    return work()
+end
+
 -- Checked after every skill-up: says once when the active farm has gone grey
 -- or a rank opens up (with the "autoGuide" setting on).
 local said = {}
