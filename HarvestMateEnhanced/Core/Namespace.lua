@@ -83,6 +83,7 @@ local function Report(err)
     local handler = _G.geterrorhandler and _G.geterrorhandler()
     if handler then handler(err) end
     HME.lastError = tostring(err)
+    if HME.Diagnostics then HME.Diagnostics.NoteError(err) end
     return err
 end
 

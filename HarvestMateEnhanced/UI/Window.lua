@@ -36,6 +36,8 @@ local function Tabs()
     }
     for _, t in ipairs((HME.Routes and HME.Routes.CONFIG_TABS) or {}) do tabs[#tabs + 1] = t end
     tabs[#tabs + 1] = { header = "" }
+    tabs[#tabs + 1] = { key = "setup", label = "Setup", icon = "Interface\\Icons\\INV_Misc_Gear_01", build = P.setup,
+        tip = "What HME found and the few choices that matter. Never forced." }
     tabs[#tabs + 1] = { key = "settings", label = "Settings", icon = "Interface\\Icons\\Trade_Engineering",
         build = P.settings, tip = "What HME shows, how it ranks, prices, integrations and your data." }
     return tabs

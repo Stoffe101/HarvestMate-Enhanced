@@ -126,6 +126,8 @@ UI\PageMaterials.lua
 UI\PageStats.lua
 UI\PageTrainers.lua
 UI\PageSettings.lua
+UI\PageSetup.lua
 UI\HUD.lua
 UI\Minimap.lua
+Core\Diagnostics.lua
 Core\Commands.lua

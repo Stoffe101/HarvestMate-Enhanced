@@ -32,7 +32,8 @@ cmds.help = Help
 
 local PAGES = { finder = "finder", farm = "finder", guides = "guides", guide = "guides", materials = "materials",
     mats = "materials", stats = "stats", profit = "stats", trainers = "trainers", routes = "routes",
-    settings = "settings", options = "settings", config = "settings", dashboard = "dashboard" }
+    settings = "settings", options = "settings", config = "settings", dashboard = "dashboard", setup = "setup",
+    goals = "goals" }
 local PROF = { herb = "Herbalism", herbs = "Herbalism", herbalism = "Herbalism", mine = "Mining", mining = "Mining",
     ore = "Mining", skin = "Skinning", skinning = "Skinning", fish = "Fishing", fishing = "Fishing" }
 
@@ -145,7 +146,9 @@ function cmds.import(rest)
     end
 end
 
-function cmds.diag()
+-- /hme diag: a report to copy (window); /hme diag chat: the short form in chat.
+function cmds.diag(rest)
+    if rest ~= "chat" and HME.Diagnostics and HME.Diagnostics.Show() then return end
     local z = HME.DBM.Size()
     HME.Print(("v%s, data %s, %d learned nodes, %d sessions"):format(HME.VERSION, HME.dataReady and "ok" or "PROBLEM",
         z.nodes, z.sessions))
