@@ -25,6 +25,7 @@ local function Tooltip(owner)
     if r then GameTooltip:AddLine(("Session: %s/h, %.0f skill-ups/h"):format(HME.Kit.Money(r.gph), r.sph), 1, 1, 1) end
     GameTooltip:AddLine("Left-click: open", 0.8, 0.8, 0.8)
     GameTooltip:AddLine("Right-click: show or hide route lines", 0.8, 0.8, 0.8)
+    GameTooltip:AddLine("Shift-click: Skinning levels", 0.8, 0.8, 0.8)
     GameTooltip:AddLine("Drag: move this button", 0.8, 0.8, 0.8)
     GameTooltip:Show()
 end
@@ -48,6 +49,8 @@ local function Build()
     button:SetScript("OnClick", function(_, which)
         if which == "RightButton" then
             if HME.Routes and HME.Routes.ToggleLines then HME.Routes:ToggleLines() end
+        elseif IsShiftKeyDown and IsShiftKeyDown() then
+            if HME.SkinTracker then HME.SkinTracker.Toggle() end
         else
             HME.ToggleWindow()
         end

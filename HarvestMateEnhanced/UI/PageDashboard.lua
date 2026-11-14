@@ -136,6 +136,12 @@ HME.Pages.dashboard = function(body, page)
             if HME.Pages.finderSet then HME.Pages.finderSet(prof, nil) end
         end)
         c.find:SetPoint("BOTTOMLEFT", 12, 10)
+        if prof == "Skinning" then
+            refs.levels = K.Button(c, "Levels", 70, 24, function() HME.SkinTracker.Toggle() end,
+                "Skinning levels: a small live display of the highest beast level you can skin and the levels that "
+                .. "give points. Also Shift-click on the minimap button, or /hme sl.", "primary")
+            refs.levels:SetPoint("BOTTOMRIGHT", -12, 10)
+        end
         refs.profs[prof] = c
     end
 
@@ -264,11 +270,13 @@ HME.Pages.dashboard = function(body, page)
                 c.bar:Mark(nil)
                 c.skill:SetText("")
                 c.line1:SetText(K.Paint("Not learned", T.HEX.text3))
-                c.line2:SetText("Trainers page: where to learn it")
+                c.line2:SetText("Learn it at a trainer")
                 c.icon.tex:SetDesaturated(true)
                 c.name:SetTextColor(C.text2[1], C.text2[2], C.text2[3])
                 c.find:SetText("Trainers")
                 c.find:SetScript("OnClick", function() HME.OpenWindow("trainers") end)
+                c.find:SetWidth(cardW - 24)
+                if prof == "Skinning" and refs.levels then refs.levels:Hide() end
             else
                 c.icon.tex:SetDesaturated(false)
                 c.name:SetTextColor(C.text[1], C.text[2], C.text[3])
@@ -287,6 +295,11 @@ HME.Pages.dashboard = function(body, page)
                 end
                 c.line2:SetText(st.milestone and ("Next: %s at %d%s"):format(st.milestone.what, st.milestone.skill, eta) or "")
                 c.find:SetText("Find a farm")
+                if prof == "Skinning" and refs.levels then
+                    c.find:SetWidth(cardW - 24 - 76)
+                    refs.levels:SetText(HME.SkinTracker.Shown() and "Hide" or "Levels")
+                    refs.levels:Show()
+                end
                 c.find:SetScript("OnClick", function()
                     if c.find.disabled then return end
                     HME.OpenWindow("finder")

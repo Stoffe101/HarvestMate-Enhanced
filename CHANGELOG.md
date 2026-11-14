@@ -41,6 +41,8 @@
   - The HUD and the Skinning levels box lead with large figures; the Skinning box adds a coloured level strip.
   - Settings can switch to the game's font or to square corners.
   - `tools/ui_preview.py` draws every screen as HTML, to check layouts without the game.
+- **Skinning levels** display: MAX LEVEL (the highest level you can skin) and BEST LEVELS side by side, large; opens from a Levels button on the Dashboard's Skinning card, the Skinning leveling guide, Shift-click on the minimap button, a key binding, Settings or `/hme sl`.
+- Interface previews check themselves: each page measures its text as drawn and lists any overlap (0 on every screen).
 - **Skinning levels** box (`/hme skinlevels` or `/hme sl`, or Settings): which beast levels to kill for skill-ups right now, updated on every skill-up, level-up, zone and target change; the next unlock; this zone's beasts in those levels or the two closest zones that have them; a chat line when a higher level becomes skinnable.
 - Walking legs uses 3 ms a frame in batches of 16, and no new batch starts in combat.
 - Save format 3. The test runner fails on any Lua error that reaches the error handler.

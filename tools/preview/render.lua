@@ -60,6 +60,7 @@ function Methods:SetTextColor(r, g, b, a) self.__tc = { r, g, b, a or 1 } end
 function Methods:SetJustifyH(j) self.__jh = j end
 function Methods:SetJustifyV(j) self.__jv = j end
 function Methods:SetWordWrap(w) self.__wrap = w end
+function Methods:SetSpacing(n) self.__spacing = n end
 function Methods:SetFont(file, size) self.__ffile, self.__fsize = file, size return true end
 function Methods:SetFontObject(o)
     if type(o) == "table" then self.__template = rawget(o, "__fontName") or rawget(o, "__name") or self.__template end
@@ -130,7 +131,7 @@ function R.TextHeight(fs, width)
     for line in (Plain(fs.__text) .. "\n"):gmatch("([^\n]*)\n") do
         if perLine and fs.__wrap ~= false then lines = lines + math.max(1, math.ceil(#line / perLine)) else lines = lines + 1 end
     end
-    return math.max(1, lines) * (size + 2)
+    return math.max(1, lines) * (size + 2 + (fs.__spacing or 0))
 end
 function Methods:GetStringWidth() return R.TextWidth(self) end
 function Methods:GetStringHeight() return R.TextHeight(self, self.__wset and self.__w or nil) end
@@ -330,16 +331,18 @@ local function Region(o, origin, out, alpha)
         if text == "" then return end
         local size, f, weight = FontOf(o)
         local tc = rawget(o, "__tc") or { f[2], f[3], f[4], 1 }
-        local family = weight and ("font-family:Inter;font-weight:" .. weight .. ";text-shadow:0 1px 0 rgba(0,0,0,.5)") or "font-family:'Friz Quadrata TT',Georgia,serif"
+        local lh = ("line-height:%dpx;"):format(size + 3 + (rawget(o, "__spacing") or 0))
+        local family = lh .. (weight and ("font-family:Inter;font-weight:" .. weight .. ";text-shadow:0 1px 0 rgba(0,0,0,.5)") or "font-family:'Friz Quadrata TT',Georgia,serif")
         local jh = (rawget(o, "__jh") or "CENTER"):lower()
         if jh == "middle" then jh = "center" end
-        local jv = rawget(o, "__jv") or "MIDDLE"
+        -- Text without a set height grows from its top in the game.
+        local jv = rawget(o, "__jv") or (rawget(o, "__hset") and "MIDDLE" or "TOP")
         local align = jv == "TOP" and "flex-start" or (jv == "BOTTOM" and "flex-end" or "center")
         -- The game keeps text without a set width on one line.
         local wrap = (rawget(o, "__wrap") == false or not rawget(o, "__wset")) and "nowrap" or "normal"
         local clip = (wrap == "nowrap" and rawget(o, "__wset")) and ";overflow:hidden" or ""
-        out[#out + 1] = ('<div class="fs" style="%s;font-size:%dpx;color:%s;justify-content:%s;align-items:%s;text-align:%s;white-space:%s;opacity:%.2f;%s%s"><span style="%s">%s</span></div>')
-            :format(Box(rect, origin), size, css(tc), jh == "left" and "flex-start" or (jh == "right" and "flex-end" or "center"),
+        out[#out + 1] = ('<div class="fs%s" style="%s;font-size:%dpx;color:%s;justify-content:%s;align-items:%s;text-align:%s;white-space:%s;opacity:%.2f;%s%s"><span style="%s"><span class="t">%s</span></span></div>')
+            :format(rawget(o, "__wset") and "" or " auto", Box(rect, origin), size, css(tc), jh == "left" and "flex-start" or (jh == "right" and "flex-end" or "center"),
                 align, jh, wrap, a, family, clip, clip ~= "" and "overflow:hidden;text-overflow:ellipsis" or "", Markup(text, size))
     elseif kind == "Texture" or kind == "Line" then
         if rawget(o, "__layer") == "HIGHLIGHT" then return end
@@ -437,7 +440,36 @@ body{margin:0;background:#1b2027;font-family:"Segoe UI",Arial,sans-serif}
 .fs>span{display:block;width:100%}
 .ph{display:inline-block;background:rgba(200,200,200,.35);border-radius:2px;vertical-align:-2px}
 .cap{color:#9aa;font:12px Segoe UI;padding:6px 10px;background:#0e1114}
+.bad{outline:1px solid #ff3b3b;background:rgba(255,59,59,.18)}
+#report{font:12px Segoe UI;color:#ddd;padding:8px 12px;background:#0e1114}
+#report li{margin:2px 0}
 ]]
+
+-- In the page: once the fonts are in, every piece of text is measured as drawn;
+-- pairs that overlap are outlined in red and listed under the picture.
+R.CHECK = [=[
+document.fonts.ready.then(function(){
+  var screen=document.querySelector('.screen').getBoundingClientRect();
+  function visible(r){return r.width>0&&r.height>0&&r.right>screen.left&&r.left<screen.right&&r.bottom>screen.top&&r.top<screen.bottom;}
+  function clipOf(el){var p=el.parentElement;while(p){var cs=getComputedStyle(p);if(cs.overflow==='hidden'&&p.classList.contains('f'))return p.getBoundingClientRect();p=p.parentElement;}return null;}
+  var items=[];
+  document.querySelectorAll('.fs .t').forEach(function(t){
+    var r=t.getBoundingClientRect(); var txt=t.textContent.trim(); if(!txt||!visible(r))return;
+    var box=t.parentElement; if(getComputedStyle(box).overflow==='hidden'){var q=box.getBoundingClientRect(); r={left:r.left,top:r.top,right:Math.min(r.right,q.right),bottom:r.bottom};}
+    var c=clipOf(t); if(c){var l=Math.max(r.left,c.left),tp=Math.max(r.top,c.top),rr=Math.min(r.right,c.right),b=Math.min(r.bottom,c.bottom); if(rr-l<2||b-tp<2)return; r={left:l,top:tp,right:rr,bottom:b};}
+    items.push({el:t,r:r,txt:txt});
+  });
+  var bad=[];
+  for(var i=0;i<items.length;i++)for(var j=i+1;j<items.length;j++){
+    var a=items[i].r,b=items[j].r; var w=Math.min(a.right,b.right)-Math.max(a.left,b.left), h=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+    if(w>2&&h>2){bad.push([items[i],items[j]]);items[i].el.classList.add('bad');items[j].el.classList.add('bad');}
+  }
+  var cut=[]; document.querySelectorAll('.fs:not(.auto)>span').forEach(function(s){if(s.scrollWidth>s.clientWidth+1&&visible(s.getBoundingClientRect()))cut.push(s.textContent.trim().slice(0,50));});
+  var rep=document.getElementById('report');
+  rep.innerHTML='<b>'+bad.length+' overlapping text pairs</b>, '+cut.length+' cut short'+'<ol>'+bad.map(function(p){return '<li>'+p[0].txt.slice(0,60)+' &lt;&gt; '+p[1].txt.slice(0,60)+'</li>';}).join('')+'</ol>'+(cut.length?'<div>cut: '+cut.join(' | ')+'</div>':'');
+  document.title=document.title+' ['+bad.length+']';
+});
+]=]
 
 -- One picture of the whole screen (or just around a frame with opts.around).
 function R.Render(title, opts)
@@ -457,8 +489,9 @@ function R.Render(title, opts)
     end
     return ('<!doctype html><html><head><meta charset="utf-8"><title>%s</title><style>%s</style></head><body>'
         .. '<div class="cap">%s · a render of the layout in a stand-in client, not a game screenshot</div>'
-        .. '<div class="screen" style="width:%dpx;height:%dpx"><div style="position:absolute;left:0;top:0;width:%dpx;height:%dpx;%s">%s</div></div></body></html>')
-        :format(esc(title), R.STYLE, esc(title), w, h, R.SCREEN_W, R.SCREEN_H, shift, table.concat(out, "\n"))
+        .. '<div class="screen" style="width:%dpx;height:%dpx"><div style="position:absolute;left:0;top:0;width:%dpx;height:%dpx;%s">%s</div></div>'
+        .. '<div id="report">checking...</div><script>%s</script></body></html>')
+        :format(esc(title), R.STYLE, esc(title), w, h, R.SCREEN_W, R.SCREEN_H, shift, table.concat(out, "\n"), R.CHECK)
 end
 
 return R

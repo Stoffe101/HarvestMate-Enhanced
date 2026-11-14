@@ -151,7 +151,7 @@ HME.Pages.finder = function(body, page)
         "Plan for another level or skill, or a longer climb (Goals & Plans).", "ghost")
     planBtn:SetPoint("TOPLEFT", 682, -30)
 
-    local status = K.Label(body, "", { template = "meta", width = PAGE_W, wrap = false })
+    local status = K.Label(body, "", { template = "meta", width = PAGE_W - 130, wrap = false })
     status:SetPoint("TOPLEFT", 2, -60)
 
     -- Results
@@ -211,10 +211,10 @@ HME.Pages.finder = function(body, page)
     local d = T.Card(body, "", LIST_W + 10, -78, PAGE_W - LIST_W - 10, DCARD_H)
     d.title:Hide()
     local DW = PAGE_W - LIST_W - 36
-    d.head = K.Label(d, "", { template = "title", size = 16, width = DW - 100, wrap = false })
+    d.head = K.Label(d, "", { template = "title", size = 16, width = DW - 176, wrap = false })
     d.head:SetPoint("TOPLEFT", 14, -14)
     d.title = d.head
-    d.where = K.Label(d, "", { template = "meta", width = DW - 100, wrap = false })
+    d.where = K.Label(d, "", { template = "meta", width = DW - 176, wrap = false })
     d.where:SetPoint("TOPLEFT", 14, -34)
     d.summary = K.Label(d, "", { template = "small", color = C.text2, width = DW })
     d.summary:SetPoint("TOPLEFT", 14, -52)
@@ -232,35 +232,34 @@ HME.Pages.finder = function(body, page)
     local scroll = T.ScrollArea(d, 200)
     scroll:ClearAllPoints()
     scroll:SetPoint("TOPLEFT", 14, -170)
-    scroll:SetPoint("BOTTOMRIGHT", -12, 84)
+    scroll:SetPoint("BOTTOMRIGHT", -12, 52)
     d.text = K.Label(scroll.child, "", { template = "small", width = DW - 14 })
     d.text:SetPoint("TOPLEFT", 0, 0)
     -- Actions: a quiet row, then the main one.
     local divider = d:CreateTexture(nil, "BORDER")
-    divider:SetPoint("BOTTOMLEFT", 12, 76)
-    divider:SetPoint("BOTTOMRIGHT", -12, 76)
+    divider:SetPoint("BOTTOMLEFT", 12, 46)
+    divider:SetPoint("BOTTOMRIGHT", -12, 46)
     divider:SetHeight(1)
     divider:SetColorTexture(unpack(C.line))
-    d.start = K.Button(d, "Start farming", 150, 30, function()
+    d.start = K.Button(d, "Start farming", 130, 28, function()
         if selected then HME.Guidance.StartResult(selected, State().goal) end
     end, "Plans the loop on the map and minimap and guides you. If it is far away, the trip goes through Forever-GPS "
         .. "(when installed) and HME takes over when you arrive.", "primary")
     d.start:SetPoint("BOTTOMRIGHT", -12, 12)
-    d.preview = K.Button(d, "Preview on map", 128, 30, function() if selected then HME.MapOverlay.Preview(selected) end end,
+    d.preview = K.Button(d, "Preview on map", 112, 28, function() if selected then HME.MapOverlay.Preview(selected) end end,
         "Opens the world map on this farm with its spawn points, hunting areas and loop.")
     d.preview:SetPoint("RIGHT", d.start, "LEFT", -8, 0)
     local modeLabels = { guided = "Guided circuit", adaptive = "Adaptive circuit", free = "Free farming", minimal = "Minimal arrow" }
-    d.mode = T.Dropdown(d, 140, { "guided", "adaptive", "free", "minimal" }, modeLabels,
+    d.mode = T.Dropdown(d, 118, { "guided", "adaptive", "free", "minimal" }, modeLabels,
         function() return HME.settings.huntMode or "guided" end, function(k) HME.Guidance.SetMode(k) end)
-    d.mode:SetPoint("BOTTOMRIGHT", -12, 46)
+    d.mode:SetPoint("BOTTOMLEFT", 12, 14)
     T.Tooltip(d.mode, "How to be guided", "Guided: the arrow leads stop by stop. Free: the area stays highlighted and "
         .. "the arrow stays out of the way. Minimal: the arrow fades while you are on the loop and comes back when you stray.")
-    d.markBtn = K.Button(d, "Mark to compare", 124, 24, function() if selected then page.ToggleMark(selected) end end,
-        "Right-click a farm in the list does the same.", "ghost")
-    d.markBtn:SetPoint("BOTTOMLEFT", 8, 46)
-    d.compare = K.Button(d, "Compare (0)", 110, 24, function() page.ShowCompare() end,
-        "Side by side: the farms you marked (right-click in the list).", "ghost")
-    d.compare:SetPoint("LEFT", d.markBtn, "RIGHT", 2, 0)
+    d.markBtn = K.Button(d, "Mark", 64, 24, function() if selected then page.ToggleMark(selected) end end,
+        "Mark this farm to compare it with others (right-click in the list does the same).", "ghost")
+    d.compare = K.Button(body, "Compare (0)", 120, 22, function() page.ShowCompare() end,
+        "Side by side: the farms you marked (Mark, or right-click in the list).", "ghost")
+    d.compare:SetPoint("TOPLEFT", PAGE_W - 120, -55)
     for _, b in ipairs({ d.preview, d.start, d.mode, d.markBtn, d.kpis }) do b:Hide() end
 
     -- Places what follows the summary under it, however many lines it took.
@@ -311,6 +310,13 @@ HME.Pages.finder = function(body, page)
     end, "Skinning: which beasts give the material you typed best, their levels, the Skinning they need, "
         .. "the yield per skin, how sure, and the hunting areas. Click a beast to open its best area.")
     d.beastsBtn:SetPoint("TOPRIGHT", -12, -12)
+    -- Mark sits beside Best beasts, or in its place when that is hidden.
+    local function PlaceMark()
+        d.markBtn:ClearAllPoints()
+        if d.beastsBtn:IsShown() then d.markBtn:SetPoint("RIGHT", d.beastsBtn, "LEFT", -4, 0)
+        else d.markBtn:SetPoint("TOPRIGHT", -12, -12) end
+    end
+    page.PlaceMark = PlaceMark
     d.beastsBtn:Hide()
 
     function page.ToggleMark(r)
@@ -334,13 +340,17 @@ HME.Pages.finder = function(body, page)
         return ("%.0f skill/h%s  ·  %s"):format(m.skillRange and m.skillRange.mid or m.skillPerHour or 0, gold, travel)
     end
 
+    -- As many names as fit the row (about 34 letters), then "+N".
     function page.SubLine(r)
-        local names = {}
-        for i, t in ipairs(r.targets or {}) do
-            if i > 3 then break end
+        local names, used, n = {}, 0, #(r.targets or {})
+        for _, t in ipairs(r.targets or {}) do
+            local len = #(t.name or "") + (#names > 0 and 2 or 0)
+            if #names > 0 and used + len > 34 then break end
             names[#names + 1] = t.name
+            used = used + len
         end
-        return table.concat(names, ", ")
+        local more = n > #names and K.Paint(("  +%d"):format(n - #names), T.HEX.text3) or ""
+        return table.concat(names, ", ") .. more
     end
 
     local function ItemName(id) return (HME.Goals and HME.Goals.ItemName(id)) or ("item " .. id) end
@@ -354,8 +364,9 @@ HME.Pages.finder = function(body, page)
 
     function page.BeastSub(e)
         local req = e.req and ("Skinning %d"):format(e.req) or "Skinning ?"
-        if e.reqTop and e.req and e.reqTop > e.req then req = req .. (" (%d for level %d)"):format(e.reqTop, e.max) end
-        return ("%s  ·  %.2f per skin  ·  about %.0f an hour"):format(req, e.perSkin or 0, e.perHour or 0)
+        if e.reqTop and e.req and e.reqTop > e.req then req = req .. (" (%d at %d)"):format(e.reqTop, e.max) end
+        local seen = e.observed and (e.observed.skins or 0) > 0
+        return ("%s  ·  %.2f per skin%s  ·  %.0f an hour"):format(req, e.perSkin or 0, seen and "" or " (est.)", e.perHour or 0)
     end
 
     function page.BeastWhere(e)
@@ -364,7 +375,6 @@ HME.Pages.finder = function(body, page)
         local also = {}
         for i = 2, #e.areas do also[#also + 1] = e.areas[i].zone end
         if #also > 0 then s = s .. "  ·  also " .. table.concat(also, ", ") end
-        s = s .. "  ·  " .. HME.Skinning.BeastYieldNote(e)
         return s
     end
 
@@ -412,8 +422,9 @@ HME.Pages.finder = function(body, page)
         d.beastsBtn:SetText("Back")
         local names = {}
         for _, id in ipairs(beastIDs) do names[#names + 1] = ItemName(id) end
+        d.head:SetWidth(DW - 110)
         d.title:SetText(#names > 0 and ("Best beasts for " .. table.concat(names, ", ")) or "Best beasts")
-        d.where:SetText("Skinning · each beast at its best hunting area")
+        d.where:SetText("Skinning · each at its best area")
         d.summary:SetText("Ranked by how many an hour (the beast's share of the kills). Click one to open that area.")
         beasts:ClearAllPoints()
         beasts:SetPoint("TOPLEFT", 14, Below(false))
@@ -473,6 +484,43 @@ HME.Pages.finder = function(body, page)
         k3:Set(r.travel and U.Duration(r.travel) or "?", r.travelQuality or (r.travel and "estimate" or "unknown"), C.text)
     end
 
+    local secs = {}
+    local function Sec(i)
+        if secs[i] then return secs[i] end
+        local x = {}
+        x.head = K.Label(scroll.child, "", { template = "label", color = C.text2 })
+        x.body = K.Label(scroll.child, "", { template = "small", width = DW - 22 })
+        if x.body.SetSpacing then x.body:SetSpacing(3) end
+        secs[i] = x
+        return x
+    end
+    function page.ShowSections(list)
+        d.text:Hide()
+        local y = 0
+        for i, sec in ipairs(list) do
+            local x = Sec(i)
+            x.head:SetText((sec[1] or ""):upper())
+            x.head:ClearAllPoints()
+            x.head:SetPoint("TOPLEFT", 0, y)
+            x.head:Show()
+            y = y - 17
+            x.body:SetText(table.concat(sec[2], "\n"))
+            x.body:ClearAllPoints()
+            x.body:SetPoint("TOPLEFT", 0, y)
+            x.body:Show()
+            y = y - (x.body:GetStringHeight() or 14) - 16
+        end
+        for i = #list + 1, #secs do
+            secs[i].head:Hide()
+            secs[i].body:Hide()
+        end
+        scroll:SetContent(DW, -y + 4)
+    end
+    local function HideSections()
+        for _, x in ipairs(secs) do x.head:Hide() x.body:Hide() end
+        d.text:Show()
+    end
+
     function page.ShowDetail(r)
         beastView = false
         DetailWidgets(true)
@@ -480,15 +528,25 @@ HME.Pages.finder = function(body, page)
         if not r then return end
         local m = r.metrics
         d:Show()
+        d.head:SetWidth(DW - 176)
         d.title:SetText(r.zone)
         d.where:SetText(("%s  ·  around %d, %d  ·  %s"):format(r.subarea or "", (r.cx or 0) * 100, (r.cy or 0) * 100,
             ((r.evidence and r.evidence.level) or "estimate")))
         d.summary:SetText(r.summary or "")
         page.FillKpis(r)
         PlaceScroll(Below(true))
-        local lines = {}
-        local function add(s) lines[#lines + 1] = s end
-        local function section(name) add(K.Paint(name:upper(), T.HEX.text3)) end
+        -- The details as titled sections, each a short list.
+        local sections, cur = {}, nil
+        local function section(name)
+            cur = { name, {} }
+            sections[#sections + 1] = cur
+        end
+        local function add(line)
+            if line == "" then return end
+            if not cur then section("") end
+            local list = cur[2]
+            list[#list + 1] = (line:gsub("^  ", ""))
+        end
         local ev = r.evidence or {}
         section("Expect")
         if m.skillRange and (m.skillPerHour or 0) > 0 then
@@ -564,12 +622,13 @@ HME.Pages.finder = function(body, page)
         if r.prof == "Combined" then
             notes[#notes + 1] = "Find Herbs and Find Minerals can't run together: switch tracking yourself as you go; the map shows both."
         end
-        for _, n in ipairs(notes) do add(K.Paint(n, T.HEX.text3)) end
-        d.text:SetText(table.concat(lines, "\n"))
-        scroll:SetContent(DW, (d.text:GetStringHeight() or 300) + 10)
+        if #notes > 0 then section("Good to know") end
+        for _, n in ipairs(notes) do add(K.Paint(n, T.HEX.text2)) end
+        page.ShowSections(sections)
         for _, b in ipairs({ d.preview, d.start, d.markBtn, d.compare }) do b:Show() end
         d.mode:SetShown(r.prof == "Skinning")
-        d.markBtn:SetText(marked[r.key] and "Unmark" or "Mark to compare")
+        d.markBtn:SetText(marked[r.key] and "Marked" or "Mark")
+        PlaceMark()
     end
 
     function page.ShowCompare()
@@ -584,6 +643,7 @@ HME.Pages.finder = function(body, page)
         beastView = false
         DetailWidgets(true)
         d.beastsBtn:SetText("Best beasts")
+        HideSections()
         local cmp = HME.Recommend.Compare(rows)
         d.title:SetText("Comparing " .. #rows .. " farms")
         d.where:SetText("Side by side, best first")

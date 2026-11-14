@@ -39,6 +39,9 @@ HME.Pages.guides = function(body, page)
         if HME.Pages.trainersSet then HME.Pages.trainersSet(ui.guideProf) end
     end)
     status.trainers:SetPoint("LEFT", status.best, "RIGHT", 8, 0)
+    status.levels = K.Button(status, "Skinning levels", 140, 24, function() HME.SkinTracker.Toggle() page.Refresh() end,
+        "A small live display of the highest beast level you can skin and the levels that give points.", "primary")
+    status.levels:SetPoint("LEFT", status.trainers, "RIGHT", 8, 0)
 
     -- Range buttons (one per guide bracket)
     local ranges = CreateFrame("Frame", nil, body)
@@ -80,6 +83,8 @@ HME.Pages.guides = function(body, page)
     function page.Refresh()
         profs:Refresh()
         local prof = ui.guideProf
+        status.levels:SetShown(prof == "Skinning")
+        status.levels:SetText(HME.SkinTracker.Shown() and "Hide Skinning levels" or "Skinning levels")
         local st = HME.Guide.Status(prof)
         if st.missing then
             status.bar:Set(0, 0, K.PROF_COLOR[prof], "not learned")

@@ -48,8 +48,8 @@ local C = {
     fieldEdge = { 1, 1, 1, 0.13 },            -- outlines of inputs
     -- text
     text    = { 0.93, 0.94, 0.95 },
-    text2   = { 0.68, 0.71, 0.75 },
-    text3   = { 0.47, 0.50, 0.55 },
+    text2   = { 0.74, 0.77, 0.81 },
+    text3   = { 0.56, 0.59, 0.64 },
     -- the accent: leaf green
     accent  = { 0.31, 0.84, 0.55, 1 },
     accentHi = { 0.42, 0.90, 0.64, 1 },
@@ -72,7 +72,7 @@ C.muted, C.grey, C.title, C.version = C.text2, C.text3, C.text, C.text3
 C.tabOn = C.accentWash
 C.fill = C.accent
 
-T.HEX = { accent = "4fd68c", gold = "f2c452", text2 = "adb5bf", text3 = "78808c", danger = "f0646d", warning = "f7a845", info = "66abff" }
+T.HEX = { accent = "4fd68c", gold = "f2c452", text2 = "bdc4cf", text3 = "8f97a3", danger = "f0646d", warning = "f7a845", info = "66abff" }
 
 ---------------------------------------------------------------------------
 -- Type: Inter, in a few roles (the game's own font where Inter won't load)

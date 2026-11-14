@@ -249,17 +249,31 @@ local function Build()
     f.head:SetPoint("TOPLEFT", 0, -2)
     f.head:SetPoint("TOPRIGHT", 0, -2)
     f.head:SetHeight(18)
-    T.HeaderStrip(f.head, "SKINNING LEVELS")
+    T.HeaderStrip(f.head, "SKINNING")
     f.head.logo:SetTexture("Interface\\Icons\\INV_Misc_Pelt_Wolf_01")
     f.head.logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    f.close = T.FlatButton(f.head, "×", 18, 18, "ghost")
+    f.close:SetPoint("RIGHT", -4, 0)
+    f.close:SetScript("OnClick", function() ST.Toggle(false) end)
+    T.Tooltip(f.close, "Hide", "Open it again from the Dashboard's Skinning card, the Skinning leveling guide, "
+        .. "Shift-click on the minimap button, a key binding, or /hme sl.")
     f.skill = T.Text(f.head, "", "strong", nil, 11)
-    f.skill:SetPoint("RIGHT", -8, 0)
+    f.skill:SetPoint("RIGHT", f.close, "LEFT", -4, 0)
     f.skill:SetJustifyH("RIGHT")
 
-    f.killLabel = T.Text(f, "KILL LEVEL", "label", nil, 9)
-    f.kill = T.Text(f, "", "display", nil, 24)
+    -- Two big numbers: the highest level you can skin, and the levels to kill.
+    local half = (W - 20) / 2
+    f.maxLabel = T.Text(f, "MAX LEVEL", "label", nil, 9)
+    f.max = T.Text(f, "", "display", nil, 26)
+    f.max:SetWordWrap(false)
+    f.maxSay = T.Text(f, "you can skin", "meta", nil, 10)
+    f.killLabel = T.Text(f, "BEST LEVELS", "label", nil, 9)
+    f.kill = T.Text(f, "", "display", nil, 26)
     f.kill:SetWordWrap(false)
-    f.killSay = T.Text(f, "", "small", T.C.text2)
+    f.killSay = T.Text(f, "", "meta", nil, 10)
+    f.killSay:SetWidth(half - 4)
+    f.killSay:SetWordWrap(false)
+    f.half = half
     f.alt = T.Text(f, "", "small")
     f.cap = T.Text(f, "", "meta")
     f.cap:SetWidth(W - 20)
@@ -324,7 +338,7 @@ function ST.Shown() return f ~= nil and f:IsShown() end
 function ST.Text()
     if not (f and f:IsShown()) then return "" end
     local parts = {}
-    for _, fs in ipairs({ f.skill, f.killLabel, f.kill, f.killSay, f.alt, f.cap, f.stripLo, f.stripHi, f.next, f.zone, f.places, f.target }) do
+    for _, fs in ipairs({ f.skill, f.maxLabel, f.max, f.maxSay, f.killLabel, f.kill, f.killSay, f.alt, f.cap, f.stripLo, f.stripHi, f.next, f.zone, f.places, f.target }) do
         if fs:IsShown() and (fs:GetText() or "") ~= "" then parts[#parts + 1] = fs:GetText() end
     end
     return table.concat(parts, "\n")
@@ -346,9 +360,14 @@ function ST.Update()
     local y = -28
     f.skill:SetText(("%d |cff78808c/ %d|r"):format(m.skill, m.max or 0))
 
-    -- What to kill
-    Place(f.killLabel, y)
+    -- The highest level you can skin, and what to kill
+    local col2 = 10 + f.half
+    Place(f.maxLabel, y)
+    Place(f.killLabel, y, col2)
     y = y - 13
+    f.max:SetText(tostring(m.bands.maxLevel))
+    f.max:SetTextColor(T.C.text[1], T.C.text[2], T.C.text[3])
+    Place(f.max, y)
     local first, second = m.picks[1], m.picks[2]
     if first then
         f.kill:SetText(Range(first.range))
@@ -358,14 +377,13 @@ function ST.Update()
     else
         f.kill:SetText("–")
         f.kill:SetTextColor(T.C.text3[1], T.C.text3[2], T.C.text3[3])
-        f.killSay:SetText("nothing you can fight gives a point now: train, or level up")
+        f.killSay:SetText("nothing you can fight gives points")
     end
-    Place(f.kill, y)
-    f.killSay:ClearAllPoints()
-    f.killSay:SetPoint("BOTTOMLEFT", f.kill, "BOTTOMRIGHT", 8, 3)
-    f.killSay:SetPoint("RIGHT", f, "RIGHT", -10, 0)
-    f.killSay:SetWordWrap(false)
+    Place(f.kill, y, col2)
     y = y - 30
+    Place(f.maxSay, y)
+    Place(f.killSay, y, col2)
+    y = y - 18
     f.alt:SetShown(second ~= nil)
     if second then
         f.alt:SetText(("%s  %s"):format(Paint(second.color, "or " .. Range(second.range)), K_Paint(second.say, T.HEX.text2)))

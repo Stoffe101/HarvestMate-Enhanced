@@ -306,3 +306,26 @@ PROFS[1] = saved
 HME.Player.Refresh()
 SlashCmdList.HARVESTMATEENHANCED("sl off")
 check(#(ERRORS or {}) == 0, "no errors: " .. tostring(ERRORS and ERRORS[1]))
+
+STEP("Skinning levels: buttons open and close it")
+HME.settings.skinLevels = false
+HME.SkinTracker.Update()
+HME.OpenWindow("dashboard")
+local dashPage = HME.Window.frame.pages.dashboard
+dashPage.Refresh()
+local lv = dashPage.refs.levels
+check(lv and lv:IsShown() and lv:GetText() == "Levels", "the Skinning card has a Levels button")
+Click(lv)
+check(HME.SkinTracker.Shown(), "it opens the Skinning levels display")
+eq(_G.HarvestMateEnhancedSkinLevels.max:GetText(), tostring(HME.SkillModel.MaxSkinLevel(HME.Player.Professions().Skinning.rank)),
+    "the highest level you can skin, large")
+dashPage.Refresh()
+eq(lv:GetText(), "Hide", "and says it hides it now")
+Click(lv)
+check(not HME.SkinTracker.Shown(), "closed again")
+HarvestMateEnhanced_ToggleSkinLevels()
+check(HME.SkinTracker.Shown(), "the key binding opens it")
+Click(_G.HarvestMateEnhancedSkinLevels.close)
+check(not HME.SkinTracker.Shown(), "its x closes it")
+HME.OpenWindow("guides")
+check(#(ERRORS or {}) == 0, "no errors: " .. tostring(ERRORS and ERRORS[1]))

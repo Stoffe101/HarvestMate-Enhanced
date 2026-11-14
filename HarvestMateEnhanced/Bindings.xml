@@ -12,4 +12,7 @@
   <Binding name="HARVESTMATEENHANCED_PREVTAB" category="ADDONS">
     HarvestMateEnhanced_CycleTab(-1)
   </Binding>
+  <Binding name="HARVESTMATEENHANCED_SKINLEVELS" category="ADDONS">
+    HarvestMateEnhanced_ToggleSkinLevels()
+  </Binding>
 </Bindings>

@@ -37,6 +37,8 @@ function K.Label(parent, text, opts)
     if opts.width then
         fs:SetWidth(opts.width)
         fs:SetWordWrap(opts.wrap ~= false)
+        -- Wrapped text reads easier with a little air between lines.
+        if opts.wrap ~= false and fs.SetSpacing then fs:SetSpacing(opts.spacing or 2) end
     end
     if opts.justify then fs:SetJustifyH(opts.justify) end
     return fs

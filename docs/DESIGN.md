@@ -71,6 +71,8 @@ This draws every page, the HUD and the Skinning levels box as HTML into `build/p
 
 It uses the real addon code in the test client. `tools/preview/render.lua` records anchors, colours, fonts and textures, then lays them out.
 
+Each page checks itself once the fonts have loaded. It measures every piece of text as drawn, outlines overlapping pairs in red, and lists them under the picture with the text cut short by "…". Aim for 0 overlaps on every screen.
+
 These are renders, not game screenshots:
 - Text sizes are estimates.
 - Game textures are placeholders.
