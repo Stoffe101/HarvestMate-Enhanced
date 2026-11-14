@@ -79,3 +79,11 @@ for _, old in ipairs({ "HarvestMateDB", "GatherpediaDB", "GatherPathForeverDB" }
 end
 check(_G.GatherPathForever == nil and _G.GatherPathForeverPinMixin == nil, "no GatherPath globals")
 check(SlashCmdList.GATHERPATHFOREVER == nil and SlashCmdList.HARVESTMATE == nil, "no other addon's command names")
+
+STEP("texture paths keep their doubled backslashes")
+for _, f in ipairs(TocFiles(ADDON_DIR)) do
+    if f:match("%.lua$") then
+        local src = Read(ADDON_DIR .. "/" .. f)
+        check(not src:find("Interface\\%a"), f .. ": a texture path with a single backslash")
+    end
+end

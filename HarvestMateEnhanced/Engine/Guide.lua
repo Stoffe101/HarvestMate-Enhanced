@@ -175,6 +175,19 @@ function G.Plan(prof, to, done, base)
     return work()
 end
 
+-- Your measured skill-ups an hour for a profession (all areas), or nil.
+function G.PersonalRate(prof)
+    local hours, ups = 0, 0
+    for key, st in pairs(HME.db and HME.db.stats or {}) do
+        if key:find("^" .. prof .. "@") then
+            hours = hours + (st.hours or 0)
+            ups = ups + (st.skillups or 0)
+        end
+    end
+    if hours < 0.25 then return nil end
+    return ups / hours, hours
+end
+
 -- Checked after every skill-up: says once when the active farm has gone grey
 -- or a rank opens up (with the "autoGuide" setting on).
 local said = {}

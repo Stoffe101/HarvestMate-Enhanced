@@ -89,13 +89,23 @@ HME.Pages.dashboard = function(body, page)
         "Show or hide the small farming display.")
     ses.hud:SetPoint("BOTTOMRIGHT", -12, 10)
 
-    -- Advice and integrations
-    local adv = T.Card(body, "Advice", 0, -400, PAGE_W, 112)
+    -- Suggestions and advice (left), quick start and goals (right)
+    local adv = T.Card(body, "Suggestions", 0, -400, PAGE_W / 2 + 60, 112)
     refs.adv = adv
-    adv.text = K.Label(adv, "", { template = "GameFontHighlightSmall", width = PAGE_W - 24 })
+    adv.text = K.Label(adv, "", { template = "GameFontHighlightSmall", width = PAGE_W / 2 + 36 })
     adv.text:SetPoint("TOPLEFT", 12, -26)
-    adv.integ = K.Label(adv, "", { template = "GameFontDisableSmall", width = PAGE_W - 24 })
-    adv.integ:SetPoint("BOTTOMLEFT", 12, 10)
+    adv.integ = K.Label(body, "", { template = "GameFontDisableSmall", width = PAGE_W })
+    adv.integ:SetPoint("TOPLEFT", 0, -516)
+    local qs = T.Card(body, "Quick start", PAGE_W / 2 + 68, -400, PAGE_W / 2 - 68, 112)
+    refs.qs = qs
+    qs.buttons = {}
+    for i = 1, 3 do
+        local b = K.Button(qs, "", PAGE_W / 2 - 92, 20, function(self) if self.p then HME.Profiles.Apply(self.p) end end)
+        b:SetPoint("TOPLEFT", 12, -24 - (i - 1) * 24)
+        qs.buttons[i] = b
+    end
+    qs.goals = K.Label(qs, "", { template = "GameFontDisableSmall", width = PAGE_W / 2 - 92 })
+    qs.goals:SetPoint("BOTTOMLEFT", 12, 8)
 
     function page.Refresh()
         local profile = HME.Player.Profile()
@@ -128,7 +138,12 @@ HME.Pages.dashboard = function(body, page)
                 local trainText = ({ capped = "|cffff8a3dAt cap: train now|r", ready = "|cff48c75aCan train " .. (st.nextRank and st.nextRank.name or "") .. "|r",
                     level = "|cffffe14dNext rank at level " .. (st.nextRank and st.nextRank.level or "?") .. "|r", max = "|cff48c75aMaxed|r" })[st.train]
                 c.line1:SetText(trainText or (st.rank and st.rank.name or ""))
-                c.line2:SetText(st.milestone and ("Next: %s at %d"):format(st.milestone.what, st.milestone.skill) or "")
+                local eta = ""
+                if st.milestone then
+                    local sph = HME.Guide.PersonalRate(prof)
+                    if sph and sph > 0 then eta = (" · ~%s at your pace"):format(U.Duration((st.milestone.skill - st.skill) / sph * 3600)) end
+                end
+                c.line2:SetText(st.milestone and ("Next: %s at %d%s"):format(st.milestone.what, st.milestone.skill, eta) or "")
             end
         end
         local g = HME.Guidance.Active()
@@ -164,6 +179,10 @@ HME.Pages.dashboard = function(body, page)
             refs.ses.stop:Hide()
         end
         local advice = {}
+        for i = #HME.Suggest.list, math.max(1, #HME.Suggest.list - 2), -1 do
+            local s = HME.Suggest.list[i]
+            if s then advice[#advice + 1] = "|cffffd100•|r " .. s.text end
+        end
         for _, prof in ipairs(K.PROFS) do
             local st = HME.Guide.Status(prof, profile)
             for _, m in ipairs(st.messages or {}) do
@@ -177,5 +196,26 @@ HME.Pages.dashboard = function(body, page)
         while #advice > 4 do table.remove(advice) end
         refs.adv.text:SetText(table.concat(advice, "\n"))
         refs.adv.integ:SetText(HME.IntegrationLine and HME.IntegrationLine() or "")
+        local profiles = HME.Profiles.List()
+        for i, b in ipairs(refs.qs.buttons) do
+            local p = profiles[i]
+            b.p = p
+            b:SetShown(p ~= nil)
+            if p then b:SetText(p.name) end
+        end
+        local goals, open = HME.Goals.List(), 0
+        local first
+        for _, g in ipairs(goals) do
+            if not g.doneAt then
+                open = open + 1
+                first = first or g
+            end
+        end
+        if first then
+            local p = HME.Goals.Progress(first)
+            refs.qs.goals:SetText(("Goal: %s %d%%%s"):format(first.name, p.fraction * 100, open > 1 and (" (+" .. (open - 1) .. " more)") or ""))
+        else
+            refs.qs.goals:SetText(#profiles == 0 and "No profiles yet: Save one in the Farm Finder." or "No open goals.")
+        end
     end
 end

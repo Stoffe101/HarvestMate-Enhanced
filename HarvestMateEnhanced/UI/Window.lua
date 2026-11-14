@@ -22,6 +22,8 @@ local function Tabs()
           tip = "Your gathering professions, the farm you are following and this session." },
         { key = "finder", label = "Farm Finder", icon = "Interface\\Icons\\INV_Misc_Spyglass_02", build = P.finder,
           tip = "Where to farm for skill, gold or a material, ranked for this character." },
+        { key = "goals", label = "Goals & Plans", icon = "Interface\\Icons\\INV_Misc_Note_06", build = P.goals,
+          tip = "Material and skill goals with progress, staged leveling plans, saved profiles." },
         { key = "guides", label = "Leveling Guides", icon = "Interface\\Icons\\INV_Misc_Note_01", build = P.guides,
           tip = "1-300 for each profession, with what to do next." },
         { key = "materials", label = "Materials", icon = "Interface\\Icons\\INV_Misc_Herb_07", build = P.materials,

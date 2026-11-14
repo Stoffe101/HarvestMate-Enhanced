@@ -115,6 +115,7 @@ UI\Kit.lua
 UI\Window.lua
 UI\PageDashboard.lua
 UI\PageFinder.lua
+UI\PageGoals.lua
 UI\PageGuides.lua
 UI\PageMaterials.lua
 UI\PageStats.lua

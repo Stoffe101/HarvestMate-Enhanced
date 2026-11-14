@@ -69,6 +69,8 @@ local function Build()
     end)
 end
 
+-- Sizes: "compact" one line; "normal" adds counts and the farm; "detailed"
+-- adds goal progress, farming vs trip gold and the time split.
 function H.Update()
     local s = HME.settings
     local want = s and s.hud and not hidden and (HME.Session.Current() or HME.Guidance.Active())
@@ -77,21 +79,43 @@ function H.Update()
         return
     end
     if not f then Build() end
+    local size = s.hudSize or (s.hudCompact and "compact") or "normal"
     local r = HME.Session.Rates()
     local g = HME.Guidance.Active()
     if r then
         f.big:SetText(("%s/h  ·  %.0f skill/h%s"):format(K.Money(r.gph), r.sph, r.paused and "  |cffff8a3dpaused|r" or ""))
     else
-        f.big:SetText("Session not started")
+        f.big:SetText(g and g.name or "Session not started")
     end
     local lines = {}
-    if r then
-        lines[#lines + 1] = ("%s  ·  %d nodes  ·  %d skins  ·  %d catches"):format(U.Duration(r.secs), r.nodes, r.skins, r.catches)
+    if size ~= "compact" then
+        if r then
+            lines[#lines + 1] = ("%s farming  ·  %d nodes  ·  %d skins  ·  %d catches"):format(U.Duration(r.farmSecs), r.nodes, r.skins, r.catches)
+        end
+        if g then lines[#lines + 1] = g.phaseText or "" end
     end
-    if g and not s.hudCompact then lines[#lines + 1] = (g.name or "") .. ": " .. (g.phaseText or "") end
+    if size == "detailed" then
+        if r then
+            lines[#lines + 1] = ("Trip incl. %s travel: %s/h  ·  combat %s, gathering %s, idle %s"):format(U.Duration(r.travelSecs),
+                K.Money(r.tripGph), U.Duration(r.combatSecs), U.Duration(r.gatherSecs), U.Duration(r.idleSecs))
+        end
+        for _, goal in ipairs(HME.Goals.List()) do
+            if not goal.doneAt then
+                local p = HME.Goals.Progress(goal)
+                lines[#lines + 1] = ("Goal %s: %d%%"):format(goal.name, p.fraction * 100)
+                break
+            end
+        end
+        for prof, v in pairs(HME.Player.Professions()) do
+            if g and g.prof == prof then lines[#lines + 1] = ("%s %d/%d"):format(prof, v.rank, v.max) end
+        end
+    end
     f.text:SetText(table.concat(lines, "\n"))
-    local h = 40 + (f.text:GetStringHeight() or 12)
-    f:SetHeight(s.hudCompact and 38 or h)
+    f.text:SetShown(#lines > 0)
+    local h = 40 + (#lines > 0 and (f.text:GetStringHeight() or 12) or 0)
+    f:SetHeight(size == "compact" and 38 or h)
+    f:SetWidth(size == "detailed" and 300 or 230)
+    f.text:SetWidth(size == "detailed" and 284 or 214)
     f:Show()
 end
 

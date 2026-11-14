@@ -808,10 +808,10 @@ end
 -- The window
 ---------------------------------------------------------------------------
 local TABS = {
-    { key = "routes",  label = "Routes",      icon = "Interface\Icons\INV_Misc_Map_01",   build = BuildRoutes },
-    { key = "newroute", label = "New route",  icon = "Interface\Icons\INV_Misc_Flower_02", build = BuildNew, onTab = function() ResetNew() end },
-    { key = "taboo",   label = "Avoid areas", icon = "Interface\Icons\INV_Misc_Bone_Skull_01", build = BuildTaboo },
-    { key = "display", label = "Map display", icon = "Interface\Icons\INV_Misc_Spyglass_03", build = BuildDisplay },
+    { key = "routes",  label = "Routes",      icon = "Interface\\Icons\\INV_Misc_Map_01",   build = BuildRoutes },
+    { key = "newroute", label = "New route",  icon = "Interface\\Icons\\INV_Misc_Flower_02", build = BuildNew, onTab = function() ResetNew() end },
+    { key = "taboo",   label = "Avoid areas", icon = "Interface\\Icons\\INV_Misc_Bone_Skull_01", build = BuildTaboo },
+    { key = "display", label = "Map display", icon = "Interface\\Icons\\INV_Misc_Spyglass_03", build = BuildDisplay },
 }
 GP.CONFIG_TABS = TABS
 GP.RESET_NEW = function() ResetNew() end

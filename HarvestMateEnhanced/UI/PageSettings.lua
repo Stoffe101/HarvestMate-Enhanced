@@ -194,6 +194,16 @@ HME.Pages.settings = function(body, page)
     Switch("Spawn pins always", "Pins for your gathering professions on every map (busier).", function() return S().nodePinsAlways end,
         function(v) S().nodePinsAlways = v end)
     Switch("Hunting areas", "Shaded areas for skinning farms.", function() return S().huntAreas end, function(v) S().huntAreas = v end)
+    Drop("Map detail", "Detailed: a pin per spawn point, grouped where they crowd. Simple: farming areas only. Heatmap: "
+        .. "shaded density of spawn points (lighter where data is unconfirmed).", { "detailed", "simple", "heatmap" },
+        { detailed = "Detailed pins", simple = "Areas only", heatmap = "Heatmap" },
+        function() return S().mapDetail end, function(k) S().mapDetail = k end)
+    Drop("Guidance", "Guided: the arrow leads stop by stop. Free: the area stays highlighted, no arrow. Minimal: the arrow fades "
+        .. "while you are on the loop.", { "guided", "free", "minimal" }, { guided = "Guided circuit", free = "Free farming", minimal = "Minimal arrow" },
+        function() return S().huntMode end, function(k) HME.Guidance.SetMode(k) end)
+    Drop("HUD size", "Compact: one line. Detailed: also goals, trip gold and how your time was spent.", { "compact", "normal", "detailed" },
+        { compact = "Compact", normal = "Normal", detailed = "Detailed" }, function() return S().hudSize end,
+        function(k) S().hudSize = k; if HME.HUD then HME.HUD.Update() end end)
     Switch("Use TomTom for the trip", "Without Forever-GPS: give the way to the farm to TomTom (its arrow) instead of HME's.",
         function() return S().tomtom end, function(v) S().tomtom = v end)
     EndRow()
@@ -223,6 +233,9 @@ HME.Pages.settings = function(body, page)
         function(v) S().competition = v end, 0, 80, 5, "%")
     Slider("Planned session", "How long you plan to farm: the trip there is spread over this.", function() return S().sessionMinutes end,
         function(v) S().sessionMinutes = v end, 15, 240, 15, " min")
+    Slider("Idle after", "No gather, skin, catch or fight for this long: that stretch counts as idle, not farming. "
+        .. "Waiting for respawns shorter than this still counts as farming.", function() return S().idleMinutes end,
+        function(v) S().idleMinutes = v end, 2, 15, 1, " min")
     EndRow()
     local avoid = T.EditBox(root, 300)
     avoid:SetPoint("TOPLEFT", 0, y)
@@ -240,6 +253,16 @@ HME.Pages.settings = function(body, page)
     end)
     refreshers[#refreshers + 1] = function() avoid:SetText(table.concat(U.Keys(S().avoidZones or {}, true), ", ")) end
     y = y - 32
+
+    -------------------------------------------------------------------
+    Section("suggest", "Suggestions", "Short, rate-limited hints on the Dashboard (and in chat if notifications are on).")
+    for _, kind in ipairs(HME.Suggest.KINDS) do
+        Switch(kind.label, "Show this kind of suggestion.", function() return HME.Suggest.Enabled(kind.key) end, function(v)
+            S().suggest = type(S().suggest) == "table" and S().suggest or {}
+            S().suggest[kind.key] = v and nil or false
+        end)
+    end
+    EndRow()
 
     -------------------------------------------------------------------
     Section("prices", "Prices",

@@ -28,7 +28,7 @@ local U = HME.U
 local DB = {}
 HME.DBM = DB
 
-DB.SCHEMA = 1
+DB.SCHEMA = 2
 
 -- Limits on what grows with play. Old entries go first.
 DB.LIMITS = {
@@ -59,7 +59,12 @@ DB.SETTINGS = {
     arriveYards = 30,
     hud = true,                  -- the farming HUD while a farm is active
     hudLocked = false,
-    hudCompact = false,
+    hudCompact = false,          -- (0.1.0; schema 2 turns it into hudSize)
+    hudSize = "normal",          -- "compact", "normal" or "detailed"
+    huntMode = "guided",         -- "guided", "free" or "minimal" arrow while farming
+    mapDetail = "detailed",      -- "detailed" pins, "simple" areas only, or "heatmap"
+    idleMinutes = 5,             -- no activity this long: that stretch is idle, not farming
+    suggest = {},                -- [kind] = false switches a suggestion kind off
     -- recommendations
     autoGuide = true,            -- say when a better farm opens up as skill rises
     riskMode = "balanced",       -- "fastest", "balanced" or "safer"
@@ -115,6 +120,18 @@ end
 DB.UPGRADES = {
     [1] = function(db)
         Section(db, "settings")
+    end,
+    -- 0.1.0 -> 0.2.0: HUD size, separate travel time in area stats.
+    [2] = function(db)
+        local s = Section(db, "settings")
+        if s.hudCompact == true and s.hudSize == nil then s.hudSize = "compact" end
+        for _, st in pairs(type(db.stats) == "table" and db.stats or {}) do
+            if type(st) == "table" then st.travelHours = st.travelHours or 0 end
+        end
+        -- Sessions from 0.1.0 counted travel into their time; say so.
+        for _, sess in ipairs(type(db.sessions) == "table" and db.sessions or {}) do
+            if type(sess) == "table" and sess.farmSecs == nil then sess.farmSecs, sess.mixedTravel = sess.secs, true end
+        end
     end,
 }
 
