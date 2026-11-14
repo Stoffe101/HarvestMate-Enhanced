@@ -318,9 +318,7 @@ S.LIVE_MIN_SECS = 10 * 60   -- no verdict before 10 farming minutes...
 S.LIVE_MIN_EVENTS = 8       -- ...and 8 gathers, skins or catches
 
 local function ItemName(id)
-    local name = ns.itemIndex and ns.itemIndex[id] and ns.itemIndex[id].name
-    if not name and GetItemInfo then name = HME.Str((GetItemInfo(id))) end
-    return name or ("item " .. id)
+    return ns.ItemNameByID(id) or ("item " .. id)
 end
 
 -- Everything the HUD and Dashboard show about the session going on now.

@@ -43,7 +43,8 @@ function GetRealZoneText() return MAPS[PLAYER.map] and MAPS[PLAYER.map].name or 
 
 -- Items: [id] = { name, quality, sell }
 ITEMS = {}
-function GetItemInfo(id)
+-- Like WoW Forever 1.60.1 (build 12.1.5 UI): C_Item.GetItemInfo, no global GetItemInfo.
+local function GetItemInfo(id)
     local it = ITEMS[id]
     if not it then return nil end
     return it.name, "item:" .. id, it.quality or 1, 1, 1, "Trade Goods", "Trade Goods", 20, "", 134400, it.sell or 0

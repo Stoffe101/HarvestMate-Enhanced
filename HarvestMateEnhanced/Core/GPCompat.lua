@@ -103,6 +103,25 @@ function ns.GetItemName(entry)
     return entry.name
 end
 
+-- Any item's name by ID: the field guide first, then the client. WoW Forever's
+-- client has C_Item.GetItemInfo and no global GetItemInfo, so ask C_Item first.
+function ns.ItemNameByID(id)
+    id = HME.Num(id)
+    if not id then return nil end
+    local rec = ns.itemIndex and ns.itemIndex[id]
+    local name = rec and rec.entry and (ns.GetItemName(rec.entry) or rec.entry.name)
+    if name then return name end
+    local get = (C_Item and C_Item.GetItemInfo) or _G.GetItemInfo
+    if get then
+        local ok, n = pcall(get, id)
+        name = ok and HME.Str(n) or nil
+    end
+    if not name and C_Item and C_Item.RequestLoadItemDataByID then
+        pcall(C_Item.RequestLoadItemDataByID, id)
+    end
+    return name
+end
+
 function ns.GetPlayerSkill(prof)
     local p = ns.learned[prof]
     return p and p.rank or nil

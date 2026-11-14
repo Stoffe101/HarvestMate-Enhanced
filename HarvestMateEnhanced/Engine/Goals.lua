@@ -87,13 +87,7 @@ end
 -- Goals
 ---------------------------------------------------------------------------
 local function ItemName(id)
-    local rec = ns.itemIndex[id]
-    local name = (rec and ns.GetItemName(rec.entry)) or (rec and rec.entry.name)
-    if not name and GetItemInfo then
-        local ok, n = pcall(GetItemInfo, id)
-        name = ok and HME.Str(n) or nil
-    end
-    return name or ("item " .. id)
+    return ns.ItemNameByID(id) or ("item " .. id)
 end
 Goals.ItemName = ItemName
 

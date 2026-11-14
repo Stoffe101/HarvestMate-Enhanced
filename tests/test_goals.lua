@@ -183,3 +183,10 @@ eq(#HME.Profiles.List(), 1, "listed")
 HME.Profiles.Save("Heavy Leather Profit", { prof = "Skinning", goal = "profit" })
 eq(#HME.Profiles.List(), 1, "same name replaces")
 eq(HME.Profiles.Apply(HME.Profiles.List()[1]), "search", "applying opens the Farm Finder on it")
+
+STEP("item names come from C_Item (the client has no global GetItemInfo)")
+check(_G.GetItemInfo == nil, "the stand-in client matches WoW Forever: no global GetItemInfo")
+ITEMS[90001] = { name = "Test Reagent", sell = 5 }
+eq(HME.Goals.ItemName(90001), "Test Reagent", "a reagent outside the field guide gets its client name")
+eq(HME.Goals.ItemName(90002), "item 90002", "an unknown item says so")
+check(HME.Goals.ItemName(2772):find("Iron Ore", 1, true), "a field guide item keeps its name")
