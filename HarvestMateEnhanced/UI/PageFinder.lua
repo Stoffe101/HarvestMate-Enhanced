@@ -224,8 +224,8 @@ HME.Pages.finder = function(body, page)
     d.compare = K.Button(d, "Compare (0)", 116, 22, function() page.ShowCompare() end,
         "Side by side: the farms you marked (right-click in the list).")
     d.compare:SetPoint("LEFT", d.start, "RIGHT", 6, 0)
-    local modeLabels = { guided = "Guided circuit", free = "Free farming", minimal = "Minimal arrow" }
-    d.mode = T.Dropdown(d, 150, { "guided", "free", "minimal" }, modeLabels,
+    local modeLabels = { guided = "Guided circuit", adaptive = "Adaptive circuit", free = "Free farming", minimal = "Minimal arrow" }
+    d.mode = T.Dropdown(d, 150, { "guided", "adaptive", "free", "minimal" }, modeLabels,
         function() return HME.settings.huntMode or "guided" end, function(k) HME.Guidance.SetMode(k) end)
     d.mode:SetPoint("BOTTOMLEFT", 12, 12)
     T.Tooltip(d.mode, "How to be guided", "Guided: the arrow leads stop by stop. Free: the area stays highlighted and "

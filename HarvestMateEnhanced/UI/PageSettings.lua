@@ -203,7 +203,8 @@ HME.Pages.settings = function(body, page)
         { density = "Predicted density", observed = "Where you gathered", skill = "Skill-up potential" },
         function() return S().heatView end, function(k) S().heatView = k; if HME.MapOverlay then HME.Try(HME.MapOverlay.Draw) end end)
     Drop("Guidance", "Guided: the arrow leads stop by stop. Free: the area stays highlighted, no arrow. Minimal: the arrow fades "
-        .. "while you are on the loop.", { "guided", "free", "minimal" }, { guided = "Guided circuit", free = "Free farming", minimal = "Minimal arrow" },
+        .. "while you are on the loop. Adaptive: the next stop is the nearest one you have not visited this lap.",
+        { "guided", "adaptive", "free", "minimal" }, { guided = "Guided circuit", adaptive = "Adaptive circuit", free = "Free farming", minimal = "Minimal arrow" },
         function() return S().huntMode end, function(k) HME.Guidance.SetMode(k) end)
     Drop("HUD size", "Compact: one line. Detailed: also goals, trip gold and how your time was spent.", { "compact", "normal", "detailed" },
         { compact = "Compact", normal = "Normal", detailed = "Detailed" }, function() return S().hudSize end,

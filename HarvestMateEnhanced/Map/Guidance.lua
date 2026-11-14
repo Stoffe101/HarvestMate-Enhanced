@@ -383,6 +383,28 @@ function G.Depleted(s, i)
     return t ~= nil and HME.Now() - t < G.DEPLETED_SECS
 end
 
+-- Adaptive circuit: from where you are, the nearest stop not visited this lap
+-- (a lap ends when all were visited). Hunting styles map onto HME as:
+-- continuous circuit = Guided, cluster or free hunting = Free (the area stays
+-- highlighted), adaptive = this, low-risk = the Finder's "safer" risk mode,
+-- material-focused = the Finder's material goal.
+local function NearestUnvisited(s, route, stops)
+    s.visited = type(s.visited) == "table" and s.visited or {}
+    local mapID, x, y = HME.Player.Position()
+    local zm, zx, zy = HME.Geo.ZoneOf(mapID, x, y)
+    local left = 0
+    for i = 1, #stops do if not s.visited[i] then left = left + 1 end end
+    if left == 0 then s.visited, s.laps = {}, (s.laps or 0) + 1 end
+    local best, bd
+    for i, st in ipairs(stops) do
+        if not s.visited[i] and not (G.Depleted and G.Depleted(s, i)) then
+            local d = (zm == route.mapID and zx) and HME.Geo.Distance(route.mapID, zx, zy, st[1], st[2]) or i
+            if not bd or d < bd then best, bd = i, d end
+        end
+    end
+    return best
+end
+
 -- Reached what the arrow pointed at: the next turn on the walked leg, or the next stop.
 function G.Advance()
     local s = G.Active()
@@ -392,6 +414,11 @@ function G.Advance()
     local via = ViaInto(route, s.stop or 1, n)
     if s.via and s.via <= #via then
         s.via = s.via + 1
+    elseif s.mode == "adaptive" then
+        s.visited = type(s.visited) == "table" and s.visited or {}
+        s.visited[((s.stop or 1) - 1) % n + 1] = true
+        s.stop = NearestUnvisited(s, route, Stops(route)) or ((s.stop or 1) % n + 1)
+        s.via = nil       -- straight to it: the walked turns belong to the loop's own order
     else
         s.stop = (s.stop or 1) + 1
         s.via = 1

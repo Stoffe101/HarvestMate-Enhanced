@@ -195,6 +195,21 @@ st.stop = 1
 G.Advance()
 eq(st.skippedLast, 3, "at most all but one skipped")
 check(st.stop >= 1 and st.stop <= 4, "and the arrow points at a real stop")
+-- Adaptive circuit: from where you stand, the nearest stop not visited this lap.
+st.gathered = {}
+G.SetMode("adaptive")
+st.stop, st.visited = 1, {}
+-- Nearer stop 4 than any unvisited other, but beyond the 30-yard reach (or the
+-- arrow would count it reached at once).
+PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.40, 0.415
+G.Advance()
+eq(st.stop, 4, "the nearest unvisited stop, not simply the next")
+G.Advance()
+check(st.stop == 2 or st.stop == 3, "then another one not yet visited")
+G.Advance()
+G.Advance()
+check(st.laps and st.laps >= 1, "a lap ends when all were visited")
+G.SetMode("guided")
 G.Stop()
 
 STEP("scenario E: Herbs + Ore priorities and the combined-vs-separate check")
