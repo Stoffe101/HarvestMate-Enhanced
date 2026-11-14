@@ -47,8 +47,14 @@ HME.Pages.stats = function(body, page)
     local per = T.Dropdown(body, 120, { "all", "week", "month" }, { all = "All time", week = "Last 7 days", month = "Last 30 days" },
         function() return period end, function(k) period = k; page.Refresh() end)
     per:SetPoint("TOPLEFT", 128, -28)
-    local headline = K.Label(body, "", { template = "GameFontHighlightSmall", width = 480 })
+    local headline = K.Label(body, "", { template = "GameFontHighlightSmall", width = 330 })
     headline:SetPoint("TOPLEFT", 256, -32)
+    -- Free-text filter: a zone, a material, a route or a character.
+    local search = T.EditBox(body, 140)
+    search:SetPoint("TOPRIGHT", -4, -28)
+    local filterText = ""
+    search:SetScript("OnTextChanged", function(self) filterText = U.Trim(self:GetText() or ""):lower() page.Refresh() end)
+    T.Tooltip(search, "Filter", "Only sessions whose zone, materials, route or character contain this text.")
 
     local list = K.List(body, {
         width = PAGE_W, height = 380, rowHeight = 34, empty = "Nothing yet: sessions appear here once you farm.",
@@ -81,12 +87,20 @@ HME.Pages.stats = function(body, page)
         return (now - (t or 0)) <= (period == "week" and 7 or 30) * 86400
     end
 
+    local function Matches(s)
+        if filterText == "" then return true end
+        local hay = { tostring(s.char or ""), tostring(s.route or "") }
+        for _, a in ipairs(s.areas or {}) do hay[#hay + 1] = AreaLabel(a.key) end
+        for id in pairs(s.items or {}) do hay[#hay + 1] = HME.Goals.ItemName(id) end
+        return table.concat(hay, " "):lower():find(filterText, 1, true) ~= nil
+    end
+
     local function Sessions()
         local out = {}
         for i = #HME.db.sessions, 1, -1 do
             local s = HME.db.sessions[i]
             local p = SessionProf(s)
-            if InPeriod(s.t) and (profFilter == "All" or p == profFilter) then out[#out + 1] = s end
+            if InPeriod(s.t) and (profFilter == "All" or p == profFilter) and Matches(s) then out[#out + 1] = s end
         end
         return out
     end
@@ -214,6 +228,8 @@ HME.Pages.stats = function(body, page)
 
     local function Records()
         local items = {}
+        -- HME's records from your journal (with minimum farming times), then HarvestMate's.
+        for _, r in ipairs(HME.Records.List({ prof = profFilter })) do items[#items + 1] = { r[1], r[3], r[2] } end
         local ok, lines = pcall(ns.HG.RecordLines)
         for _, l in ipairs(ok and lines or {}) do items[#items + 1] = { l[1], nil, l[2] } end
         if #items == 0 then items[1] = { "No records yet", "They fill in as you gather." } end

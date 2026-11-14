@@ -111,6 +111,8 @@ function H.Update()
                     live.betweenSkins and (" · a skin every %.0f s"):format(live.betweenSkins) or "")
             end
             if size == "detailed" and live.verdict then lines[#lines + 1] = live.verdict.text end
+            local cmp = size == "detailed" and HME.Records.Compare()
+            if cmp then lines[#lines + 1] = cmp.text end
         end
     end
     if size == "detailed" then

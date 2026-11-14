@@ -255,6 +255,7 @@ function S.Stop(reason)
         totalSecs = U.Round(Now() - (cur.clockStart or Now()), 0),
         value = U.Round(cur.value, 0), skillups = cur.skillups, counts = cur.counts, deaths = cur.deaths, reason = reason,
         areas = {}, items = cur.items, char = UnitName and HME.Str((UnitName("player"))) or nil,
+        route = HME.Guidance and HME.Guidance.Active() and HME.Guidance.Active().name or nil,
     }
     for key, a in pairs(cur.areas) do
         if a.secs >= 60 then

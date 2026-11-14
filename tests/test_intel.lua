@@ -217,3 +217,38 @@ check(lower, "lower skill first runs")
 check(r2c.combined and r2c.combined.text, "says whether one loop beats two")
 check(r2c.summary:find("Find Herbs or Find Minerals", 1, true), "and that tracking is one at a time")
 HME.settings.combinedPriority = "equal"
+
+STEP("records need enough farming behind them; now against before needs earlier sessions")
+local Rec = HME.Records
+HME.db.sessions = {}
+local function Sess(prof, mins, value, leather, key)
+    local items = leather and { [4234] = leather } or {}
+    return { t = 1000, farmSecs = mins * 60, secs = mins * 60, value = value, skillups = 0, counts = { skin = 10, herb = 0, mine = 0, fish = 0 },
+             items = items, areas = { { key = key or (prof .. "@1433"), secs = mins * 60, items = items } } }
+end
+table.insert(HME.db.sessions, Sess("Skinning", 5, 200000, 40))     -- a lucky five minutes
+table.insert(HME.db.sessions, Sess("Skinning", 60, 300000, 50))
+local recs = Rec.List({})
+local best
+for _, r in ipairs(recs) do if r[1]:find("Best Skinning session", 1, true) then best = r end end
+check(best, "a best Skinning session")
+check(best[2]:find("30g", 1, true) or best[2]:find("30", 1, true), "the hour-long one at 30 gold an hour, not the lucky 5 minutes: " .. best[2])
+local most
+for _, r in ipairs(recs) do if r[1]:find("Most leather", 1, true) then most = r end end
+eq(most and most[2], "50", "most leather in one session")
+-- Now against before: two earlier sessions in the same area, then this one.
+HME.db.sessions = { Sess("Skinning", 30, 0, 31, "Skinning@cmp"), Sess("Skinning", 30, 0, 31, "Skinning@cmp") }
+S.Start()
+local c = S.Current()
+for i = 1, 42 do HME.Signal("BEAST_SKINNED", 1126, { [4234] = 1 }, "Creature-0-1-2-3-1126-C" .. i) end
+c.areaNow = "Skinning@cmp"     -- (farming that area, as guidance would set it)
+c.farm = 30 * 60
+local cmp = Rec.Compare()
+check(cmp, "compared")
+eq(cmp.now, 42)
+check(math.abs(cmp.before - 31) < 1, "earlier sessions averaged 31 over the same time")
+eq(cmp.sessions, 2)
+check(cmp.text:find("42", 1, true) and cmp.text:find("31", 1, true), cmp.text)
+HME.db.sessions = { Sess("Skinning", 30, 0, 31, "Skinning@cmp") }
+eq(Rec.Compare(), nil, "one earlier session is not enough")
+S.Stop("test")
