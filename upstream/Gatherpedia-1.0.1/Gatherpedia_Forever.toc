@@ -1,0 +1,45 @@
+## Interface: 16001
+## AllowLoadGameType: forever
+## Title: Gatherpedia
+## Notes: A field guide to every herb, ore, fish and hide, with your own gathering log per zone.
+## Author: Curs3d221
+## Version: 1.0.1
+## SavedVariables: GatherpediaDB
+## SavedVariablesPerCharacter: GatherpediaCharDB
+## IconTexture: Interface\AddOns\Gatherpedia\Media\Icon
+## X-License: GPL-3.0-or-later
+## X-Category: Professions
+## X-Website: https://www.curseforge.com/wow/addons/gatherpedia
+
+
+Core.lua
+Theme.lua
+Data\Herbalism.lua
+Data\Mining.lua
+Data\Fishing.lua
+Data\Skinning.lua
+Data\HerbalismGuide.lua
+Data\MiningGuide.lua
+Data\FishingGuide.lua
+Data\SkinningGuide.lua
+Data\SkinningMobs.lua
+Data\NodeSpawns.lua
+Zones.lua
+MapLink.lua
+SpawnPins.lua
+Trainers.lua
+Guides.lua
+Arrow.lua
+RouteOverlay.lua
+Session.lua
+Tracker.lua
+Menu.lua
+Chrome.lua
+SessionUI.lua
+UI.lua
+TrainersUI.lua
+GuidesUI.lua
+Options.lua
+Sparkles.lua
+SparklesUI.lua
+Minimap.lua

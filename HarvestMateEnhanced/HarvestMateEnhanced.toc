@@ -1,0 +1,122 @@
+## Interface: 16001
+## Title: HarvestMate Enhanced
+## Notes: All-in-one gathering for WoW Forever: where to level Herbalism, Mining, Skinning and Fishing, farms ranked for skill or gold, routes on the map, hunting circuits, one-key gathering and session stats.
+## Author: HarvestMate Enhanced contributors (with HarvestMate by AndreiBerkut, Gatherpedia by Curs3d221, GatherPath Forever by severd8)
+## Version: 0.1.0
+## IconTexture: Interface\AddOns\HarvestMateEnhanced\Media\Logo
+## AllowLoadGameType: forever
+## OptionalDeps: GatherMate2, Questie, ForeverGPS, Auctionator, TradeSkillMaster, TomTom, HarvestMate, Gatherpedia, GatherPathForever
+## SavedVariables: HarvestMateEnhancedDB
+## SavedVariablesPerCharacter: HarvestMateEnhancedCharDB
+## AddonCompartmentFunc: HarvestMateEnhanced_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: HarvestMateEnhanced_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: HarvestMateEnhanced_OnCompartmentLeave
+## Category: Professions
+## X-License: GPL-3.0-or-later
+## X-Website: https://github.com/Stoffe101/HarvestMate-Enhanced
+
+# Core
+Core\Namespace.lua
+Core\Util.lua
+Core\GPCompat.lua
+Gather\HGCore.lua
+Gather\Locale\enUS.lua
+Gather\Locale\ruRU.lua
+Gather\Locale\deDE.lua
+Gather\Locale\frFR.lua
+Gather\Locale\esES.lua
+Gather\Locale\itIT.lua
+Gather\Locale\ptBR.lua
+Gather\Locale\koKR.lua
+Gather\Locale\zhCN.lua
+Gather\Locale\zhTW.lua
+Core\DB.lua
+Core\Migrate.lua
+Core\Player.lua
+
+# Data (Gatherpedia's files are vendored unchanged)
+Data\Zones.lua
+Data\Leather.lua
+Data\Gatherpedia\Herbalism.lua
+Data\Gatherpedia\Mining.lua
+Data\Gatherpedia\Fishing.lua
+Data\Gatherpedia\Skinning.lua
+Data\Gatherpedia\HerbalismGuide.lua
+Data\Gatherpedia\MiningGuide.lua
+Data\Gatherpedia\FishingGuide.lua
+Data\Gatherpedia\SkinningGuide.lua
+Data\Gatherpedia\SkinningMobs.lua
+Data\Gatherpedia\NodeSpawns.lua
+Data\Gatherpedia\Zones.lua
+Data\Gatherpedia\Trainers.lua
+Data\Gatherpedia\Guides.lua
+Data\Index.lua
+
+# HarvestMate's gathering engine (vendored, patch P1)
+Gather\Data.lua
+Gather\Skill.lua
+Gather\Resolve.lua
+Gather\Prices.lua
+Gather\Profit.lua
+Gather\Extras.lua
+Gather\Banner.lua
+Gather\Tooltip.lua
+Gather\Learn.lua
+Gather\Announce.lua
+
+# Engines
+Engine\Geo.lua
+Engine\Spawns.lua
+Engine\SkillModel.lua
+Engine\Prices.lua
+Engine\Risk.lua
+Engine\Cluster.lua
+Engine\Optimize.lua
+Engine\Skinning.lua
+Engine\Gathering.lua
+Engine\Learning.lua
+Engine\Session.lua
+Engine\Recommend.lua
+Engine\Planner.lua
+Engine\Guide.lua
+
+# HarvestMate's gathering engine, continued (needs the session)
+Gather\Stats.lua
+Gather\Toast.lua
+Gather\Gear.lua
+Gather\Tracking.lua
+Gather\Bind.lua
+Gather\Nearby.lua
+Gather\Glue.lua
+
+# Glimmer (Gatherpedia, patch P2)
+Glimmer\Sparkles.lua
+Glimmer\SparklesCloud.lua
+Glimmer\Glue.lua
+
+# Routes and maps (GatherPath Forever, adapted)
+UI\Theme.lua
+Routes\Routes.lua
+Routes\Pin.xml
+Routes\RoutesUI.lua
+Map\Overlay.lua
+Map\Arrow.lua
+Map\Guidance.lua
+
+# Integrations
+Integrations\ForeverGPS.lua
+Integrations\TomTom.lua
+
+# Interface
+UI\Kit.lua
+UI\Window.lua
+UI\PageDashboard.lua
+UI\PageFinder.lua
+UI\PageGuides.lua
+UI\PageMaterials.lua
+UI\PageStats.lua
+UI\PageTrainers.lua
+UI\PageSettings.lua
+UI\HUD.lua
+UI\Minimap.lua
+Core\Commands.lua
