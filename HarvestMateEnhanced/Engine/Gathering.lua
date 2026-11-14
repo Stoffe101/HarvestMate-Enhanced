@@ -76,7 +76,7 @@ local function TypeInfo(prof, name, skill, which, cache)
     local c = cache[name]
     if c then return c end
     local req = Spawns.Required(prof, name) or 1
-    c = { name = name, req = req, gatherable = skill and skill >= req or false,
+    c = { name = name, prof = prof, req = req, gatherable = skill and skill >= req or false,
           chance = SM.Chance(skill or 0, req), value = G.NodeValue(prof, name, which),
           itemID = (Spawns.NodeType(prof, name) or {}).itemID }
     cache[name] = c
@@ -85,18 +85,23 @@ end
 
 -- Weight of every site for a goal. targets: { [node name] = true } or
 -- { [itemID] = true } for "material".
+-- "Combined": Herbalism and Mining sites together, each valued for its own
+-- profession (one loop, both kinds of node).
+G.COMBINED = { "Herbalism", "Mining" }
+function G.Profs(prof) return prof == "Combined" and G.COMBINED or { prof } end
+
 function G.Weigh(prof, mapID, profile, goal, targets, which)
-    local skill = profile.skills[prof] and profile.skills[prof].rank
-    local sites = Spawns.Sites(prof, mapID)
     local cache = {}
     local w, h = Geo.MapYards(mapID)
     w, h = w or 1500, h or 1000
     local list = {}
     local maxLevel, maxProfit = 0, 0
-    for i, s in ipairs(sites) do
+    for _, p in ipairs(G.Profs(prof)) do
+    local skill = profile.skills[p] and profile.skills[p].rank
+    for i, s in ipairs(Spawns.Sites(p, mapID)) do
         local lv, pv, mv, gshare = 0, 0, 0, 0
         for name, share in pairs(s.types) do
-            local t = TypeInfo(prof, name, skill, which, cache)
+            local t = TypeInfo(p, name, skill, which, cache)
             if t.gatherable then
                 gshare = gshare + share
                 lv = lv + share * t.chance
@@ -105,10 +110,11 @@ function G.Weigh(prof, mapID, profile, goal, targets, which)
             end
         end
         if gshare > 0 then
-            list[#list + 1] = { s.yx, s.yy, site = s, level = lv, profit = pv, material = mv, gshare = gshare, index = i }
+            list[#list + 1] = { s.yx, s.yy, site = s, level = lv, profit = pv, material = mv, gshare = gshare, index = i, prof = p }
             if lv > maxLevel then maxLevel = lv end
             if pv > maxProfit then maxProfit = pv end
         end
+    end
     end
     for _, e in ipairs(list) do
         if goal == "level" then e.w = e.level
@@ -203,14 +209,16 @@ function G.Evaluate(area, profile, opts)
         end
         if m.site.confirmed then confirmed = confirmed + 1 end
     end
-    local mix, chance = {}, 0
+    local mix, chance, yieldGathers = {}, 0, 0
     local value = { conservative = 0, typical = 0, optimistic = 0 }
     for name, share in pairs(mixT) do
         local t = area.types[name]
         local p = share / totalShare
         chance = chance + p * t.chance
-        for which in pairs(value) do value[which] = value[which] + p * G.NodeValue(area.prof, name, which) end
-        mix[#mix + 1] = { name = name, share = p, req = t.req, chance = t.chance, value = t.value, itemID = t.itemID }
+        for which in pairs(value) do value[which] = value[which] + p * G.NodeValue(t.prof, name, which) end
+        local _, seen = G.NodeYield(t.prof, name)
+        yieldGathers = yieldGathers + (seen or 0)
+        mix[#mix + 1] = { name = name, prof = t.prof, share = p, req = t.req, chance = t.chance, value = t.value, itemID = t.itemID }
     end
     table.sort(mix, function(a, b) return a.share > b.share end)
     local n = #sites
@@ -232,7 +240,7 @@ function G.Evaluate(area, profile, opts)
     return {
         loopYards = loop, lapSecs = secs, nodesPerLap = perLap, nodesPerHour = nph, skillChance = chance,
         skillPerHour = nph * chance, gph = gph, valuePerNode = value, mix = mix, sites = n,
-        confirmedShare = n > 0 and confirmed / n or 0, upFraction = up, respawnCapped = cap < 1,
+        confirmedShare = n > 0 and confirmed / n or 0, upFraction = up, respawnCapped = cap < 1, yieldGathers = yieldGathers,
         basis = learned and "measured" or "estimate", competition = competition,
     }
 end
@@ -282,11 +290,18 @@ function G.EvaluateFishing(mapID, profile, opts)
         for _, f in ipairs(list) do v = v + f.value end
         gph[which] = #list > 0 and cph * v / #list or 0
     end
+    local material
+    if opts and opts.targets then
+        local hits = 0
+        for _, f in ipairs(fish.typical) do if opts.targets[f.id] or opts.targets[f.name] then hits = hits + 1 end end
+        if hits == 0 then return nil end
+        material = cph * hits / math.max(1, #fish.typical)
+    end
     local pools = 0
     for _, e in ipairs(Spawns.DbNodes("Fishing", mapID)) do pools = pools + U.PackedCount(e[4]) end
     return {
         catchesPerHour = cph, landing = landing, skillChance = SM.FishChance(skill, zoneMin),
         skillPerHour = cph * SM.FishChance(skill, zoneMin), gph = gph, fish = fish.typical,
-        zoneMin = zoneMin, noGetaway = noGet, pools = pools, basis = learned and "measured" or "estimate",
+        zoneMin = zoneMin, noGetaway = noGet, pools = pools, basis = learned and "measured" or "estimate", materialPerHour = material,
     }
 end

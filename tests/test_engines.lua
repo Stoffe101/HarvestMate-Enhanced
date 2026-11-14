@@ -35,7 +35,7 @@ STEP("eligibility for a level-36 hunter with 175 Skinning")
 local function Beast(min, max, elite, name) return { npcID = 1, name = name or "Test Wolf", min = min, max = max, elite = elite } end
 check(Sk.Eligible(Beast(30, 31), profile).killable, "level 30 wolves: yes")
 local e = Sk.Eligible(Beast(36, 37), profile)
-check(not e.killable and e.why:find("needs 185"), "level 37 needs 185 Skinning: " .. tostring(e.why))
+check(not e.killable and e.why:find("needs 180"), "level 36-37 needs at least 180 Skinning: " .. tostring(e.why))
 check(not Sk.Eligible(Beast(30, 31, true), profile).killable, "elites: no")
 local hi = Sk.Eligible(Beast(39, 40), { level = 36, skills = { Skinning = { rank = 300 } } }, "balanced")
 check(not hi.killable and hi.why:find("too far above"), "a beast 4 levels up: too dangerous in balanced mode")

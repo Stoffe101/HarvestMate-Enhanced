@@ -57,22 +57,38 @@ function Sk.Eligible(beast, profile, mode)
     local level = (beast.min + beast.max) / 2
     local top = beast.max
     local req = SM.SkinReq(top)
-    local out = { req = req, levelDiff = level - profile.level }
+    local out = { req = req, reqMin = SM.SkinReq(beast.min), levelDiff = level - profile.level, skinShare = 0, chance = 0 }
     if not skill then
         out.why = "you don't know Skinning"
         return out
     end
-    out.canSkin = skill >= req
-    out.chance = SM.Chance(skill, SM.SkinReq(math.floor(level + 0.5)))
-    out.color = SM.Color(skill, SM.SkinReq(math.floor(level + 0.5)))
+    -- A beast spawns at any level of its range: only the levels this skill
+    -- can skin count, each with its own skill-up chance.
+    local n, ok, chance = 0, 0, 0
+    for l = beast.min, beast.max do
+        n = n + 1
+        if skill >= SM.SkinReq(l) then
+            ok = ok + 1
+            chance = chance + SM.Chance(skill, SM.SkinReq(l))
+        end
+    end
+    out.skinShare = ok / math.max(1, n)
+    out.chance = ok > 0 and chance / ok or 0
+    out.canSkin = ok > 0
+    local skinTop = math.min(beast.max, SM.MaxSkinLevel(skill))
+    out.color = SM.Color(skill, SM.SkinReq(math.floor((beast.min + math.max(beast.min, skinTop)) / 2 + 0.5)))
     local known = Spawns.Skinnable(beast.npcID)
     out.skinnable = known
     if known == false then
         out.why = "the game said it can't be skinned"
         return out
     end
+    if HME.db and HME.db.obs.badBeasts and HME.db.obs.badBeasts[beast.npcID] then
+        out.why = "you marked it as wrong or not there"
+        return out
+    end
     if not out.canSkin then
-        out.why = ("needs %d Skinning (level %d)"):format(req, top)
+        out.why = ("needs %d Skinning (level %d)"):format(out.reqMin, beast.min)
         return out
     end
     local above = Sk.LEVEL_ABOVE[mode or "balanced"] or 2
@@ -91,40 +107,65 @@ function Sk.Eligible(beast, profile, mode)
     return out
 end
 
+-- How well this character farms a beast (apart from whether it may):
+-- seconds per kill and where that number comes from.
+function Sk.Efficiency(beast, profile)
+    local k, basis = Sk.KillSeconds(beast, profile)
+    return { killSecs = k, basis = basis }
+end
+
 ---------------------------------------------------------------------------
 -- Kill time
 ---------------------------------------------------------------------------
 Sk.BASE_KILL = 14   -- seconds for a beast of your own level, pull to death (model)
 
-local function ModelKill(diff, elite)
+-- A weak starting guess by class (1 = the plain model). Measured fights
+-- replace it quickly; it is never treated as a fact about a class.
+Sk.CLASS_PRIOR = { HUNTER = 0.9, WARLOCK = 0.95, MAGE = 0.95, WARRIOR = 1.05, PRIEST = 1.1, PALADIN = 1.05 }
+
+local function ModelKill(diff, elite, class)
     local t
     if diff >= 0 then t = Sk.BASE_KILL * (1 + 0.15 * diff) else t = Sk.BASE_KILL * math.max(0.4, 1 + 0.07 * diff) end
     if elite then t = t * 3.5 end
-    return t
+    return t * (Sk.CLASS_PRIOR[class or ""] or 1)
 end
 Sk.ModelKill = ModelKill
 
--- This character's speed relative to the model, from its samples
--- (HME.char.eff.kill = { { d = level diff, s = seconds }, ... }), shrunk
--- toward 1 when there are few.
-function Sk.KillFactor()
+-- This character's pace relative to the model: a weighted median of its
+-- fights (observed / model), where a fight weighs less as it ages (half
+-- after 14 days) and when it was fought at a level more than 2 away from
+-- now (gear and level change pace), shrunk toward 1 by PRIOR_KILLS.
+function Sk.KillFactor(profile)
     local samples = HME.char and HME.char.eff and HME.char.eff.kill or {}
     if #samples == 0 then return 1, 0 end
-    local ratios = {}
+    local now = (time and time()) or 0
+    local level = profile and profile.level or (HME.Player and HME.Player.Level()) or 1
+    local list, total = {}, 0
     for _, s in ipairs(samples) do
-        if type(s.s) == "number" and s.s > 0 then ratios[#ratios + 1] = s.s / ModelKill(s.d or 0, false) end
+        if type(s.s) == "number" and s.s > 0 then
+            local w = 1
+            if s.t then w = w * 0.5 ^ (math.max(0, now - s.t) / (14 * 86400)) end
+            if s.lvl and math.abs(level - s.lvl) > 2 then w = w * 0.4 end
+            list[#list + 1] = { r = s.s / ModelKill(s.d or 0, false), w = w }
+            total = total + w
+        end
     end
-    if #ratios == 0 then return 1, 0 end
-    local med = U.Quantile(ratios, 0.5)
-    local n = #ratios
-    local f = (med * n + 1 * Sk.PRIOR_KILLS) / (n + Sk.PRIOR_KILLS)
-    return U.Clamp(f, 0.25, 4), n
+    if total <= 0 then return 1, 0 end
+    table.sort(list, function(a, b) return a.r < b.r end)
+    local acc, med = 0, list[#list].r
+    for _, e in ipairs(list) do
+        acc = acc + e.w
+        if acc >= total / 2 then med = e.r break end
+    end
+    local f = (med * total + 1 * Sk.PRIOR_KILLS) / (total + Sk.PRIOR_KILLS)
+    return U.Clamp(f, 0.25, 4), total
 end
 
 function Sk.KillSeconds(beast, profile)
     local diff = (beast.min + beast.max) / 2 - profile.level
-    local f, n = Sk.KillFactor()
-    return ModelKill(diff, beast.elite) * f, n >= Sk.PRIOR_KILLS and "measured" or (n > 0 and "partly measured" or "model")
+    local f, n = Sk.KillFactor(profile)
+    return ModelKill(diff, beast.elite, profile.class) * f,
+        n >= Sk.PRIOR_KILLS and "measured" or (n > 0.5 and "partly measured" or "model")
 end
 
 ---------------------------------------------------------------------------
@@ -214,6 +255,19 @@ function Sk.Yield(beast)
     local seen = {}
     for id, total in pairs(qty) do seen[id] = total end
     return { items = items, n = n, basis = basis or "estimate", prior = prior, seen = seen }
+end
+
+-- "Heavy Leather: 42 observed from 31 skins" (or the estimate, labelled).
+function Sk.YieldText(y, itemID)
+    local name = ns.itemIndex[itemID] and ns.itemIndex[itemID].entry.name or ("item " .. itemID)
+    local seen = y.seen and y.seen[itemID]
+    if y.n > 0 and seen then
+        return ("%s: %d observed from %d skins (%.2f per skin, smoothed)"):format(name, seen, y.n, y.items[itemID] or 0)
+    end
+    if y.prior[itemID] then
+        return ("%s: about %.2f per skin (estimate%s)"):format(name, y.prior[itemID], y.n > 0 and (", " .. y.n .. " skins so far") or "")
+    end
+    return name .. ": not seen yet"
 end
 
 -- Copper per successful skin under one price estimate. Items with fewer than
@@ -384,7 +438,9 @@ function Sk.Evaluate(circuit, profile, opts)
         killBasis = basis
         kill = kill + share * k
         chance = chance + share * (b.elig.chance or 0)
-        local p = b.elig.skinnable == true and 1 or 0.85
+        -- Share of spawns you can skin: the levels you can, times 0.85 while
+        -- the game has not confirmed the beast is skinnable at all.
+        local p = (b.elig.skinShare or 1) * (b.elig.skinnable == true and 1 or 0.85)
         skinP = skinP + share * p
         for which in pairs(value) do
             local v, lines, y = Sk.SkinValue(b.beast, which)

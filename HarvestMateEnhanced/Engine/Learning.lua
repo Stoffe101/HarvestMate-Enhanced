@@ -121,6 +121,7 @@ end, "player")
 
 local moneyAtOpen
 local lootSource
+local processed, processedList = {}, {}
 
 local function ReadLoot()
     local count = Num(GetNumLootItems and GetNumLootItems()) or 0
@@ -152,24 +153,38 @@ local function OnLoot()
         return
     end
     if not npcID then return end
-    if now - skinCastAt < 4 then
+    local g = Str(guid)
+    local skinning = now - skinCastAt < 4
+    -- The same corpse can be reported more than once (LOOT_OPENED twice, a
+    -- reopened window): each corpse is counted once per kind of loot.
+    local key = g and ((skinning and "s:" or "l:") .. g)
+    if key then
+        if processed[key] then return end
+        processed[key] = true
+        processedList[#processedList + 1] = key
+        if #processedList > 200 then processed[table.remove(processedList, 1)] = nil end
+    end
+    if skinning then
         local rec = HME.db.obs.skins[npcID]
         if not rec then
-            rec = { n = 0, qty = {}, items = {} }
+            rec = { n = 0, qty = {}, items = {}, zones = {} }
             HME.db.obs.skins[npcID] = rec
         end
         rec.n = rec.n + 1
         rec.t = (time and time()) or 0
+        rec.zones = rec.zones or {}
+        local mapID = HME.Player.Position()
+        if mapID then rec.zones[mapID] = (rec.zones[mapID] or 0) + 1 end
         for id, q in pairs(items) do
             rec.qty[id] = (rec.qty[id] or 0) + q
             rec.items[id] = (rec.items[id] or 0) + 1
         end
         HME.db.obs.mobs[npcID] = true
-        HME.Signal("BEAST_SKINNED", npcID, items)
+        HME.Signal("BEAST_SKINNED", npcID, items, g)
     else
         lootSource = { npcID = npcID, items = items, at = now }
         moneyAtOpen = Num(GetMoney and GetMoney())
-        HME.Signal("BEAST_LOOTED", npcID, items)
+        HME.Signal("BEAST_LOOTED", npcID, items, g)
     end
 end
 HME.On("LOOT_OPENED", OnLoot)
@@ -220,19 +235,29 @@ HME.Listen("BEAST_LOOTED", function(npcID)
     fightLoots[#fightLoots + 1] = npcID
 end)
 
+-- A fight is a sample only when it is unambiguous: exactly one beast of
+-- known level looted, 2-180 seconds. Fights with several beasts (or adds),
+-- nothing looted (someone else's tag, an evade, a flight) or an unknown beast
+-- are counted as unclear, never as kill time. A hunter's pet is part of the
+-- character's own pace, so pet-assisted kills are measured as they are.
 HME.On("PLAYER_REGEN_ENABLED", function()
     local started = fightStart
     fightStart = nil
     if not started then return end
     local secs = HME.Now() - started
+    local loots = fightLoots
     -- Loot usually comes right after combat ends: wait for it.
     HME.After(6, function()
-        if #fightLoots ~= 1 or secs < 2 or secs > 180 then return end
-        local npc = L.Npc(fightLoots[1])
-        if not npc or not HME.char then return end
-        local diff = (npc.min + npc.max) / 2 - HME.Player.Level()
-        U.Push(HME.char.eff.kill, { d = U.Round(diff, 1), s = U.Round(secs, 1), e = npc.elite or nil },
-            HME.DBM.LIMITS.killSamples)
+        if not HME.char then return end
+        local npc = #loots == 1 and L.Npc(loots[1])
+        if not npc or secs < 2 or secs > 180 then
+            HME.char.eff.ambiguous = (HME.char.eff.ambiguous or 0) + 1
+            return
+        end
+        local level = HME.Player.Level()
+        local diff = (npc.min + npc.max) / 2 - level
+        U.Push(HME.char.eff.kill, { d = U.Round(diff, 1), s = U.Round(secs, 1), e = npc.elite or nil,
+            t = (time and time()) or 0, lvl = level }, HME.DBM.LIMITS.killSamples)
     end)
 end)
 

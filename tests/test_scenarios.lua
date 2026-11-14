@@ -53,7 +53,7 @@ end
 for _, r in ipairs(results) do
     for _, t in ipairs(r.targets) do
         check(t.max <= 38, ("no beast far above level 36 (%s %d)"):format(t.name, t.max))
-        check(t.req <= 175, ("every target is skinnable at 175 (%s needs %d)"):format(t.name, t.req))
+        check(t.reqMin <= 175, ("every target is skinnable at 175 at some level (%s needs %d)"):format(t.name, t.reqMin))
         check(not t.elite, "no elites")
     end
 end

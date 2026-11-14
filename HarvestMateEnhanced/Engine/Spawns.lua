@@ -225,6 +225,15 @@ function S.Sites(prof, mapID)
     end
     S.EachGM2(prof, mapID, function(x, y, name) add(x, y, name, "gm2") end)
     S.EachObserved(prof, mapID, function(x, y, name, rec) add(x, y, name, rec.imp and "import" or "player") end)
+    -- Spots the player marked wrong or unreachable go (Spawns.Exclude).
+    local bad = HME.db and HME.db.obs.excluded and HME.db.obs.excluded[key:gsub(":gm$", "")]
+    if bad then
+        local kept = {}
+        for _, s in ipairs(sites) do
+            if not bad[math.floor(s.yx / 12) .. ":" .. math.floor(s.yy / 12)] then kept[#kept + 1] = s end
+        end
+        sites = kept
+    end
     for _, s in ipairs(sites) do
         local total = 0
         for _, c in pairs(s.types) do total = total + c end
@@ -236,6 +245,27 @@ function S.Sites(prof, mapID)
     siteCache[key] = sites
     HME.Perf.Add("spawns:sites", HME.Clock() - t0)
     return sites
+end
+
+-- Marks a spawn point as wrong or unreachable (or puts it back): routes and
+-- rankings leave it out from then on. Kept per account, with the time.
+function S.Exclude(prof, mapID, x, y, on)
+    if not (HME.db and prof and mapID and x) then return end
+    local w, h = Geo.MapYards(mapID)
+    w, h = w or 1500, h or 1000
+    HME.db.obs.excluded = HME.db.obs.excluded or {}
+    local k = prof .. ":" .. mapID
+    local t = HME.db.obs.excluded[k] or {}
+    HME.db.obs.excluded[k] = t
+    t[math.floor(x * w / 12) .. ":" .. math.floor(y * h / 12)] = (on ~= false) and ((time and time()) or 1) or nil
+    S.Invalidate(prof, mapID)
+    HME.Signal("LEARNED")
+end
+
+function S.ExcludedCount()
+    local n = 0
+    for _, t in pairs(HME.db and HME.db.obs.excluded or {}) do n = n + HME.U.Count(t) end
+    return n
 end
 
 -- How many sites of each node type on a map: { [name] = { sites, confirmed } }

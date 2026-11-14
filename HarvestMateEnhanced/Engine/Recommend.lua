@@ -157,8 +157,9 @@ local function GatherResult(prof, area, profile, query)
     })
     local targets = {}
     for _, mix in ipairs(m.mix) do
-        targets[#targets + 1] = { name = mix.name, req = mix.req, share = mix.share, chance = mix.chance, itemID = mix.itemID,
-            color = HME.SkillModel.Color(profile.skills[prof] and profile.skills[prof].rank, mix.req) }
+        local sk = profile.skills[mix.prof or prof]
+        targets[#targets + 1] = { name = mix.name, prof = mix.prof, req = mix.req, share = mix.share, chance = mix.chance,
+            itemID = mix.itemID, color = HME.SkillModel.Color(sk and sk.rank, mix.req) }
     end
     return { key = key, prof = prof, mapID = area.mapID, cx = area.cx, cy = area.cy, area = area, metrics = m,
         confidence = conf, targets = targets, radius = area.radius,
@@ -193,7 +194,8 @@ local function SkinResults(mapID, profile, query)
                 for _, b in pairs(m.beasts) do
                     local lvl = math.floor((b.beast.min + b.beast.max) / 2 + 0.5)
                     targets[#targets + 1] = { name = b.beast.name, npcID = b.beast.npcID, min = b.beast.min, max = b.beast.max,
-                        req = b.elig.req, chance = b.elig.chance, count = b.count, elite = b.beast.elite,
+                        req = b.elig.req, reqMin = b.elig.reqMin, skinShare = b.elig.skinShare, chance = b.elig.chance,
+                        count = b.count, elite = b.beast.elite,
                         color = HME.SkillModel.Color(skill, HME.SkillModel.SkinReq(lvl)), skinnable = b.elig.skinnable }
                 end
                 table.sort(targets, function(x, y) return x.count > y.count end)
@@ -225,8 +227,8 @@ end
 ---------------------------------------------------------------------------
 -- Fishing
 ---------------------------------------------------------------------------
-local function FishResult(mapID, profile)
-    local m = HME.Gathering.EvaluateFishing(mapID, profile, { key = "Fishing@" .. mapID })
+local function FishResult(mapID, profile, query)
+    local m = HME.Gathering.EvaluateFishing(mapID, profile, { key = "Fishing@" .. mapID, targets = query and query.targets })
     if not m or m.tooLow then return nil end
     -- Where to stand: the zone's pools if known, else the zone centre.
     local cx, cy, n = 0, 0, 0
@@ -250,8 +252,8 @@ end
 ---------------------------------------------------------------------------
 local function Usefulness(r, goal, priceMode)
     local m = r.metrics
-    local gph = m.gph and (m.gph[priceMode] or m.gph.typical) or 0
-    if goal == "level" then return m.skillPerHour or 0 end
+    local gph = m.range and m.range.mid or (m.gph and (m.gph[priceMode] or m.gph.typical) or 0)
+    if goal == "level" then return m.skillRange and m.skillRange.mid or m.skillPerHour or 0 end
     if goal == "profit" then return gph end
     if goal == "material" then return m.materialPerHour or 0 end
     return nil
@@ -278,7 +280,10 @@ function R.Score(results, query, profile)
         if not base then
             local sk = maxSkill > 0 and (m.skillPerHour or 0) * r.share / maxSkill or 0
             local gp = maxGold > 0 and (m.gph and (m.gph[priceMode] or m.gph.typical) or 0) * r.share / maxGold or 0
-            local skillMatters = profile.skills[r.prof] and profile.skills[r.prof].rank < 300
+            local skillMatters = false
+            for _, p in ipairs(HME.Gathering.Profs(r.prof)) do
+                if profile.skills[p] and profile.skills[p].rank < 300 then skillMatters = true end
+            end
             base = skillMatters and (0.5 * sk + 0.5 * gp) or gp
             r.shareApplied = true
         end
@@ -291,12 +296,72 @@ function R.Score(results, query, profile)
         -- Uncertain profit counts for less: a low-confidence estimate cannot
         -- outrank a well-known farm on a lucky guess.
         if goal == "profit" or goal == "balanced" then score = score * (0.7 + 0.3 * r.confidence.value) end
+        -- Measured beats assumed when the estimates are close.
+        local EV = { measured = 1, ["partly measured"] = 0.97, ["known yield"] = 0.94, ["published data"] = 0.9, assumption = 0.87 }
+        score = score * (EV[r.evidence and r.evidence.level or "assumption"] or 0.87)
         r.score = score
         r.scoreBase = base
         r.riskPenalty = penalty
     end
     table.sort(results, function(a, b) return a.score > b.score end)
     return results
+end
+
+-- Smart filters: { continent = "E"|"K"|"F", maxRisk = 0-1, minConfidence =
+-- "Low"|"Medium"|"High", maxTravel = seconds, zone = name }. Returns why a
+-- result is left out, or nil.
+local CONF = { Low = 1, Medium = 2, High = 3 }
+function R.Filtered(r, f)
+    if not f then return nil end
+    local z = HME.ZoneData.Get(r.mapID)
+    if f.continent and z and z.cont ~= f.continent then return "another continent" end
+    if f.maxRisk and r.risk and r.risk.score > f.maxRisk then return "above your risk limit" end
+    if f.minConfidence and CONF[r.confidence.label] < (CONF[f.minConfidence] or 1) then return "below your confidence limit" end
+    if f.maxTravel and (not r.travel or r.travel > f.maxTravel) then return "too far" end
+    if f.zone and r.zone ~= f.zone then return "another zone" end
+    return nil
+end
+
+-- One plain sentence on why this farm is suggested, and what to watch.
+function R.Summary(r, query, profile)
+    local m = r.metrics
+    local good, warn = {}, {}
+    local goal = query.goal
+    if r.prof == "Skinning" then
+        local n, top = 0, nil
+        for _, t in ipairs(r.targets or {}) do
+            n = n + 1
+            top = top or t
+        end
+        if (m.skillChance or 0) > 0.6 and goal ~= "profit" then good[#good + 1] = "the beasts still give skill-ups most of the time" end
+        if top then good[#good + 1] = ("%s (level %d-%d) are within your reach"):format(top.name, top.min, top.max) end
+        if #(r.circuit or {}) > 1 then good[#good + 1] = ("they form %d hunting areas close together"):format(#r.circuit) end
+        if m.limit == "respawn" then warn[#warn + 1] = "respawns, not your pace, limit it" end
+    elseif r.prof == "Fishing" then
+        good[#good + 1] = ("your skill lands catches here (zone needs %d)"):format(m.zoneMin or 0)
+        if (m.pools or 0) > 0 then good[#good + 1] = "there are known pools" end
+    else
+        if (m.skillChance or 0) > 0.6 and goal ~= "profit" then good[#good + 1] = "most nodes here still give skill-ups" end
+        if (m.confirmedShare or 0) > 0.3 then good[#good + 1] = "many spawn points are confirmed by your own gathering" end
+        if m.respawnCapped then warn[#warn + 1] = "the loop is short, so you'll wait for nodes" end
+        if r.prof == "Combined" then good[#good + 1] = "herbs and ore together on one loop" end
+    end
+    if r.travel and r.travel < 300 then good[#good + 1] = "it is close by" end
+    if r.travel and r.travel > 1200 then warn[#warn + 1] = ("the trip takes about %s"):format(U.Duration(r.travel)) end
+    if not r.travel then warn[#warn + 1] = "travel time unknown" end
+    if r.evidence and r.evidence.level == "assumption" then warn[#warn + 1] = "the numbers are estimates, not yet measured" end
+    if m.gph and (goal == "profit" or goal == "balanced") then
+        local rec
+        for id in pairs(m.items or {}) do rec = rec or HME.Prices.Get(id) end
+        if not (rec and rec.source) then warn[#warn + 1] = "no auction prices: vendor values only"
+        elseif rec.age and rec.age > 7 * 86400 then warn[#warn + 1] = "auction data is old" end
+    end
+    if r.risk and r.risk.score >= 0.4 then warn[#warn + 1] = r.risk.label:lower() end
+    local s = "Good choice"
+    if #good > 0 then s = s .. " because " .. table.concat(good, ", ", 1, math.min(3, #good)) end
+    s = s .. "."
+    if #warn > 0 then s = s .. " Watch: " .. table.concat(warn, "; ", 1, math.min(3, #warn)) .. "." end
+    return s
 end
 
 -- Why this result ranks where it does, in short lines.
@@ -334,7 +399,17 @@ function R.Find(query, done, profile)
         local here = profile.mapID and Geo.ZoneOf(profile.mapID)
         maps = { here }
     else
-        maps = HME.Spawns.Maps(prof == "Fishing" and "Fishing" or prof)
+        if prof == "Combined" then
+            local seen = {}
+            maps = {}
+            for _, p in ipairs(HME.Gathering.COMBINED) do
+                for _, id in ipairs(HME.Spawns.Maps(p)) do
+                    if not seen[id] then seen[id] = true maps[#maps + 1] = id end
+                end
+            end
+        else
+            maps = HME.Spawns.Maps(prof == "Fishing" and "Fishing" or prof)
+        end
         if prof == "Fishing" then
             -- Open water counts too: every zone with a fishing skill.
             local seen = {}
@@ -365,7 +440,7 @@ function R.Find(query, done, profile)
                 if prof == "Skinning" then
                     found = SkinResults(mapID, profile, query)
                 elseif prof == "Fishing" then
-                    local r = FishResult(mapID, profile)
+                    local r = FishResult(mapID, profile, query)
                     if r then found = { r } end
                 else
                     local areas = HME.Gathering.Areas(prof, mapID, profile, BaseGoal(query.goal), { targets = query.targets })
@@ -381,8 +456,14 @@ function R.Find(query, done, profile)
                     r.travel, r.travelQuality = Travel(profile, mapID, r.cx, r.cy)
                     r.risk = Risk.Assess({ mapID = mapID, x = r.cx, y = r.cy, radius = r.radius or 150,
                         beasts = BeastsNear(mapID, r.cx, r.cy, (r.radius or 150) + 60) }, profile)
+                    HME.Evidence.Apply(r)
+                    r.tripShare = TimeShare(r.travel)
+                    r.tripGph = r.metrics.range.mid * r.tripShare
+                    local why = R.Filtered(r, query.filters)
                     if r.risk.parts.avoided then
                         skipped[#skipped + 1] = { mapID = mapID, why = "avoided" }
+                    elseif why then
+                        skipped[#skipped + 1] = { mapID = mapID, why = why }
                     else
                         results[#results + 1] = r
                     end
@@ -399,6 +480,7 @@ function R.Find(query, done, profile)
         for i, r in ipairs(kept) do
             r.rank = i
             r.why = R.Explain(r, query)
+            r.summary = R.Summary(r, query, profile)
         end
         return kept, skipped
     end

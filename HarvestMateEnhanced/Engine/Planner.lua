@@ -34,8 +34,14 @@ local function Describe(r, goal)
         for _, a in ipairs(r.circuit) do
             local hull = {}
             for i = 1, math.min(#(a.hull or {}), 48) do hull[i] = U.Round(a.hull[i], 4) end
+            -- Up to 40 of its spawn points, evenly picked, for sweeps and density.
+            local pts, step = {}, math.max(1, math.floor(#(a.points or {}) / 40))
+            for i = 1, #(a.points or {}), step do
+                pts[#pts + 1] = U.Round(a.points[i][1], 4)
+                pts[#pts + 1] = U.Round(a.points[i][2], 4)
+            end
             d.areas[#d.areas + 1] = { x = U.Round(a.cx, 4), y = U.Round(a.cy, 4), r = math.floor(a.radius + 0.5),
-                spawns = a.spawns, hull = hull }
+                spawns = a.spawns, hull = hull, pts = pts }
         end
         d.beasts = {}
         for _, t in ipairs(r.targets or {}) do d.beasts[#d.beasts + 1] = t.npcID end
@@ -77,27 +83,39 @@ function P.Points(route)
     end
     table.sort(pts, function(a, b) if a[1] ~= b[1] then return a[1] < b[1] end return a[2] < b[2] end)
     -- The kinds keep new nodes of these types joining the route as you find them.
-    route.kinds = { [P.KIND[d.prof]] = {} }
-    for name in pairs(d.types or {}) do route.kinds[P.KIND[d.prof]][name] = true end
+    route.kinds = {}
+    for name in pairs(d.types or {}) do
+        local p = d.prof
+        if p == "Combined" then p = HME.Spawns.NodeType("Herbalism", name) and "Herbalism" or "Mining" end
+        local kind = P.KIND[p]
+        route.kinds[kind] = route.kinds[kind] or {}
+        route.kinds[kind][name] = true
+    end
     return pts
 end
 
--- Hunting circuit: area centres; wide areas get a few points across them.
+-- Hunting circuit: one waypoint per area, and for a wide area a few
+-- waypoints on its densest parts (k-means pieces of its spawn points, about
+-- 90 yards apart), visited in an order that sweeps through it instead of
+-- zig-zagging. Waypoints sit on spawn concentrations, not on hull corners.
 function P.HuntPoints(route)
     local d = route.planned
     local w, h = Geo.MapYards(d.mapID)
     w, h = w or 1500, h or 1000
     local out = {}
     for _, a in ipairs(d.areas or {}) do
-        if (a.r or 0) > P.ZIGZAG and a.hull and #a.hull >= 6 then
-            -- Points a third of the way from the centre to each hull corner,
-            -- every other corner: a loose sweep through the area.
-            local n = #a.hull / 2
-            local step = math.max(1, math.floor(n / 4))
-            for i = 1, n, step do
-                local hx, hy = a.hull[2 * i - 1], a.hull[2 * i]
-                out[#out + 1] = { a.x + (hx - a.x) * 0.55, a.y + (hy - a.y) * 0.55 }
+        if (a.r or 0) > P.ZIGZAG and a.pts and #a.pts >= 8 then
+            local pts, members = {}, {}
+            for i = 1, #a.pts - 1, 2 do
+                pts[#pts + 1] = { a.pts[i] * w, a.pts[i + 1] * h }
+                members[#members + 1] = #pts
             end
+            local pieces = HME.Cluster.Split(pts, members, 90)
+            -- Sweep order: by angle round the area's centre.
+            table.sort(pieces, function(p1, p2)
+                return math.atan2(p1.cy - a.y * h, p1.cx - a.x * w) < math.atan2(p2.cy - a.y * h, p2.cx - a.x * w)
+            end)
+            for i = 1, math.min(#pieces, 5) do out[#out + 1] = { pieces[i].cx / w, pieces[i].cy / h } end
         else
             out[#out + 1] = { a.x, a.y }
         end

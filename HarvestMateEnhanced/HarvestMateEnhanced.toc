@@ -75,6 +75,7 @@ Engine\Optimize.lua
 Engine\Skinning.lua
 Engine\Gathering.lua
 Engine\Learning.lua
+Engine\Evidence.lua
 Engine\Session.lua
 Engine\Recommend.lua
 Engine\Planner.lua

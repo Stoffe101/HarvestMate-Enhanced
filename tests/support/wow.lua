@@ -83,6 +83,7 @@ function Methods:ClearAllPoints() self.__points = {} end
 function Methods:GetName() return self.__name end
 function Methods:GetObjectType() return self.__kind end
 function Methods:RegisterEvent(e) self.__events = self.__events or {} self.__events[e] = true end
+function Methods:RegisterUnitEvent(e) self.__events = self.__events or {} self.__events[e] = true end
 function Methods:SetValue(v)
     self.__value = v
     if self.__scripts.OnValueChanged then self.__scripts.OnValueChanged(self, v) end
