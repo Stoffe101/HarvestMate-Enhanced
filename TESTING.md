@@ -12,7 +12,7 @@ python tools/run_tests.py
 
 Each `tests/test_*.lua` runs in a fresh **real Lua 5.1** interpreter (the one bundled with `lupa`), against a fake client in `tests/support/` (frames, events, maps, professions, items, loot, CVars, bindings that raise if changed in combat, timers, popups). Nothing opens a window or touches the desktop or the game. CI runs the same on every push (`.github/workflows/test.yml`) and builds the ZIP.
 
-## What runs (all passing at the time of writing, 8 files)
+## What runs (all passing at the time of writing, 14 files)
 
 | File | Covers |
 |---|---|
@@ -23,9 +23,15 @@ Each `tests/test_*.lua` runs in a fresh **real Lua 5.1** interpreter (the one bu
 | `test_safety.lua` | Nothing changes on first login; gather key needs a yes (and not in combat); bound only at a node; released on combat, binding change, turning off and logout; capture closes in combat; Soft Target Interact only with a yes and put back; no CVar in combat; old addons running: HME pauses without saving that; no protected calls |
 | `test_integrations.lua` | Forever-GPS 2.x journey panel and published API, scenario G hand-off, no second arrow, stopping in Forever-GPS, too-old Forever-GPS, TomTom, Auctionator/TSM/vendor prices, nothing installed |
 | `test_ui.lua` | Window and every page build lazily and refresh without errors; no widget outside the page; Farm Finder results, selection, empty states; compact layout, scaling; tab memory; tab cycling; capture closes with the window; settings persist; HUD; minimap button; slash commands |
+| `test_navigation.lua` | Request tokens, duplicate events, scenario 6 hand-off, scenario 7 changed destination, cancel without takeover, walking in with HME's or another journey, reload staleness, scenario 10 travel vs farming time |
+| `test_fgps_api_live.lua` | HME's guidance against Forever-GPS's real `Core/API.lua` (skipped, with a note, when no Forever-GPS checkout is present) |
+| `test_skinning2.lua` | Four character fixtures, partial level ranges, eligibility vs efficiency, scenario 3 Heavy Leather, multi-mob and no-loot fights excluded, fading kill samples, loot counted once with sample sizes, evidence levels and ranges |
+| `test_goals.lua` | Scenario 5 goal, bank, invalid goals, shopping lists, scenario 11 staged plan, comparison, scenario 4 combined loop, scenario 9 exclusion, suggestions, sell/keep, profiles |
+| `test_maps.lua` | Overlay pins, crowd grouping, simple/heatmap, right-click corrections, hunting outlines, route editor, protection of edited routes, route quality, pin limits |
+| `test_zz_bench.lua` | Benchmarks (tools/bench.lua) with generous bounds |
 | `test_static.lua` | Every .toc file exists and compiles; vendored files equal upstream except declared patches; no unexpected globals; no saved-variable or command clashes |
 
-Last run: 8 of 8 files passed, about 1,400 checks plus GatherPath's suite, ~9 s. Three full Farm Finder searches over all bundled data took 0.31 s of CPU (outside the game).
+Last run: 14 of 14 files passed (Lua 5.1 via lupa), ~14 s. Forever-GPS's own suite with the new API: 614 passed (`lua tests/run.lua` in the Forever-GPS checkout, branch feature/public-api). Benchmarks: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Verified where
 

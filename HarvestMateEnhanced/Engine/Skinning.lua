@@ -312,7 +312,25 @@ end
 -- Returns areas sorted by weight, each:
 --   { mapID, cx, cy (map 0-1), yx, yy (yards), radius (yards), spawns,
 --     beasts = { [npcID] = { beast, elig, count } }, points = { {x,y}... } }
+local areaCache, areaCacheVersion = {}, -1
 function Sk.Areas(mapID, profile, goal, mode, targets)
+    -- Cached per map, goal, mode, skill and level while the data is unchanged
+    -- (material searches are not cached: their targets vary).
+    local key
+    if not targets then
+        local skill = profile.skills.Skinning and profile.skills.Skinning.rank or 0
+        key = table.concat({ mapID, goal or "", mode or "", skill, profile.level }, ":")
+        local v = Spawns.Version() .. ":" .. U.Count(HME.db and HME.db.obs.mobs or {}) .. ":" .. U.Count(HME.db and HME.db.obs.badBeasts or {})
+        if v ~= areaCacheVersion then areaCache, areaCacheVersion = {}, v end
+        local hit = areaCache[key]
+        if hit then return hit[1], hit[2] end
+    end
+    local areas, cands = Sk.AreasUncached(mapID, profile, goal, mode, targets)
+    if key then areaCache[key] = { areas, cands } end
+    return areas, cands
+end
+
+function Sk.AreasUncached(mapID, profile, goal, mode, targets)
     local w, h = Geo.MapYards(mapID)
     w, h = w or 1500, h or 1000
     local pts = {}

@@ -1,23 +1,23 @@
 HarvestMate Enhanced
 Copyright (C) 2026 HarvestMate Enhanced contributors
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+HarvestMate Enhanced as distributed (the combined addon) is licensed under
+the GNU General Public License, version 3. It includes spawn data derived
+from QuestieDB, which the Questie team offers under GPLv3 without an
+"or any later version" grant, so the combined work is offered under
+version 3. See THIRD_PARTY.md for the details and a provenance caveat.
+
+HME's own code (everything THIRD_PARTY.md lists as written for HME) is
+additionally available under the GPL version 3 or (at your option) any
+later version. Gatherpedia's files are GPL-3.0-or-later (Curs3d221).
+Parts from MIT-licensed projects (GatherPath Forever by severd8,
+HarvestMate by AndreiBerkut) keep their MIT notices in Licenses/; those
+parts may still be used under MIT on their own.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-
-HarvestMate Enhanced combines work under several licenses (see
-THIRD_PARTY.md). Because it includes GPL-3.0-or-later work (Gatherpedia,
-and QuestieDB-derived spawn data), the combined addon is distributed under
-the GPL version 3 or later. Parts that came from MIT-licensed projects
-(GatherPath Forever by severd8, HarvestMate by AndreiBerkut) keep their
-MIT notices in Licenses/; those parts may still be used under MIT on their
-own.
 
 The full text of the GNU General Public License version 3 follows.
 

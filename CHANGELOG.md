@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+### Fixed (confirmed by reproduction tests)
+- Forever-GPS: any arrival was treated as arriving at the farm, so a journey the player redirected elsewhere still started HME's loop.
+- Forever-GPS: walking into the farm while HME's own journey ran left that journey's arrow up next to HME's (two arrows).
+- The session clock started at "Start farming", so travel was counted as farming and lowered measured rates.
+- A running session was lost on /reload.
+- Duplicate loot events could count one corpse twice.
+- The route pages' tab icons used single backslashes (missing textures in game).
+- With no price known at all, "Best gold" showed nothing.
+
+### New
+- Navigation ownership by request token and destination snapshot (pending, active, arrived, cancelled, superseded, released, stale); HME never stops a journey it did not start; "Guide me here" when another journey runs.
+- ForeverGPS.API v1 support (Forever-GPS branch feature/public-api), tested against its real code.
+- Session time split: travel, farming, combat, gathering, waiting, idle (configurable); farming vs trip gold/hour; sessions survive reloads.
+- Skinning 2.0: partly skinnable level ranges, eligibility separate from efficiency, unambiguous-fight kill timing with recency and level weighting, weak class prior, yields counted once with sample sizes, beasts can be marked wrong.
+- Evidence levels and ranges for every farm; rankings prefer measured data; zones of unknown size flagged.
+- Farm Finder: Herbs + Ore combined loops, several materials at once, play-time selector, filters, plain-language reasons, comparison view, profiles.
+- Goals (materials, skill, gold, shopping lists) with held vs gathered progress and time to finish; staged leveling plans; rate-limited suggestions with per-kind switches; inventory capacity; sell/keep advisor.
+- Map: profession colours, confirmed vs predicted, grouped crowded pins, hunting-area outlines, start marker, simple and heatmap modes, right-click corrections.
+- Route editor (add/remove waypoints, undo, reverse), route quality labels, edited routes protected.
+- Profits & Stats: journal, overview with bests and most productive areas and beasts, filters. HUD sizes.
+- Damaged saves repaired entry by entry; imports validated and size-limited; schema 2.
+- tools/bench.lua benchmarks; tools/upstream_check.py for reviewing upstream releases.
+
+### Changed
+- License statement: the combined addon is GPL-3.0 (QuestieDB data has no "or later" grant).
+
 ## 0.1.0 (unreleased, first build)
 
 First version of HarvestMate Enhanced: GatherPath Forever 1.12.1, HarvestMate 2.0.13 and Gatherpedia 1.0.1 in one addon.

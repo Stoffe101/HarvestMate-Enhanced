@@ -74,3 +74,27 @@ No protected call in combat; override bindings and CVars change only with the pl
 ## Performance
 
 Spawn sites are cached per profession and map and invalidated on new data; the Farm Finder runs as a job (8 ms a frame, 4 in low-performance mode); map pins are pooled and capped (600 / 250); pages are built when first opened. `/hme diag` prints timings.
+
+## 0.2.0 additions
+
+- `Engine/Evidence.lua`: evidence level per farm and gold/skill ranges (session percentiles weighted by hours and blended with the model by h/(h+1), else model bands: assumption x0.6-1.35, published data x0.7-1.25, known yield x0.8-1.15).
+- `Engine/Goals.lua`: goals, inventory (bags; bank only as last seen), sell/keep advisor, profiles. `Engine/Suggest.lua`: rate-limited suggestions.
+- `Engine/Guide.lua` `G.Plan`: stages at rank caps and every 40 points; each stage is a Farm Finder search at its starting skill.
+- `Routes/Editor.lua`: waypoint editing through the map canvas click handler; route quality.
+- Skinning eligibility uses every level of a beast's range (`skinShare`); the kill factor is a weighted median of unambiguous fights (weight halves every 14 days, x0.4 beyond +-2 levels), shrunk by 6 pseudo-fights, times a weak class prior.
+
+### Navigation ownership (Map/Guidance.lua, Integrations/ForeverGPS.lua)
+
+```
+NavigateTo -> pending -(route:started, dest matches)-> active -(route:arrived, dest matches)-> arrived -> HME loop
+                 |                                       |-(route:cleared)-> cancelled (no automatic takeover)
+                 |                                       '-(another destination started)-> superseded (player's journey)
+                 '-(another destination started)-> superseded
+at the farm by position: active -> HME releases ONLY if the running journey still matches -> released -> HME loop
+                         another journey running -> farm phase, HME arrow held, "Guide me here"
+after /reload: pending/active that matches nothing running -> stale
+```
+Duplicate events are no-ops; with ForeverGPS.API the token decides instead of the destination.
+
+### Session timing
+`farm` accrues only after arrival or the first gather; idle stretches longer than `idleMinutes` move from farm to idle; combat and gathering casts are parts of farm; `travel` comes from Guidance. Area statistics learn farming hours only; travel per area is learned apart (`travelHours`).

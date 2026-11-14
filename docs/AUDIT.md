@@ -32,3 +32,15 @@ Sources inspected: GatherPath Forever 1.12.1 (all code, tests, dev notes), Harve
 
 ## API notes (Forever, verified from working upstream code, not yet by HME in game)
 `C_Map.GetMapWorldSize`, `GetWorldPosFromMapPos`, `GetMapRectOnMap`, `GetPlayerMapPosition`; `WorldMapFrame:AddDataProvider` / `AcquirePin` with an XML template; map canvas children; `C_NamePlate.GetNamePlateForUnit("softinteract")`; `PLAYER_SOFT_INTERACT_CHANGED`; `issecretvalue`/`canaccessvalue`; `GetUnitSpeed` may be secret; `SetOverrideBinding` (not in combat); `C_CVar`; `GetLootSourceInfo`; `IsFishingLoot`. Minimap tooltips are unreadable since 12 Nov 2026 (not attempted).
+
+## Second pass (0.2.0)
+
+Confirmed by reproduction tests and fixed: arrival without a destination check; two arrows when walking in with HME's own panel journey; travel counted as farming; session lost on reload; duplicate loot counting; single-backslash tab icons; empty profit rankings with no price data; a duplicate-event bug in the new Forever-GPS API (caught by its real-engine test).
+
+Investigated, not reproduced:
+- Elites recommended aggressively: already excluded unless 8+ levels below (5 in fastest mode).
+- Kill time from multi-mob fights: 0.1.0 already used only single-loot fights; 0.2.0 adds unclear-fight counting and recency/level weighting.
+- Spawn points treated as live: already scaled by an up-fraction and alive share; now shown as ranges with evidence labels.
+- New code in combat: no protected calls; editor, Glimmer, map preview and bindings refuse in combat (tests).
+
+Still unverified (needs the real client): all UI layouts, map canvas drawing and lines, nameplate and soft-target behaviour, secret values in combat, the live Forever-GPS 2.7 hand-off.

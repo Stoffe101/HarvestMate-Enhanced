@@ -47,3 +47,12 @@ These started from upstream code and were changed; their headers list the change
 - HarvestMate's and Gatherpedia's own windows, minimap buttons and session boxes are replaced by HME's window, button, HUD and session engine (their data and functions are used).
 - Gatherpedia's gather tracker is replaced by HME's learning and counting (same `counts` data).
 - Gatherpedia's on-screen arrow logic is replaced by `Map/Arrow.lua` (its art and heading math are used) so that only one module owns navigation.
+
+## Reviewing future upstream releases
+
+1. `python tools/upstream_check.py harvestmate|gatherpedia|gatherpath <zip or checkout> -v` lists every changed file, how HME uses it (vendored / adapted / replaced / unused) and a diff excerpt. It changes nothing.
+2. Vendored files: copy the new file, run `python tools/vendor_patch.py`, then `python tools/run_tests.py` (`test_static.lua` checks that only declared patches remain).
+3. Adapted or replaced files: port the fix by hand where it applies, and note it here.
+4. Update `upstream/<project>-<version>/` with the new snapshot and hash, and the baselines table above.
+
+Checked on 2026-11-14: no newer HarvestMate or Gatherpedia release found; GatherPath upstream unchanged since 1.12.1.

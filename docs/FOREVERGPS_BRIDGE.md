@@ -13,7 +13,11 @@ HME uses only what Forever-GPS already exposes on its global `ForeverGPS` table,
 
 Internal functions such as these can change between Forever-GPS versions; that is why HME checks each one and falls back.
 
-## Proposed: a small published API (for Forever-GPS to add)
+## ForeverGPS.API v1 (implemented on a Forever-GPS branch)
+
+Implemented in the Forever-GPS repository on branch `feature/public-api` (draft PR https://github.com/Stoffe101/Forever-GPS/pull/3, not merged) as `addons/ForeverGPS/Core/API.lua`, documented in its `docs/API.md`, tested on its real route engine (`tests/test_api.lua`, 9 tests; whole suite 614 passing). HME prefers it when present and is tested against that real file in `tests/test_fgps_api_live.lua`. Request states on both sides: pending, active, arrived, cancelled, superseded, released, stale. HME passes `start = true` because the player just asked for directions.
+
+### The original proposal (superseded by the implementation above)
 
 Not committed to the Forever-GPS repository: it needs review there first. Suggested `Core/API.lua`, loaded after `Core/Bridge.lua`:
 

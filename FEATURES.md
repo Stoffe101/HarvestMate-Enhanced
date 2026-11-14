@@ -52,3 +52,19 @@ Status key: **New** (HME), **Kept** (from upstream, unchanged in behaviour), **I
 
 ## Interface (New)
 - One window with sidebar sections, lazy pages, compact layout, scaling, tooltips on every control; HUD; one minimap button and addon compartment entry; key bindings (all unbound by default).
+
+## Added in 0.2.0 (implemented; real-client validation pending)
+- **Navigation ownership:** request tokens and destination snapshots; HME never stops a journey it did not start; "Guide me here" beside another journey; reload-safe.
+- **Session timing:** travel, farming, combat, gathering, waiting and idle kept apart; farming vs trip gold/hour.
+- **Skinning 2.0:** partly skinnable level ranges, efficiency apart from eligibility, unambiguous-fight kill learning (recency and level weighted), yields with sample sizes, beast corrections.
+- **Evidence and ranges:** every farm says whether it rests on measured sessions, partial measurements, known yields, published data or assumptions, and shows a range.
+- **Farm Finder:** Herbs + Ore loops, several materials at once, play time, filters, reasons in plain words, comparison, profiles.
+- **Goals & Plans:** material, skill, gold and shopping-list goals; staged leveling plans with training points; profiles; suggestions; inventory; sell/keep advisor.
+- **Maps:** profession colours, confirmed vs predicted, grouped pins, hunting outlines, start marker, simple and heatmap modes, right-click corrections; route editor and route quality.
+- **Data:** damaged saves repaired, imports validated and limited, schema 2.
+
+## Proposals, not implemented
+- Terrain-aware routing from a road/terrain graph (needs a legally usable data source; Forever-GPS's walking grid could be exposed through its API later).
+- Crafting-based "use" advice (needs reliable recipe data).
+- Localized HME pages.
+- Sharing routes with other players in game (export text only today).

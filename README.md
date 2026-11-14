@@ -1,6 +1,8 @@
 # HarvestMate Enhanced
 
-An all-in-one gathering companion for **World of Warcraft: Forever** (1.60.1, interface 16001): where to level Herbalism, Mining, Skinning and Fishing, which farms pay best for *your* character, routes drawn on the world map and minimap, Skinning treated as real hunting (beast clusters, kill time, respawns), one-key gathering, and session statistics that teach the recommendations what you actually achieve.
+An all-in-one gathering companion for **World of Warcraft: Forever** (1.60.1, interface 16001): where to level Herbalism, Mining, Skinning and Fishing, which farms pay best for *your* character, routes drawn on the world map and minimap, Skinning treated as real hunting (beast clusters, kill time, respawns), goals and staged leveling plans, one-key gathering, and session statistics that teach the recommendations what you actually achieve — with every estimate saying what it rests on.
+
+Version 0.2.0. Not yet tested in the real game client: see [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md).
 
 It brings three addons together into one coherent addon, one window, one minimap button and one saved database:
 
@@ -25,7 +27,8 @@ Optional addons HME uses when present: Forever-GPS (navigation, prices), GatherM
 
 ## Using it
 
-- **Farm Finder:** pick a profession and a goal (fastest leveling, best gold, a material, balanced, safest, current zone, least travel) and a risk mode. You get ranked farms with skill-ups/hour, gold/hour (conservative, typical, optimistic), travel time, risk and confidence, and the reasons. **Start farming route** plans a loop and guides you round it; **Navigate** gets you there (through Forever-GPS when installed).
+- **Farm Finder:** pick Herbs, Ore, Herbs + Ore, Skinning or Fishing, a goal (fastest leveling, best gold, one or more materials, balanced, safest, current zone, least travel), a risk mode and how long you can play. Each farm comes with a plain sentence on why, skill-ups and gold per hour as a range, farming vs whole-trip gold, travel, risk, and what the numbers rest on (measured, partly measured, known yield, published data or assumption). Mark farms to compare them side by side; save a search as a profile. **Start farming** plans the loop and guides you; far farms go through Forever-GPS and HME takes over on arrival.
+- **Goals & Plans:** goals like "100 Heavy Leather", "Skinning 225" or "50 gold of materials" with progress (in bags and gathered, apart), the best farm for each with time and loops to go; staged leveling plans (e.g. Skinning 175 → 300) with training points; saved profiles.
 - **Leveling Guides:** Gatherpedia's 1-300 guides with your status on top: cap, next milestone, whether you can train, and advice when your farm goes grey.
 - **Materials:** the field guide, with known zones, your own counts, prices and "Farm this".
 - **Profits & Stats:** sessions (predicted vs actual), measured rates per area, records and achievements.
@@ -52,4 +55,4 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md), [FEATURES.md](FEATURES.md), [TESTING.md
 
 ## License
 
-GPL-3.0-or-later for the combined addon (it includes GPL work and QuestieDB-derived data). Parts from MIT-licensed projects keep their MIT notices in `HarvestMateEnhanced/Licenses/`. See [THIRD_PARTY.md](THIRD_PARTY.md).
+The combined addon is GPL-3.0 (version 3: the QuestieDB-derived data carries no "or later" grant); HME's own code is also available under GPL-3.0-or-later. Parts from MIT-licensed projects keep their MIT notices in `HarvestMateEnhanced/Licenses/`. See [THIRD_PARTY.md](THIRD_PARTY.md), including a provenance caveat about the QuestieDB data.

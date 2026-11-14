@@ -1,6 +1,6 @@
 # Third-party material
 
-HarvestMate Enhanced (HME) is distributed under the **GNU GPL version 3 or later** (see `LICENSE`). It contains the following work by others. All original copyright notices are kept; the license texts ship in `HarvestMateEnhanced/Licenses/`.
+HarvestMate Enhanced (HME) as distributed is licensed under the **GNU GPL version 3** (see `LICENSE`); HME's own code is additionally available under GPL-3.0-or-later. It contains the following work by others. All original copyright notices are kept; the license texts ship in `HarvestMateEnhanced/Licenses/`.
 
 | Component | Author | License | Where in HME | How it is used |
 |---|---|---|---|---|
@@ -8,7 +8,17 @@ HarvestMate Enhanced (HME) is distributed under the **GNU GPL version 3 or later
 | HarvestMate 2.0.13 | AndreiBerkut | MIT | `Gather/*.lua` (16 modules and 10 locales, one-line namespace patch), `Gather/HGCore.lua` (adapted from `Core.lua`) | One-key gathering, banner, tooltips, learning, achievements, reminders |
 | HarvestMate locale names | via GatherSkillTooltip (as HarvestMate credits) | MIT | `Gather/Locale/*.lua` | Herb and ore names in non-English clients |
 | Gatherpedia 1.0.1 | Curs3d221 | GPL-3.0-or-later | `Data/Gatherpedia/*.lua` (unchanged), `Glimmer/Sparkles.lua` (texture paths), `Glimmer/SparklesCloud.lua` (renderer part of `SparklesUI.lua`), `Core/GPCompat.lua` (helpers from `Core.lua`), `Media/GP_*.tga` (art) | Field guide data, guides and recorded routes, trainers, zones, Glimmer, arrow art |
-| QuestieDB (Forever build) spawn data | the Questie team | GPL-3.0 | `Data/Gatherpedia/NodeSpawns.lua`, `Data/Gatherpedia/SkinningMobs.lua` (as redistributed by Gatherpedia) | Herb, ore, pool and beast spawn points |
+| QuestieDB (Forever build) spawn data | the Questie team | GPLv3 (see below) | `Data/Gatherpedia/NodeSpawns.lua`, `Data/Gatherpedia/SkinningMobs.lua` (as redistributed by Gatherpedia) | Herb, ore, pool and beast spawn points |
+
+## License versions checked (2026-11-14)
+
+| Component | What its own notice says | Effect |
+|---|---|---|
+| Gatherpedia 1.0.1 | "either version 3 of the License, or (at your option) any later version" (its LICENSE header) | GPL-3.0-or-later |
+| QuestieDB data | Questie's `LICENSE.md`: contributions are offered under "the GPLv3 license"; no "or later" grant. It also says historic contributions never had a proper license and, "when in doubt", Questie should be considered all rights reserved; the Questie team is "alright with others" copying under GPLv3 but cannot speak for every past contributor. No separate license file in its `Database/` folder. | The combined addon is offered under **GPL-3.0 only**, not "or later". **Open question for the maintainer:** the provenance caveat applies to Gatherpedia's redistribution and therefore to HME's; HME keeps Gatherpedia's attribution and does not add to that data. |
+| GatherPath Forever, HarvestMate | MIT | compatible; notices kept |
+
+HME does not treat GPL-3.0-only and GPL-3.0-or-later as interchangeable: everything HME wrote is offered under both (or-later includes 3), the combined distribution only under 3.
 
 ## What HME wrote itself
 

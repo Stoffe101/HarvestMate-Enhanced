@@ -19,7 +19,8 @@ Everything in HME has only run against the headless fake client. Layout, texture
 - Travel without Forever-GPS is HME's rough estimate (neighbouring zones, boats), not a planned journey, and ignores flight paths.
 
 ## Integrations
-- Forever-GPS 2.x has no published API yet; HME fills its journey panel the way `/fgps way` does and the player presses Go. A small API is proposed in [docs/FOREVERGPS_BRIDGE.md](docs/FOREVERGPS_BRIDGE.md); HME uses it automatically once it exists.
+- Forever-GPS 2.7 (released) has no published API: HME fills its journey panel the way `/fgps way` does, the player presses Go, and HME recognises its journey by destination (within 80 yards). ForeverGPS.API v1 is implemented on the Forever-GPS branch `feature/public-api` (draft PR, not merged); HME uses it automatically when present.
+- The hand-off is tested against Forever-GPS's real API code and route engine separately, not in the live game.
 - Questie is detected but its data is not read (the bundled QuestieDB-derived spawns cover the same beasts and nodes).
 - Prices are what other addons recorded; with none installed, only vendor values are known and profit rankings say so.
 
@@ -28,7 +29,17 @@ Everything in HME has only run against the headless fake client. Layout, texture
 - In combat: no binding, CVar, Glimmer or map-opening changes; key capture closes.
 - Secret values (GUIDs, names, speeds in combat) are skipped, not worked around.
 
+## Learning limits
+- Kill time is learned only from fights with exactly one beast looted; packs, tagged-by-others and evaded fights count as unclear. Pet-assisted kills count as your pace.
+- Respawn time cannot be observed directly; measured beasts/hour per area replaces the assumption.
+- Bank contents count only as last seen when you opened the bank; other characters' bags are never known.
+- No crafting suggestions: HME has no reliable recipe data, so sell/keep advice is limited to goals, reserved items, vendor vs auction.
+
+## Licensing
+- The QuestieDB-derived spawn data has a provenance caveat (THIRD_PARTY.md); the combined addon is offered under GPL-3.0 only.
+
 ## Not done yet
 - Localization: HarvestMate's strings are in 10 languages; HME's new pages are English only.
 - Route sharing is by export text only; no in-game send.
-- Farming profiles/goals with progress tracking, zone comparison view and inventory-capacity warnings beyond HarvestMate's bag reminder are not built.
+- No vendor/mailbox navigation without Forever-GPS (the suggestion names the Forever-GPS command).
+- Terrain is still unknown to the planner: long straight legs are flagged for checking, and the route editor fixes them by hand.
