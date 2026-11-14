@@ -58,6 +58,16 @@ function L.AddStats(key, delta)
     HME.DBM.TrimMap(HME.db.stats, HME.DBM.LIMITS.areaStats)
 end
 
+-- One session's rates in an area, for ranges (newest 30 kept).
+function L.AddSample(key, sample)
+    if not key or not HME.db then return end
+    local st = HME.db.stats[key]
+    if not st then return end
+    st.samples = type(st.samples) == "table" and st.samples or {}
+    sample.t = (time and time()) or 0
+    U.Push(st.samples, sample, 30)
+end
+
 -- Observed vs predicted for an area: ratio and whether it is a clear signal
 -- (at least 1.5 hours and two sessions).
 function L.Verdict(key, metric, model)

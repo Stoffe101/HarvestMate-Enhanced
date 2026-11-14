@@ -155,6 +155,11 @@ function A.Point(target, label)
     A.Update()
 end
 
+-- Minimal-assistance mode: faint while you are on the loop, full when you stray.
+function A.Dim(on)
+    if frame then frame:SetAlpha(on and 0.35 or 1) end
+end
+
 function A.Hide()
     A.target = nil
     if frame then frame:Hide() end

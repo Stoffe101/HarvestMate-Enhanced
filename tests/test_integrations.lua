@@ -10,15 +10,21 @@ ForeverGPS = {
     On = function(topic, fn) fgTopics[topic] = fgTopics[topic] or {}; table.insert(fgTopics[topic], fn) end,
     Search = {
         CoordsFor = function(text) return { data = { text = text }, name = text } end,
-        Target = function(result) return { data = result.data, name = result.name } end,
+        Target = function(result) return { data = result.data, name = result.data.text } end,
     },
     Planner = { Inspect = function(target) inspected = target end },
     Window = { Show = function() end, ShowRoute = function() end },
     Market = { Price = function(id) if id == 2318 then return { buy = 30, typical = 40, age = 3600, units = 50 } end end },
 }
-local function Emit(topic) for _, fn in ipairs(fgTopics[topic] or {}) do fn() end end
+local function Emit(topic, ...) for _, fn in ipairs(fgTopics[topic] or {}) do fn(...) end end
+-- The destination HME sent to the journey panel, as Forever-GPS reports it.
+local function Dest()
+    local zone, x, y = inspected.data.text:match("^(.-) ([%d%.]+) ([%d%.]+)$")
+    return { mapID = _G.HarvestMateEnhancedTestNS.HME.ZoneData.MapID(zone), x = tonumber(x) / 100, y = tonumber(y) / 100 }
+end
 
 local ns, HME = LoadHME()
+HarvestMateEnhancedTestNS = ns
 PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65   -- Elwynn
 MAPS[1429].w, MAPS[1429].h = nil, nil
 HME.Player.Refresh()
@@ -51,15 +57,19 @@ eq(g.phase, "travel", "travelling first")
 eq(g.owner, "fgps", "Forever-GPS owns the trip")
 check(inspected and inspected.name, "Forever-GPS got the destination (the player presses Go there)")
 check(not HME.Arrow.Shown(), "no HME arrow while Forever-GPS navigates")
-Emit("route:arrived")
+Emit("route:started", Dest())   -- the player pressed Go
+Emit("route:arrived", Dest())
 g = HME.Guidance.Active()
 eq(g.phase, "farm", "on arrival: farming")
 eq(g.owner, "hme", "HME owns the loop now")
 check(HME.Arrow.Shown(), "HME's arrow points round the loop")
 
 STEP("stopping in Forever-GPS before arriving does not start HME's arrow by itself")
-HME.Guidance.Navigate()
+HME.Guidance.Stop()
+HME.Guidance.StartResult(far, "level")
+for _ = 1, 4000 do Tick(0.016) if HME.Guidance.Active() then break end end
 eq(HME.Guidance.Active().owner, "fgps", "back with Forever-GPS")
+Emit("route:started", Dest())
 Emit("route:cleared")
 eq(HME.Guidance.Active().owner, nil, "nobody navigates: the player stopped it")
 HME.Guidance.Stop()
@@ -69,15 +79,19 @@ STEP("a published API is preferred when Forever-GPS has one")
 local calls = {}
 ForeverGPS.API = {
     VERSION = 1,
-    NavigateTo = function(mapID, x, y, label) calls[#calls + 1] = { mapID, x, y, label } return true end,
-    Stop = function() calls.stopped = true end,
+    NavigateTo = function(spec) calls[#calls + 1] = spec return "fg-1" end,
+    Release = function(token) calls.released = token return true end,
+    Status = function(token) return token == "fg-1" and "active" or "unknown" end,
     On = function() end,
 }
 eq(HME.FGPS.Mode(), "api", "API mode")
 check(HME.FGPS.NavigateTo(1436, 0.5, 0.5, "Test"), "navigates")
-eq(calls[1][1], 1436, "with the map")
+eq(calls[1].mapID, 1436, "with the map")
+eq(calls[1].source, "HarvestMateEnhanced", "and who asked")
+HME.FGPS._OnStarted({ mapID = 1436, x = 0.5, y = 0.5 }, "fg-1")
+eq(HME.FGPS.State(), "active", "its token says it is HME's")
 HME.FGPS.Release()
-check(calls.stopped, "and HME stops only the journey it asked for")
+eq(calls.released, "fg-1", "and HME releases only that token")
 ForeverGPS.API = nil
 
 STEP("old or broken Forever-GPS: HME's own arrow")

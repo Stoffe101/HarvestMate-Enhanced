@@ -5,9 +5,11 @@
 --   "hme"   HME's arrow: to the farm's entry, then stop by stop round the loop
 --   nil     nothing is being followed
 -- Phases: "travel" (getting to the farm) then "farm" (following the loop).
--- Arrival: Forever-GPS says it arrived, or you are within ARRIVE_YARDS of the
--- loop on its map, whichever comes first. Then HME takes over and Forever-GPS
--- has nothing left to do. Stopping one stops the hand-off cleanly.
+-- Arrival: Forever-GPS says HME's journey arrived (its destination matches
+-- the request), or you are within ARRIVE_YARDS of the loop, whichever comes
+-- first. HME then stops its own journey (never anyone else's) and guides the
+-- loop; if another journey the player chose is running, HME's arrow waits.
+-- Travel is timed apart from farming: the session clock starts at the farm.
 -- The state survives /reload (HarvestMateEnhancedCharDB.guidance).
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
 
@@ -39,10 +41,16 @@ local function Stops(route)
     local out = {}
     local p = route and route.points or {}
     for i = 1, #p - 1, 2 do out[#out + 1] = { p[i], p[i + 1] } end
+    if route and route.reversed and #out > 1 then
+        local rev = {}
+        for i = #out, 1, -1 do rev[#rev + 1] = out[i] end
+        out = rev
+    end
     return out
 end
+G.Stops = Stops
 
--- The point of the loop nearest the player (or the first), as the entry.
+-- The point of the loop nearest the player (or the first), and how far.
 local function Entry(route)
     local stops = Stops(route)
     if #stops == 0 then return nil end
@@ -57,17 +65,20 @@ local function Entry(route)
     end
     return { mapID = route.mapID, x = stops[best][1], y = stops[best][2], index = best }, bd
 end
+G.Entry = Entry
 
-local function Changed()
-    HME.Signal("GUIDANCE_CHANGED")
-end
+local function Changed() HME.Signal("GUIDANCE_CHANGED") end
 
 local function PhaseText(s)
     if s.phase == "travel" then
         if s.owner == "fgps" then return "Forever-GPS is taking you there." end
         if s.owner == "tomtom" then return "TomTom has the waypoint." end
-        return "Heading to the farm; follow the arrow."
+        if s.owner == "hme" then return "Heading to the farm; follow the arrow." end
+        if s.why then return s.why end
+        return "Not navigating. Press Navigate when you want directions."
     end
+    if s.arrowHeld then return "At the farm. Another Forever-GPS journey is running, so HME's arrow waits (Guide me here)." end
+    if s.mode == "free" then return "Free farming inside the highlighted area." end
     return ("Following the loop: stop %d of %d."):format(s.stop or 1, s.stops or 0)
 end
 
@@ -77,8 +88,10 @@ local function Publish(s)
 end
 
 -- Starts following a route (made by Engine/Planner.lua, or any saved route).
+-- The farming clock does NOT start here: travelling is not farming.
 function G.Start(route, result)
     if not route then return end
+    if G.Active() then G.Stop() end
     local s = State()
     for k in pairs(s) do s[k] = nil end
     s.routeID = route.id
@@ -87,10 +100,10 @@ function G.Start(route, result)
     s.key = (route.planned and route.planned.key) or ("route:" .. route.id)
     s.prof = route.planned and route.planned.prof
     s.planned = route.planned
+    s.mode = (HME.settings and HME.settings.huntMode) or "guided"
     s.stops = #Stops(route)
     s.stop = 1
-    s.startedAt = (time and time()) or 0
-    -- Lightweight copy of the result for the guide's "gone grey" check.
+    s.startedAt = HME.Now()
     if result then s.result = { prof = result.prof, targets = result.targets } end
     route.shown = true
     local entry, dist = Entry(route)
@@ -98,14 +111,13 @@ function G.Start(route, result)
         G.BeginFarm(entry.index)
     else
         s.phase = "travel"
+        s.travelSince = HME.Now()
         G.Navigate()
     end
     if HME.Routes then HME.Routes:Changed() end
-    if HME.Session and not HME.Session.Current() then HME.Session.Start() end
     Publish(s)
 end
 
--- Farm Finder: plan the route for a result, then start it.
 function G.StartResult(result, goal)
     HME.Print(("planning %s in %s..."):format(result.prof, result.zone or "?"))
     HME.Planner.Create(result, goal, function(route)
@@ -118,13 +130,7 @@ function G.StartResult(result, goal)
     end)
 end
 
--- Navigate to a result without starting the loop yet (it is planned first,
--- so the arrival hands straight over to it).
-function G.NavigateToResult(result, goal)
-    HME.Planner.Create(result, goal, function(route)
-        if route then G.Start(route, result) end
-    end)
-end
+function G.NavigateToResult(result, goal) G.StartResult(result, goal) end
 
 -- Getting there: Forever-GPS if available, else TomTom if wanted, else HME.
 function G.Navigate()
@@ -134,12 +140,14 @@ function G.Navigate()
     local entry = Entry(route)
     if not entry then return end
     s.phase = "travel"
+    s.travelSince = s.travelSince or HME.Now()
+    s.why = nil
     local label = s.name
-    local FG = HME.FGPS
-    if FG and FG.Available() and HME.settings.forevergps ~= false then
-        local ok, why = FG.NavigateTo(entry.mapID, entry.x, entry.y, label)
-        if ok then
-            s.owner = "fgps"
+    local FGPS = HME.FGPS
+    if FGPS and FGPS.Available() then
+        local token, why = FGPS.NavigateTo(entry.mapID, entry.x, entry.y, label)
+        if token then
+            s.owner, s.token = "fgps", token
             HME.Arrow.Hide()
             Publish(s)
             return
@@ -159,22 +167,62 @@ function G.Navigate()
     Publish(s)
 end
 
--- On the farm: HME owns guidance from here.
+-- On the farm. HME's loop guidance starts, unless another navigation task
+-- the player chose is running: then the arrow waits (G.TakeOver to use it).
 function G.BeginFarm(index)
     local s = G.Active()
     if not s then return end
-    if s.owner == "fgps" and HME.FGPS then HME.FGPS.Release() end
+    if s.owner == "fgps" and HME.FGPS then HME.FGPS.Release(s.token) end
     if s.owner == "tomtom" and HME.TomTomBridge then HME.TomTomBridge.Clear() end
+    if s.phase ~= "farm" then
+        local travel = s.travelSince and (HME.Now() - s.travelSince) or 0
+        s.travelSecs = (s.travelSecs or 0) + math.max(0, travel)
+        s.travelSince = nil
+        s.farmSince = HME.Now()
+        if HME.Session then HME.Session.BeginFarm(s.key, s.travelSecs) end
+    end
     s.phase = "farm"
     s.owner = "hme"
     s.stop = index or s.stop or 1
+    s.arrowHeld = HME.FGPS and HME.FGPS.ForeignJourney() or false
+    if s.arrowHeld then
+        HME.Arrow.Hide()
+        HME.Print("you're at the farm. Forever-GPS is navigating somewhere else, so HME's arrow waits: "
+            .. "/hme guide (or Guide me here) to follow the loop.")
+    else
+        G.PointAtStop()
+    end
+    Publish(s)
+end
+
+-- The player asks HME to guide here although another journey runs. That
+-- journey is left as it is; only the arrows' owner changes.
+function G.TakeOver()
+    local s = G.Active()
+    if not s then return end
+    if s.phase ~= "farm" then
+        G.BeginFarm()
+        s = G.Active()
+    end
+    s.arrowHeld = false
     G.PointAtStop()
+    Publish(s)
+end
+
+function G.SetMode(mode)
+    local s = G.Active()
+    HME.settings.huntMode = mode
+    if not s then return end
+    s.mode = mode
+    if s.phase == "farm" and not s.arrowHeld then
+        if mode == "free" then HME.Arrow.Hide() else G.PointAtStop() end
+    end
     Publish(s)
 end
 
 function G.PointAtStop()
     local s = G.Active()
-    if not s then return end
+    if not s or s.arrowHeld or s.mode == "free" then return end
     local route = Route(s.routeID)
     local stops = Stops(route)
     if #stops == 0 then return end
@@ -184,11 +232,17 @@ function G.PointAtStop()
     HME.Arrow.Point({ mapID = route.mapID, x = st[1], y = st[2] }, ("stop %d of %d"):format(s.stop, #stops))
 end
 
--- Arrow distance updates drive the loop forward.
+-- Minimal mode: the arrow only reappears when you stray from the loop.
+local function MinimalCheck(s, dist)
+    if s.mode ~= "minimal" then return end
+    if dist and dist < 120 then HME.Arrow.Dim(true) else HME.Arrow.Dim(false) end
+end
+
 HME.Arrow.onUpdate = function(dist)
     local s = G.Active()
     if not (s and dist) then return end
     if s.phase == "farm" then
+        MinimalCheck(s, dist)
         local reach = (HME.settings and HME.settings.arriveYards) or G.STOP_YARDS
         if dist <= reach then
             s.stop = (s.stop or 1) + 1
@@ -196,13 +250,12 @@ HME.Arrow.onUpdate = function(dist)
             Publish(s)
         end
     elseif s.phase == "travel" and s.owner == "hme" and dist <= G.ARRIVE_YARDS then
-        local _, _ = Entry(Route(s.routeID))
         G.BeginFarm()
         HME.Print("you're at the farm. Follow the arrow round the loop.")
     end
 end
 
--- While someone else navigates, HME still notices arrival by position.
+-- Arrival by position, whoever navigates (or nobody).
 do
     local f = CreateFrame("Frame")
     local acc = 0
@@ -211,32 +264,61 @@ do
         if acc < 1 then return end
         acc = 0
         local s = G.Active()
-        if not (s and s.phase == "travel" and s.owner ~= "hme") then return end
+        if not (s and s.phase == "travel") then return end
         local route = Route(s.routeID)
         if not route then return end
         local _, dist = Entry(route)
         if dist and dist <= G.ARRIVE_YARDS then
             G.BeginFarm()
-            HME.Print("you're at the farm: HME's loop guidance takes over.")
+            if not s.arrowHeld then HME.Print("you're at the farm: HME's loop guidance takes over.") end
         end
     end)
 end
 
--- Forever-GPS reports (Integrations/ForeverGPS.lua calls these).
-function G.OnExternalArrived()
+-- Forever-GPS reports, by request token (Integrations/ForeverGPS.lua).
+local function Ours(token)
     local s = G.Active()
+    return s and s.token == token and s or nil
+end
+
+function G.OnExternalStarted(token)
+    local s = Ours(token)
+    if s then Publish(s) end
+end
+
+function G.OnExternalArrived(token)
+    local s = Ours(token)
     if s and s.phase == "travel" then
         G.BeginFarm()
         HME.Print("arrived: HME's loop guidance takes over from Forever-GPS.")
     end
 end
 
-function G.OnExternalCleared()
-    local s = G.Active()
-    if s and s.phase == "travel" and s.owner == "fgps" then
-        -- Stopped in Forever-GPS before arriving: HME does not take over by
-        -- itself (the player chose to stop). Navigate offers it again.
+-- The player stopped HME's journey: HME does not take over by itself.
+function G.OnExternalCleared(token)
+    local s = Ours(token)
+    if s and s.phase == "travel" then
         s.owner = nil
+        s.why = "You stopped the journey. Press Navigate to go on, or walk there: HME notices when you arrive."
+        Publish(s)
+    end
+end
+
+-- The player sent Forever-GPS somewhere else: that journey is theirs.
+function G.OnExternalSuperseded(token)
+    local s = Ours(token)
+    if s and s.phase == "travel" then
+        s.owner = nil
+        s.why = "Forever-GPS is now going somewhere else; HME stepped back. Navigate brings the farm back."
+        Publish(s)
+    end
+end
+
+function G.OnExternalStale(token)
+    local s = Ours(token)
+    if s and s.phase == "travel" and s.owner == "fgps" then
+        s.owner = nil
+        s.why = "The journey from before the reload is no longer running. Press Navigate to go on."
         Publish(s)
     end
 end
@@ -244,14 +326,13 @@ end
 function G.Stop()
     local s = State()
     if not s or not s.routeID then return end
-    if s.owner == "fgps" and HME.FGPS then HME.FGPS.Release() end
+    if s.owner == "fgps" and HME.FGPS then HME.FGPS.Forget() elseif HME.FGPS and HME.char then HME.FGPS.Forget() end
     if s.owner == "tomtom" and HME.TomTomBridge then HME.TomTomBridge.Clear() end
     for k in pairs(s) do s[k] = nil end
     HME.Arrow.Hide()
     Changed()
 end
 
--- What was predicted for a farm key (for the session summary).
 function G.PredictionFor(key)
     local s = G.Active()
     if s and s.key == key and s.planned then return s.planned.predicted end
@@ -303,7 +384,11 @@ HME.On("PLAYER_ENTERING_WORLD", function()
             G.Stop()
             return
         end
-        if s.phase == "farm" then G.PointAtStop() elseif s.owner == "hme" then G.Navigate() end
+        if s.phase == "farm" then
+            G.PointAtStop()
+        elseif s.owner == "hme" then
+            HME.Arrow.Point(Entry(Route(s.routeID)), s.name)
+        end
         Publish(s)
     end)
 end)
