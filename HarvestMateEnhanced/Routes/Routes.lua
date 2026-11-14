@@ -842,6 +842,7 @@ function GP:EditRoute(route, opts)
 end
 
 function GP:DeleteRoute(route)
+    if HME.Terrain then HME.Terrain.Cancel(route) end
     for i, r in ipairs(self.db.routes) do
         if r == route then table.remove(self.db.routes, i) break end
     end

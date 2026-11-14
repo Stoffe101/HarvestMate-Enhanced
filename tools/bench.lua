@@ -88,6 +88,25 @@ Time(("Terrain: assemble a walked %d-leg loop"):format(n), function() return HME
 Time("Terrain: route quality with terrain", function() return HME.RouteEditor.Quality(big) end, 20)
 WorldMapFrame:SetMapID(1433)
 Time("Map route lines, walked 99-leg loop (all routes)", function() GP:DrawWorldMap() end, 5)
+-- The pass before walking, on the 99-stop loop with 10 recordings of 300
+-- points over it (the worst case for the corridor search).
+local recs = {}
+for k = 1, 10 do
+    local pts = {}
+    for i = 1, 300 do
+        local j = ((i + k * 7) % n) + 1
+        pts[#pts + 1] = big.points[2 * j - 1] + 0.002 * math.sin(i + k)
+        pts[#pts + 1] = big.points[2 * j] + 0.002 * math.cos(i * k)
+    end
+    local r = FixtureRoute({ mapID = big.mapID, name = "recording " .. k, points = pts })
+    r.recorded, r.recordedBy = true, "you"
+    recs[k] = r
+end
+HME.db.terrain = nil
+Time("Terrain: Refine call, 99 legs, 10 recordings", function() return HME.Terrain.Refine(big) end)
+Time("Terrain: its background pass (spread over frames)", function() return HME.FinishJobs() end)
+Time("Terrain: the same, legs cached", function() HME.Terrain.Refine(big) return HME.FinishJobs() end)
+for _, r in ipairs(recs) do GP:DeleteRoute(r) end
 local timing = {}
 for _, t in ipairs(F.timing or {}) do timing[#timing + 1] = ("%s %d legs: %.0f ms total, slowest leg %.0f ms"):format(t.name, t.legs, t.totalMs, t.slowestMs) end
 REAL_PRINT("  Forever-GPS walking grid (fixture, desktop Lua 5.4): " .. table.concat(timing, "; "))

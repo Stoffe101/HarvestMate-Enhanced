@@ -175,6 +175,7 @@ local planned = { id = GP.db.nextID, mapID = E_MAP, name = "planned near the cor
 GP.db.nextID = GP.db.nextID + 1
 table.insert(GP.db.routes, planned)
 T.Refine(planned)      -- no Forever-GPS here: the corridor alone
+HME.FinishJobs()
 local sum = T.Summary(planned)
 check(sum and sum.corridors >= 1, "a leg follows the recording")
 check(T.Text(planned):find("recorded in game", 1, true), T.Text(planned))

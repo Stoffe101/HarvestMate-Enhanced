@@ -334,6 +334,38 @@ local function ViaInto(route, k, n)
 end
 G.ViaInto = ViaInto
 
+-- The route's stops were reordered (the terrain pass): the same stop, and
+-- what this lap visited or gathered, keep their meaning under new numbers.
+function G.Reindex(route, oldPoints)
+    local s = G.Active()
+    if not (s and route and s.routeID == route.id) then return end
+    local old = Stops({ points = oldPoints, backforth = route.backforth, reversed = route.reversed })
+    local new = Stops(route)
+    if #old == 0 or #new == 0 then return end
+    local at = {}
+    for i, st in ipairs(new) do
+        local k = st[1] .. ":" .. st[2]
+        if not at[k] then at[k] = i end
+    end
+    local function Map(i)
+        local st = old[i]
+        return st and at[st[1] .. ":" .. st[2]]
+    end
+    s.stop = Map((((s.stop or 1) - 1) % #old) + 1) or s.stop
+    for _, f in ipairs({ "visited", "gathered" }) do
+        if type(s[f]) == "table" then
+            local t = {}
+            for i, v in pairs(s[f]) do
+                local j = type(i) == "number" and Map(i)
+                if j then t[j] = v end
+            end
+            s[f] = t
+        end
+    end
+    s.via = nil
+    G.PointAtStop()
+end
+
 function G.PointAtStop()
     local s = G.Active()
     if not s or s.present ~= "hme" or s.mode == "free" then return end

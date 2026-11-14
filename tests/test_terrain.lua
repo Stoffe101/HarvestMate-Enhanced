@@ -73,7 +73,8 @@ eq(s.approx, 2, "those two are approximate")
 check(s.walked >= nStops - 2, "the rest follow the walking grid")
 check(s.walk > s.straight * 1.1, ("the walked loop is longer than the straight lines (%.0f vs %.0f)"):format(s.walk, s.straight))
 check(s.detours > 5, "several legs go round something (" .. s.detours .. ")")
-check(batches == 2, "in Forever-GPS's batches of at most 64 (" .. batches .. ")")
+eq(batches, math.ceil(nStops / T.CHUNK), "in batches of T.CHUNK legs (" .. batches .. ")")
+check(T.CHUNK <= 64, "within Forever-GPS's limit of 64")
 eq(asked, nStops, "each leg asked once")
 
 STEP("the map draws the walked way, approximate legs in the warning colour")
@@ -151,6 +152,8 @@ STEP("a change while walking cancels and starts afresh")
 HME.db.terrain = nil
 local elwynn = Route(F.routes[2])
 T.Refine(elwynn)
+HME.FinishJobs()          -- the prepare job is done: the first batch is out
+check(T.Busy(elwynn), "walking")
 local c0 = cancelled
 T.Refine(elwynn)
 eq(cancelled, c0 + 1, "the first batch was cancelled")
@@ -278,3 +281,180 @@ eq(share, 0.5, "half in a cave")
 eq(blind, 0, "Gatherpedia recorded that cave: it can be followed")
 Cv.Remove(1433, cave.id)
 eq(Cv.At(1433, 0.30, 0.30), nil, "removed")
+
+
+STEP("recorded corridors: the prepared search gives what a point-by-point search in yards gives")
+-- 0.3.0's search, kept here as the reference: every recorded point, in yards.
+local function RefAlong(r, mapID, ax, ay, bx, by, line)
+    local function Y(a, b, c, d) return HME.Geo.Distance(mapID, a, b, c, d) or 0 end
+    local p = GP:DrawPoints(r)
+    local n = math.floor(#p / 2)
+    local ia, da, ib, db = nil, T.CORRIDOR_REACH, nil, T.CORRIDOR_REACH
+    for i = 1, n do
+        local d1 = Y(ax, ay, p[2 * i - 1], p[2 * i])
+        if d1 <= da then ia, da = i, d1 end
+        local d2 = Y(bx, by, p[2 * i - 1], p[2 * i])
+        if d2 <= db then ib, db = i, d2 end
+    end
+    if not (ia and ib) or ia == ib then return nil end
+    local closed = not (r.open or (r.loop == false and not r.backforth))
+    local best
+    for _, step in ipairs({ 1, -1 }) do
+        local yards, i, ok = da + db, ia, true
+        while i ~= ib do
+            local j = i + step
+            if j > n then j = closed and 1 or nil elseif j < 1 then j = closed and n or nil end
+            if not j then ok = false break end
+            yards = yards + Y(p[2 * i - 1], p[2 * i], p[2 * j - 1], p[2 * j])
+            i = j
+        end
+        if ok and (not best or yards < best) then best = yards end
+    end
+    if not best or best > line * T.CORRIDOR_MAX + 20 then return nil end
+    return best
+end
+local recs = {}
+for k = 1, 6 do
+    local pts = {}
+    for i = 0, 119 do
+        local f = i / 119
+        pts[#pts + 1] = 0.30 + 0.2 * f + 0.004 * math.sin(i * 0.7 + k)
+        pts[#pts + 1] = 0.30 + 0.2 * f + 0.004 * math.cos(i * 0.5 * k) + 0.003 * k
+    end
+    recs[k] = Route({ mapID = 1437, name = "recording " .. k, points = pts }, { recorded = true, recordedBy = "you", open = (k % 2 == 0) or nil })
+end
+local index = T.CorridorIndex(1437)
+eq(#index, 6, "every recording on the map, prepared once")
+local same, found = 0, 0
+for i = 1, 60 do
+    local r = recs[(i % 6) + 1]
+    local a, b = (i * 7) % 119 + 1, (i * 13 + 30) % 119 + 1
+    local ax, ay = r.points[2 * a - 1] + 0.0003, r.points[2 * a] - 0.0002
+    local bx, by = r.points[2 * b - 1] - 0.0002, r.points[2 * b] + 0.0003
+    if i % 5 == 0 then bx, by = 0.9, 0.1 end      -- and some legs nowhere near a recording
+    local line = HME.Geo.Distance(1437, ax, ay, bx, by)
+    local want
+    for _, rr in ipairs(recs) do
+        local y = RefAlong(rr, 1437, ax, ay, bx, by, line)
+        if y and (not want or y < want) then want = y end
+    end
+    local got = T.Corridor(1437, ax, ay, bx, by, nil, index)
+    if want then found = found + 1 end
+    if (want == nil and got == nil) or (want and got and math.abs(got.yards - want) < 1e-6) then same = same + 1 end
+end
+check(found >= 20, "most of those legs follow a recording (" .. found .. ")")
+eq(same, 60, "the same corridor and length for every leg")
+
+STEP("many recordings on the map: the work happens in the background job, not when the route is built")
+HME.db.terrain = nil
+local along = Route({ mapID = 1437, name = "along the recordings", points = {} })
+for i = 1, 100 do
+    local r = recs[(i % 6) + 1]
+    local k = (i * 11) % 119 + 1
+    along.points[#along.points + 1] = r.points[2 * k - 1]
+    along.points[#along.points + 1] = r.points[2 * k]
+end
+T.Refine(along)
+check(T.Busy(along), "building the route returns at once")
+local settled = 0
+for _, leg in ipairs(T.Legs(along)) do if T.Lookup(1437, leg.ax, leg.ay, leg.bx, leg.by) then settled = settled + 1 end end
+eq(settled, 0, "no leg was settled while the route was built")
+check(Wait(along), "then finished in the background")
+local s100 = T.Summary(along)
+eq(s100.legs, 100, "a 100-stop loop")
+check(s100.corridors > 0, "with legs along the recordings (" .. s100.corridors .. ")")
+local stats = HME.Perf.stats["job:terrain:prepare"]
+check(stats == nil or stats.n >= 1, "the prepare pass ran as a job")
+
+STEP("cancelling: a rebuild during the reorder pass is never overwritten")
+Ground()
+HME.db.terrain = nil
+local function Cross(name)
+    local r = Route({ mapID = 1437, name = name, points = {
+        0.10, 0.10,  0.20, 0.10,  0.10, 0.20,  0.20, 0.20,  0.25, 0.15,  0.15, 0.05 } })
+    T.Refine(r)
+    check(Wait(r), "walked")
+    return r
+end
+local c2 = Cross("ridge rebuilt")
+result = nil
+T.Improve(c2, function(_, ok, info) result = { ok = ok, info = info } end)
+check(T.Busy(c2), "reordering in the background")
+-- The route is rebuilt meanwhile (new stops), without going through Cancel.
+local rebuilt = { 0.11, 0.11, 0.21, 0.11, 0.11, 0.21, 0.21, 0.21, 0.26, 0.16, 0.16, 0.06 }
+for i, v in ipairs(rebuilt) do c2.points[i] = v end
+for _ = 1, 400 do HME.FinishJobs() RunTimers(0.05) Tick(0.05) if result then break end end
+check(result and not result.ok and tostring(result.info):find("changed meanwhile", 1, true), "refused: " .. tostring(result and result.info))
+for i, v in ipairs(rebuilt) do eq(c2.points[i], v, "the rebuilt stops are left as they are") end
+check(not T.Busy(c2), "nothing left running")
+
+local c3 = Cross("ridge cancelled")
+local keep3 = {}
+for i, v in ipairs(c3.points) do keep3[i] = v end
+result = nil
+T.Improve(c3, function(_, ok, info) result = { ok = ok, info = info } end)
+T.Cancel(c3)
+check(not T.Busy(c3), "cancelled")
+for _ = 1, 100 do HME.FinishJobs() RunTimers(0.05) Tick(0.05) end
+eq(result, nil, "a cancelled pass reports nothing")
+for i, v in ipairs(keep3) do eq(c3.points[i], v, "and changes nothing") end
+
+-- Cancelled while its new legs are being walked (the second half).
+local c4 = Cross("ridge cancelled while walking")
+HME.db.terrain.legs, HME.db.terrain.order = {}, {}
+T.Refine(c4)
+check(Wait(c4))
+result = nil
+local b4 = batches
+T.Improve(c4, function(_, ok, info) result = { ok = ok, info = info } end)
+for _ = 1, 3 do HME.FinishJobs() end     -- the moves are found; the new legs go out to the grid
+check(batches > b4, "the new legs were sent to the grid")
+T.Cancel(c4)
+for _ = 1, 100 do HME.FinishJobs() RunTimers(0.05) Tick(0.05) end
+eq(result, nil, "nothing reported")
+check(not T.Busy(c4), "nothing running")
+
+STEP("deleting a route stops its walks")
+HME.db.terrain = nil
+local gone = Route(F.routes[2])
+T.Refine(gone)
+HME.FinishJobs()
+check(T.Busy(gone), "walking")
+local cg = cancelled
+GP:DeleteRoute(gone)
+check(not T.Busy(gone), "stopped")
+eq(cancelled, cg + 1, "its batch was cancelled")
+
+STEP("no new batch starts in combat")
+HME.db.terrain = nil
+local fight = Route(F.routes[2])
+IN_COMBAT = true
+local bf = batches
+T.Refine(fight)
+for _ = 1, 20 do HME.FinishJobs() RunTimers(0.5) Tick(0.5) end
+eq(batches, bf, "nothing sent to the grid while fighting")
+check(T.Busy(fight), "waiting")
+IN_COMBAT = false
+check(Wait(fight), "after the fight it carries on")
+eq(T.Summary(fight).state, "full", "every leg walked")
+check(batches > bf, "in batches")
+GP:DeleteRoute(fight)
+
+STEP("the arrow keeps its stop when the reorder pass changes the order")
+Ground()
+local c5 = Cross("ridge followed")
+c5.planned = { key = "test:ridge" }
+G.Start(c5)
+local st5 = G.Active()
+st5.stop = 4
+local wantX, wantY = c5.points[7], c5.points[8]
+st5.visited = { [4] = true }
+result = nil
+T.Improve(c5, function(_, ok, info) result = { ok = ok, info = info } end)
+for _ = 1, 400 do HME.FinishJobs() RunTimers(0.05) Tick(0.05) if result then break end end
+check(result and result.ok, "reordered: " .. tostring(result and result.info))
+eq(c5.points[2 * st5.stop - 1], wantX, "still the same stop (x)")
+eq(c5.points[2 * st5.stop], wantY, "still the same stop (y)")
+check(st5.visited[st5.stop], "and it is still marked visited")
+G.Stop()
+check(#(ERRORS or {}) == 0, "no errors: " .. tostring(ERRORS and ERRORS[1]))
