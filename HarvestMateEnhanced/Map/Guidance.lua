@@ -353,6 +353,36 @@ function G.PointAtStop()
     HME.Arrow.Point({ mapID = route.mapID, x = st[1], y = st[2] }, ("stop %d of %d"):format(s.stop, #stops))
 end
 
+-- Adaptive loops (herbs and ore): a stop where you gathered a node a few
+-- minutes ago is skipped on the next pass, because that node was taken by
+-- you. This is only your own observation; HME never claims to know which
+-- nodes are up at a distance, and nothing tells it a respawn time: the skip
+-- is a plain DEPLETED_SECS guess, and at most all stops but one are skipped.
+G.DEPLETED_SECS = 300
+G.DEPLETED_YARDS = 35
+
+local function Gathering(s) return s.prof == "Herbalism" or s.prof == "Mining" or s.prof == "Combined" end
+
+function G.NoteGather()
+    local s = G.Active()
+    if not (s and s.phase == "farm" and Gathering(s)) then return end
+    local route = Route(s.routeID)
+    local mapID, x, y = HME.Player.Position()
+    local zm, zx, zy = HME.Geo.ZoneOf(mapID, x, y)
+    if not (route and zm == route.mapID and zx) then return end
+    s.gathered = type(s.gathered) == "table" and s.gathered or {}
+    for i, st in ipairs(Stops(route)) do
+        local d = HME.Geo.Distance(route.mapID, zx, zy, st[1], st[2])
+        if d and d <= G.DEPLETED_YARDS then s.gathered[i] = HME.Now() end
+    end
+end
+HME.Listen("GATHER_LOOT", function() G.NoteGather() end)
+
+function G.Depleted(s, i)
+    local t = s.gathered and s.gathered[i]
+    return t ~= nil and HME.Now() - t < G.DEPLETED_SECS
+end
+
 -- Reached what the arrow pointed at: the next turn on the walked leg, or the next stop.
 function G.Advance()
     local s = G.Active()
@@ -365,6 +395,19 @@ function G.Advance()
     else
         s.stop = (s.stop or 1) + 1
         s.via = 1
+        -- Skip stops you just emptied yourself (never all of them).
+        if Gathering(s) and n > 2 then
+            local skipped = 0
+            while skipped < n - 1 and G.Depleted(s, ((s.stop - 1) % n) + 1) do
+                s.stop = s.stop + 1
+                skipped = skipped + 1
+            end
+            if skipped > 0 then
+                s.via = nil          -- straight on: the turns belong to the legs skipped
+                s.skippedLast = skipped
+                HME.Debug("skipped", skipped, "stop(s) gathered in the last minutes")
+            end
+        end
     end
     G.PointAtStop()
     Publish(s)

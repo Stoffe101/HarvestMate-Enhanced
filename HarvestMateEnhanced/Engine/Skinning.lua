@@ -83,10 +83,8 @@ function Sk.Eligible(beast, profile, mode)
         out.why = "the game said it can't be skinned"
         return out
     end
-    if HME.db and HME.db.obs.badBeasts and HME.db.obs.badBeasts[beast.npcID] then
-        out.why = "you marked it as wrong or not there"
-        return out
-    end
+    -- (0.2.0's "wrong everywhere" marks are now scoped, reversible corrections:
+    -- Engine/Corrections.lua, applied in Sk.Candidates.)
     if not out.canSkin then
         out.why = ("needs %d Skinning (level %d)"):format(out.reqMin, beast.min)
         return out
@@ -257,6 +255,38 @@ function Sk.Yield(beast)
     return { items = items, n = n, basis = basis or "estimate", prior = prior, seen = seen }
 end
 
+-- For one material: which beast populations are the best use of your time.
+-- From Farm Finder results (Skinning, goal "material", that item as target):
+-- each beast once, at the result where it gives the most of it an hour.
+-- { { npcID, name, min, max, req, perSkin, observed = { seen, skins } | nil,
+--     zone, mapID, perHour, result, confidence, basis } } best first.
+function Sk.BestBeasts(results, itemID)
+    local best = {}
+    for _, r in ipairs(results or {}) do
+        local m = r.metrics or {}
+        local total = 0
+        for _, b in pairs(m.beasts or {}) do total = total + (b.count or 0) end
+        for _, b in pairs(m.beasts or {}) do
+            local y = Sk.Yield(b.beast)
+            local per = y.items[itemID]
+            if per and per > 0 and total > 0 then
+                local perHour = (m.beastsPerHour or 0) * (b.count / total) * per
+                local id = b.beast.npcID
+                if not best[id] or perHour > best[id].perHour then
+                    best[id] = { npcID = id, name = b.beast.name, min = b.beast.min, max = b.beast.max,
+                        req = b.elig and b.elig.reqMin, perSkin = per, perHour = perHour, zone = r.zone, mapID = r.mapID,
+                        result = r, basis = y.basis, observed = (y.seen[itemID] and { seen = y.seen[itemID], skins = y.n }) or nil,
+                        confidence = r.confidence and r.confidence.label, killSecs = m.killSecs }
+                end
+            end
+        end
+    end
+    local out = {}
+    for _, v in pairs(best) do out[#out + 1] = v end
+    table.sort(out, function(a, b) return a.perHour > b.perHour end)
+    return out
+end
+
 -- "Heavy Leather: 42 observed from 31 skins" (or the estimate, labelled).
 function Sk.YieldText(y, itemID)
     local name = ns.itemIndex[itemID] and ns.itemIndex[itemID].entry.name or ("item " .. itemID)
@@ -297,22 +327,40 @@ end
 -- Hunting areas
 ---------------------------------------------------------------------------
 
+local areaCache, areaCacheVersion = {}, -1
+
 -- All beasts of a map with their eligibility for this character.
 function Sk.Candidates(mapID, profile, mode)
     local out = {}
+    local Corr = HME.Corrections
     for _, b in ipairs(Spawns.BeastPoints(mapID)) do
         local e = Sk.Eligible(b, profile, mode)
+        if Corr then
+            local blocked, why = Corr.BeastBlocked(b.npcID, mapID)
+            if blocked then
+                e.killable, e.why = false, why
+            else
+                local pts, dropped = Corr.FilterBeastPoints(b.npcID, mapID, b.pts)
+                if dropped > 0 then
+                    local copy = {}
+                    for k, v in pairs(b) do copy[k] = v end
+                    copy.pts, copy.corrected = pts, dropped
+                    b = copy
+                end
+            end
+        end
         out[#out + 1] = { beast = b, elig = e }
     end
     return out
 end
+
+function Sk.ClearCache() areaCacheVersion = -1 end
 
 -- Hunting areas on a map: clusters of eligible spawn points.
 -- goal: "level" weighs points by skill-up chance, "profit" by value/time.
 -- Returns areas sorted by weight, each:
 --   { mapID, cx, cy (map 0-1), yx, yy (yards), radius (yards), spawns,
 --     beasts = { [npcID] = { beast, elig, count } }, points = { {x,y}... } }
-local areaCache, areaCacheVersion = {}, -1
 function Sk.Areas(mapID, profile, goal, mode, targets)
     -- Cached per map, goal, mode, skill and level while the data is unchanged
     -- (material searches are not cached: their targets vary).

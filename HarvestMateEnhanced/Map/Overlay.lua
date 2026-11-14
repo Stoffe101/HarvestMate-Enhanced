@@ -222,10 +222,11 @@ local function Collect(mapID)
                         { ("%s (level %d-%d)"):format(b.name, b.min, b.max),
                           ("%d+ Skinning · a spawn point, not a live beast%s"):format(SM.SkinReq(b.min),
                               known == nil and " · not yet checked in game" or "") }, true,
-                        { label = "mark this beast wrong (not skinnable or not here)", run = function()
-                            HME.db.obs.badBeasts = HME.db.obs.badBeasts or {}
-                            HME.db.obs.badBeasts[b.npcID] = true
-                            HME.Print(b.name .. " is left out of skinning recommendations from now on.")
+                        { label = "mark: this beast does not spawn here (this spot only)", run = function()
+                            local c = HME.Corrections.Add("notHere", { mapID = mapID, x = p[1], y = p[2], npcID = b.npcID, name = b.name })
+                            if c then
+                                HME.Print(("%s: left out within %d yards of here. Undo: /hme corrections."):format(b.name, HME.Corrections.SPOT_YARDS))
+                            end
                         end } }
                 end
             end
@@ -245,11 +246,14 @@ local function Collect(mapID)
         elseif planned.prof == "Fishing" then
             addSites("Fishing")
         elseif planned.prof then
-            local area = { x = planned.cx, y = planned.cy, r = (planned.radius or 300) * 1.25 + 60 }
+            -- (A plan without a centre, such as an older saved one, shows the whole map's sites.)
+            local area = planned.cx and planned.cy and { x = planned.cx, y = planned.cy, r = (planned.radius or 300) * 1.25 + 60 } or nil
             for _, p in ipairs(HME.Gathering.Profs(planned.prof)) do
                 if detail ~= "simple" then addSites(p, planned.types, area) end
             end
-            out.discs[#out.discs + 1] = { planned.cx, planned.cy, area.r / W, O.PROF_COLOR[planned.prof] or { 1, 0.82, 0 }, 0.15 }
+            if area then
+                out.discs[#out.discs + 1] = { planned.cx, planned.cy, area.r / W, O.PROF_COLOR[planned.prof] or { 1, 0.82, 0 }, 0.15 }
+            end
         end
     elseif s.nodePinsAlways then
         for prof in pairs(profile.skills) do

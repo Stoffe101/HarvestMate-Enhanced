@@ -113,10 +113,41 @@ eq(#after, #sites - 1, "one site fewer")
 for _, s in ipairs(after) do check(s ~= s1 and not (s.x == s1.x and s.y == s1.y), "not the excluded one") end
 HME.Spawns.Exclude("Mining", 1434, s1.x, s1.y, false)
 eq(#HME.Spawns.Sites("Mining", 1434), #sites, "and it can be put back")
-HME.db.obs.badBeasts = { [1126] = true }
-check(not HME.Skinning.Eligible({ npcID = 1126, name = "Timber Wolf", min = 5, max = 6 }, HME.Player.Profile()).killable,
-    "a beast marked wrong is not recommended")
-HME.db.obs.badBeasts = nil
+-- A beast marked not skinnable: in that zone only (unless you say everywhere), reversible.
+local function Killable(npcID, mapID)
+    for _, c in ipairs(HME.Skinning.Candidates(mapID, HME.Player.Profile(), "balanced")) do
+        if c.beast.npcID == npcID then return c.elig.killable, c.elig.why end
+    end
+end
+local wolfMap
+for _, id in ipairs(HME.Spawns.Maps("Skinning")) do
+    for _, b in ipairs(HME.Spawns.BeastPoints(id)) do
+        if not wolfMap and HME.Skinning.Eligible(b, HME.Player.Profile()).killable then wolfMap, wolf = id, b end
+    end
+end
+check(wolfMap, "a beast to mark")
+local mark = HME.Corrections.Add("notSkinnable", { mapID = wolfMap, npcID = wolf.npcID, name = wolf.name })
+local ok, why = Killable(wolf.npcID, wolfMap)
+check(not ok and why:find("this zone", 1, true), "left out in that zone: " .. tostring(why))
+check(HME.Corrections.Remove(mark.id), "undone")
+check(Killable(wolf.npcID, wolfMap), "and back")
+-- 0.2.0's global marks become reversible "everywhere" corrections, the old table kept.
+HME.db.obs.badBeasts = { [wolf.npcID] = true }
+HME.db.obs.badBeastsMigrated = nil
+eq(HME.Corrections.Migrate(), 1, "migrated")
+check(not Killable(wolf.npcID, wolfMap), "still left out")
+eq(HME.Corrections.List()[1].scope, "everywhere")
+check(HME.db.obs.badBeasts[wolf.npcID], "the old data is kept")
+HME.Corrections.Remove(HME.Corrections.List()[1].id)
+-- Area marks: inaccessible farms leave the list, crowding fades.
+local cr = HME.Corrections.Add("crowded", { mapID = 1429, x = 0.4, y = 0.4 })
+check(HME.Corrections.ForArea(1429, 0.401, 0.401).mult < 1, "crowded counts lower")
+cr.t = cr.t - 8 * 86400
+eq(HME.Corrections.ForArea(1429, 0.401, 0.401).mult, 1, "a week later it no longer does")
+HME.Corrections.Add("inaccessible", { mapID = 1429, x = 0.4, y = 0.4 })
+check(HME.Corrections.ForArea(1429, 0.4, 0.41).exclude, "inaccessible: left out")
+check(not HME.Corrections.ForArea(1429, 0.7, 0.7).exclude, "only there")
+for _, c in ipairs(HME.Corrections.List()) do HME.Corrections.Remove(c.id) end
 
 STEP("suggestions: shown once, can be switched off")
 ClearLog()

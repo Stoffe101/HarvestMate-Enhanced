@@ -300,6 +300,19 @@ function R.Score(results, query, profile)
         local EV = { measured = 1, ["partly measured"] = 0.97, ["known yield"] = 0.94, ["published data"] = 0.9, assumption = 0.87 }
         score = score * (EV[r.evidence and r.evidence.level or "assumption"] or 0.87)
         if r.sizeUnknown then score = score * 0.75 end
+        -- Your marks (crowded, inefficient) and your open goals.
+        if r.correction and r.correction.mult then score = score * r.correction.mult end
+        r.forGoal = nil
+        local needed = HME.Goals and HME.Goals.Needed() or {}
+        for id in pairs(m.items or {}) do
+            if needed[id] then r.forGoal = needed[id].goal break end
+        end
+        if not r.forGoal then
+            for _, t in ipairs(r.targets or {}) do
+                if t.itemID and needed[t.itemID] then r.forGoal = needed[t.itemID].goal break end
+            end
+        end
+        if r.forGoal and goal ~= "material" then score = score * 1.08 end
         -- No price known at all (no auction addon, item data not loaded yet):
         -- still list the farm, ranked by how much it yields, and say so.
         r.noPrice = nil
@@ -334,11 +347,33 @@ function R.Filtered(r, f)
 end
 
 -- One plain sentence on why this farm is suggested, and what to watch.
-function R.Summary(r, query, profile)
+function R.Summary(r, query, profile, all)
     local m = r.metrics
     local good, warn = {}, {}
     local goal = query.goal
     if r.noPrice then warn[1] = "no prices known yet, so this is ranked by how much it yields" end
+    if r.forGoal then good[#good + 1] = ("you need it for your goal %s"):format(r.forGoal.name or "") end
+    -- Your own sessions here, compared with the estimate.
+    local model = m.range and m.range.mid
+    local ratio, sure = HME.Learning.Verdict(r.key, "value", model)
+    if ratio and sure and ratio >= 1.1 then good[#good + 1] = "it did better than estimated in your previous sessions"
+    elseif ratio and sure and ratio <= 0.8 then warn[#warn + 1] = "your previous sessions here fell short of the estimate" end
+    -- Cheaper to reach than the best earner, when that is the trade-off.
+    local top
+    for _, o in ipairs(all or {}) do
+        if o ~= r and o.metrics.range and (not top or o.metrics.range.mid > top.metrics.range.mid) then top = o end
+    end
+    if top and r.travel and top.travel and r.travel < top.travel * 0.6 and model and model < top.metrics.range.mid
+        and (goal == "profit" or goal == "balanced") then
+        good[#good + 1] = ("less travel than the top earner in %s"):format(top.zone or "?")
+    end
+    local d = r.dims
+    if d and d.route and d.route.level == "low" then warn[#warn + 1] = "the route may cross unchecked terrain" end
+    if d and d.yield and d.yield.level == "low" and d.profit and d.profit.level ~= "unknown" and (goal == "profit" or goal == "material") then
+        warn[#warn + 1] = "drop estimates are uncertain"
+    end
+    if (r.caveShare or 0) > 0.2 then warn[#warn + 1] = ("%d%% of the nodes are in a cave"):format(r.caveShare * 100) end
+    for _, n in ipairs((r.correction and r.correction.notes) or {}) do warn[#warn + 1] = n end
     if r.prof == "Skinning" then
         local n, top = 0, nil
         for _, t in ipairs(r.targets or {}) do
@@ -356,7 +391,12 @@ function R.Summary(r, query, profile)
         if (m.skillChance or 0) > 0.6 and goal ~= "profit" then good[#good + 1] = "most nodes here still give skill-ups" end
         if (m.confirmedShare or 0) > 0.3 then good[#good + 1] = "many spawn points are confirmed by your own gathering" end
         if m.respawnCapped then warn[#warn + 1] = "the loop is short, so you'll wait for nodes" end
-        if r.prof == "Combined" then good[#good + 1] = "herbs and ore together on one loop" end
+        if r.prof == "Combined" then
+            good[#good + 1] = "herbs and ore together on one loop"
+            if r.combined and r.combined.better == false then warn[#warn + 1] = r.combined.text end
+            -- The game tracks one of Find Herbs / Find Minerals at a time.
+            warn[#warn + 1] = "only one of Find Herbs or Find Minerals tracks at a time: switch it yourself if you like"
+        end
     end
     if r.travel and r.travel < 300 then good[#good + 1] = "it is close by" end
     if r.travel and r.travel > 1200 then warn[#warn + 1] = ("the trip takes about %s"):format(U.Duration(r.travel)) end
@@ -388,7 +428,41 @@ R.COMPARE_COLUMNS = {
     { key = "travel", label = "Travel", get = function(r) return r.travel end, lower = true, duration = true },
     { key = "risk", label = "Risk", get = function(r) return r.risk and r.risk.score end, lower = true },
     { key = "loop", label = "Route length", get = function(r) return r.metrics.loopYards end, lower = true },
+    { key = "perSkin", label = "Gold/skin", get = function(r) return r.effort and r.effort.perSkin end, money = true },
+    { key = "perKill", label = "Gold/kill", get = function(r) return r.effort and r.effort.perKill end, money = true },
+    { key = "perTrip", label = "Gold/trip", get = function(r) return r.effort and r.effort.perTrip end, money = true },
 }
+
+-- Profit per effort: gold per skin, per kill, per node and per whole trip
+-- (the planned play time with the travel there), for comparing farms by
+-- more than gold an hour. Fills r.effort.
+function R.Effort(r)
+    local m = r.metrics
+    local gph = m.range and m.range.mid or 0
+    local e = {}
+    local skins = m.skinsPerHour or (m.beastsPerHour and m.beastsPerHour * (m.skinShare or 1))
+    if gph <= 0 then gph = nil end      -- no prices: no gold per anything, rather than a false zero
+    if not gph then
+        e.skillPerTrip = (m.skillRange and m.skillRange.mid or m.skillPerHour or 0) * (((HME.settings and HME.settings.sessionMinutes) or 60) / 60)
+        e.materialPerHour = m.materialPerHour
+        r.effort = e
+        return e
+    end
+    if r.prof == "Skinning" then
+        if skins and skins > 0 then e.perSkin = (m.skinGph or gph) / skins end
+        if m.beastsPerHour and m.beastsPerHour > 0 then e.perKill = gph / m.beastsPerHour end
+    elseif m.nodesPerHour and m.nodesPerHour > 0 then
+        e.perNode = gph / m.nodesPerHour
+    end
+    local minutes = (HME.settings and HME.settings.sessionMinutes) or 60
+    local hours = minutes / 60
+    e.perTrip = gph * hours
+    e.tripHours = hours + (r.travel or 0) / 3600
+    e.skillPerTrip = (m.skillRange and m.skillRange.mid or m.skillPerHour or 0) * hours
+    e.materialPerHour = m.materialPerHour
+    r.effort = e
+    return e
+end
 
 function R.Compare(results)
     local out = { rows = results, best = {}, notes = {} }
@@ -414,6 +488,31 @@ function R.Compare(results)
         end
     end
     return out
+end
+
+-- Is one combined loop worth it against two loops of half the time each?
+-- Compares nodes an hour per profession. Fills r.combined { better, text }.
+function R.CombinedCheck(r, profile)
+    if r.prof ~= "Combined" or not r.area then return nil end
+    profile = profile or HME.Player.Profile()
+    local per = {}
+    for _, mix in ipairs(r.metrics.mix or {}) do
+        per[mix.prof] = (per[mix.prof] or 0) + r.metrics.nodesPerHour * mix.share
+    end
+    local alone = {}
+    for _, p in ipairs(HME.Gathering.COMBINED) do
+        local areas = HME.Gathering.Areas(p, r.mapID, profile, "balanced", {})
+        local m = areas[1] and HME.Gathering.Evaluate(areas[1], profile, {})
+        alone[p] = m and m.nodesPerHour or 0
+    end
+    local herbs, ore = per.Herbalism or 0, per.Mining or 0
+    local split = (alone.Herbalism + alone.Mining) / 2
+    local together = herbs + ore
+    local better = together >= split * 0.95
+    r.combined = { better = better, herbs = herbs, ore = ore, aloneHerbs = alone.Herbalism, aloneOre = alone.Mining,
+        text = better and ("one loop gives about %.0f herbs and %.0f ore an hour, more than two separate loops (%.0f nodes an hour)"):format(herbs, ore, split)
+            or ("two separate loops would give more here (%.0f vs %.0f nodes an hour)"):format(split, together) }
+    return r.combined
 end
 
 -- Why this result ranks where it does, in short lines.
@@ -516,11 +615,23 @@ function R.Find(query, done, profile)
                         r.confidence.label = ConfLabel(r.confidence.value)
                         table.insert(r.confidence.reasons, "this zone's size is unknown here, so density and distances are rough")
                     end
-                    HME.Evidence.Apply(r)
+                    -- Your corrections near this farm (Engine/Corrections.lua).
+                    local corr = HME.Corrections and HME.Corrections.ForArea(mapID, r.cx, r.cy)
+                    if corr then
+                        r.correction = corr
+                        if corr.risk > 0 then
+                            r.risk.score = math.min(1, r.risk.score + corr.risk)
+                            table.insert(r.risk.reasons, 1, "you marked it dangerous")
+                        end
+                    end
+                    HME.Evidence.Apply(r, query.goal)
                     r.tripShare = TimeShare(r.travel)
                     r.tripGph = r.metrics.range.mid * r.tripShare
+                    R.Effort(r)
                     local why = R.Filtered(r, query.filters)
-                    if r.risk.parts.avoided then
+                    if corr and corr.exclude then
+                        skipped[#skipped + 1] = { mapID = mapID, why = corr.exclude }
+                    elseif r.risk.parts.avoided then
                         skipped[#skipped + 1] = { mapID = mapID, why = "avoided" }
                     elseif why then
                         skipped[#skipped + 1] = { mapID = mapID, why = why }
@@ -539,8 +650,12 @@ function R.Find(query, done, profile)
         end
         for i, r in ipairs(kept) do
             r.rank = i
+            if r.prof == "Combined" and i <= 3 then HME.Try(R.CombinedCheck, r, profile) end
+            r.dims = HME.Evidence.Dimensions(r, query.goal)
+            r.reputation = HME.Learning.Reputation(r.key, { value = r.metrics.range and r.metrics.range.mid,
+                gph = r.metrics.range and r.metrics.range.mid })
             r.why = R.Explain(r, query)
-            r.summary = R.Summary(r, query, profile)
+            r.summary = R.Summary(r, query, profile, kept)
         end
         return kept, skipped
     end

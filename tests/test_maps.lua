@@ -53,10 +53,13 @@ check(#data.labels >= 1, "areas are labelled")
 local small = true
 for _, p in ipairs(data.pins) do small = small and p[7] end
 check(small, "beast spawns are small dots")
+local nBefore = #HME.Corrections.List()
 data.pins[1][8].run()
-local hidden = HME.db.obs.badBeasts
-check(hidden and next(hidden), "a beast can be marked wrong from the map")
-HME.db.obs.badBeasts = nil
+local marks = HME.Corrections.List()
+eq(#marks, nBefore + 1, "a beast can be marked from the map")
+eq(marks[#marks].kind, "notHere", "for that spot only")
+eq(marks[#marks].scope, "spot")
+HME.Corrections.Remove(marks[#marks].id)
 O.ClearPreview()
 
 STEP("the route editor: add, remove, undo, reverse, cancel, done")

@@ -12,6 +12,12 @@
 --   estimate = (hours x measured + H0 x model) / (hours + H0),  H0 = 1 hour
 -- so one bad 15-minute session moves a farm's number by a fifth, not all the
 -- way, and an area farmed for hours is ranked by what it really gave.
+--
+-- Per character first (0.3.0): each character keeps its own totals per area
+-- (HarvestMateEnhancedCharDB.stats). Your own hours count in full; other
+-- characters' hours in the same area count OTHERS_WEIGHT as much (a quarter
+-- for beasts, whose pace depends on the character), so a farm that is slow
+-- for one character is not written off for all.
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
 
 local _, ns = ...
@@ -24,6 +30,22 @@ HME.Learning = L
 
 L.H0 = 1.0          -- model weight in hours
 L.MIN_HOURS = 0.1   -- below this, measured rates are not used
+L.OTHERS_WEIGHT = { beasts = 0.25, skins = 0.25, value = 0.5, skillups = 0.5 }
+L.OTHERS_DEFAULT = 0.6
+
+local function Own(key) return HME.char and type(HME.char.stats) == "table" and HME.char.stats[key] or nil end
+local function All(key) return HME.db and HME.db.stats[key] or nil end
+
+-- This character's and the others' hours and totals for one metric.
+local function Split(key, metric)
+    local own, all = Own(key), All(key)
+    local oh, oc = own and own.hours or 0, own and own[metric] or 0
+    local ah, ac = all and all.hours or 0, all and all[metric] or 0
+    -- The account totals include this character's own (both are written).
+    local xh, xc = math.max(0, ah - oh), math.max(0, ac - oc)
+    return oh, oc, xh, xc, own, all
+end
+L.Split = Split
 
 ---------------------------------------------------------------------------
 -- Measured rates per area
@@ -33,29 +55,97 @@ L.MIN_HOURS = 0.1   -- below this, measured rates are not used
 -- "value") per hour in an area, with a blend function; nil without data.
 function L.Rate(key, metric)
     if not key or not HME.db then return nil end
-    local st = HME.db.stats[key]
-    if not st or (st.hours or 0) < L.MIN_HOURS then return nil end
-    local measured = (st[metric] or 0) / st.hours
-    local hours = st.hours
+    local oh, oc, xh, xc, own, all = Split(key, metric)
+    local w = L.OTHERS_WEIGHT[metric] or L.OTHERS_DEFAULT
+    local hours = oh + w * xh
+    if hours < L.MIN_HOURS then return nil end
+    local measured = (oc + w * xc) / hours
     return {
-        value = measured, hours = hours, sessions = st.sessions or 0,
+        value = measured, hours = hours, ownHours = oh, otherHours = xh,
+        sessions = (own and own.sessions or 0) + (all and math.max(0, (all.sessions or 0) - (own and own.sessions or 0)) or 0),
+        ownSessions = own and own.sessions or 0,
         blend = function(model) return (hours * measured + L.H0 * model) / (hours + L.H0) end,
     }
+end
+
+-- How much of an area's evidence is this character's own: hours and sessions.
+function L.Own(key)
+    local own = Own(key)
+    return own and own.hours or 0, own and own.sessions or 0
 end
 
 -- Adds a finished stretch of farming to an area's totals.
 function L.AddStats(key, delta)
     if not key or not HME.db then return end
-    local st = HME.db.stats[key]
-    if not st then
-        st = { hours = 0, sessions = 0 }
-        HME.db.stats[key] = st
+    local function Into(root)
+        local st = root[key]
+        if not st then
+            st = { hours = 0, sessions = 0 }
+            root[key] = st
+        end
+        for k, v in pairs(delta) do
+            if type(v) == "number" then st[k] = (st[k] or 0) + v end
+        end
+        st.t = (time and time()) or 0
     end
-    for k, v in pairs(delta) do
-        if type(v) == "number" then st[k] = (st[k] or 0) + v end
-    end
-    st.t = (time and time()) or 0
+    Into(HME.db.stats)
     HME.DBM.TrimMap(HME.db.stats, HME.DBM.LIMITS.areaStats)
+    if HME.char then
+        if type(HME.char.stats) ~= "table" then HME.char.stats = {} end
+        Into(HME.char.stats)
+        HME.DBM.TrimMap(HME.char.stats, HME.DBM.LIMITS.areaStats)
+    end
+end
+
+-- Forgets what was learned about an area (Stats page: Reset this area), for
+-- this character only or for every character.
+function L.ResetArea(key, everyone)
+    if HME.char and type(HME.char.stats) == "table" then HME.char.stats[key] = nil end
+    if everyone and HME.db then HME.db.stats[key] = nil end
+    HME.Signal("LEARNED")
+end
+
+---------------------------------------------------------------------------
+-- Area reputation: plain labels derived from evidence only.
+---------------------------------------------------------------------------
+-- { { label, why } }: "Consistently productive", "Often underperforming",
+-- "Good for leveling", "Good for profit", "High travel overhead",
+-- "Frequently interrupted", "Needs more observations".
+function L.Reputation(key, model)
+    local out = {}
+    local own, sessions = L.Own(key)
+    local st = Own(key) or All(key)
+    if not st or (st.hours or 0) < L.MIN_HOURS then
+        out[1] = { label = "Needs more observations", why = "you have not farmed here long enough to judge" }
+        return out
+    end
+    model = model or {}
+    local hours = st.hours
+    if model.value and model.value > 0 then
+        local ratio, sure = L.Verdict(key, "value", model.value)
+        if ratio and sure and ratio >= 1.1 then
+            out[#out + 1] = { label = "Consistently productive", why = ("%d%% above the estimate over %d sessions"):format((ratio - 1) * 100, sessions) }
+        elseif ratio and sure and ratio <= 0.8 then
+            out[#out + 1] = { label = "Often underperforming", why = ("%d%% below the estimate over %d sessions"):format((1 - ratio) * 100, sessions) }
+        end
+    end
+    local sph = (st.skillups or 0) / hours
+    if sph >= 40 and hours >= 0.5 then out[#out + 1] = { label = "Good for leveling", why = ("%.0f skill-ups an hour measured"):format(sph) } end
+    local gph = (st.value or 0) / hours
+    if model.gph and model.gph > 0 and gph >= model.gph * 1.1 and hours >= 1 then
+        out[#out + 1] = { label = "Good for profit", why = "more value an hour than the estimate" }
+    end
+    local travel = st.travelHours or 0
+    if travel > 0 and travel / (travel + hours) >= 0.3 then
+        out[#out + 1] = { label = "High travel overhead", why = ("%d%% of the trips was travel"):format(travel / (travel + hours) * 100) }
+    end
+    if (st.deaths or 0) >= 2 or (st.idleHours or 0) / hours >= 0.25 then
+        out[#out + 1] = { label = "Frequently interrupted", why = (st.deaths or 0) >= 2 and ((st.deaths) .. " deaths here") or "much idle time" }
+    end
+    if hours < 1.5 or sessions < 2 then
+        out[#out + 1] = { label = "Needs more observations", why = ("%.1f h over %d of your sessions so far"):format(own, sessions) }
+    end
+    return out
 end
 
 -- One session's rates in an area, for ranges (newest 30 kept).
@@ -77,6 +167,17 @@ function L.Verdict(key, metric, model)
     local sure = r.hours >= 1.5 and r.sessions >= 2
     return ratio, sure, r
 end
+
+---------------------------------------------------------------------------
+-- What the loot tracker decided, newest last (for /hme diag after a test).
+---------------------------------------------------------------------------
+L.recent = {}
+local function Note(kind, npcID, items, how)
+    local n = 0
+    for _, q in pairs(items or {}) do n = n + q end
+    U.Push(L.recent, { t = HME.Now(), kind = kind, npc = npcID, items = n, how = how }, 30)
+end
+L.Note = Note
 
 ---------------------------------------------------------------------------
 -- Beasts: npcID -> bundled levels (for kill-time samples)
@@ -149,12 +250,20 @@ local function OnLoot()
     local items = ReadLoot()
     local fishing = (IsFishingLoot and IsFishingLoot()) or (now - fishCastAt < 3 and not npcID)
     if fishing then
+        Note("fish", nil, items, IsFishingLoot and "fishing loot" or "after a cast")
         HME.Signal("FISH_CAUGHT", items)
         return
     end
-    if not npcID then return end
+    if not npcID then
+        -- A node, a chest, or a source the game did not name: not attributed here.
+        if next(items) then Note("unattributed", nil, items, "no creature source") end
+        return
+    end
     local g = Str(guid)
+    -- A corpse already skinned has no other loot: a repeated window is that skin.
+    if g and processed["s:" .. g] then return end
     local skinning = now - skinCastAt < 4
+    local skinAt = skinCastAt
     -- The same corpse can be reported more than once (LOOT_OPENED twice, a
     -- reopened window): each corpse is counted once per kind of loot.
     local key = g and ((skinning and "s:" or "l:") .. g)
@@ -165,6 +274,9 @@ local function OnLoot()
         if #processedList > 200 then processed[table.remove(processedList, 1)] = nil end
     end
     if skinning then
+        -- One skinning cast is one skin: a corpse looted right after is loot.
+        skinCastAt = -100
+        Note("skin", npcID, items, "skin cast " .. string.format("%.1f", now - skinAt) .. " s before")
         local rec = HME.db.obs.skins[npcID]
         if not rec then
             rec = { n = 0, qty = {}, items = {}, zones = {} }
@@ -182,6 +294,7 @@ local function OnLoot()
         HME.db.obs.mobs[npcID] = true
         HME.Signal("BEAST_SKINNED", npcID, items, g)
     else
+        Note("loot", npcID, items, guid and "corpse" or "no source")
         lootSource = { npcID = npcID, items = items, at = now }
         moneyAtOpen = Num(GetMoney and GetMoney())
         HME.Signal("BEAST_LOOTED", npcID, items, g)
@@ -252,8 +365,10 @@ HME.On("PLAYER_REGEN_ENABLED", function()
         local npc = #loots == 1 and L.Npc(loots[1])
         if not npc or secs < 2 or secs > 180 then
             HME.char.eff.ambiguous = (HME.char.eff.ambiguous or 0) + 1
+            Note("fight", loots[1], nil, ("unclear (%d looted, %.0f s): not a kill-time sample"):format(#loots, secs))
             return
         end
+        Note("fight", loots[1], nil, ("kill-time sample %.0f s"):format(secs))
         local level = HME.Player.Level()
         local diff = (npc.min + npc.max) / 2 - level
         U.Push(HME.char.eff.kill, { d = U.Round(diff, 1), s = U.Round(secs, 1), e = npc.elite or nil,

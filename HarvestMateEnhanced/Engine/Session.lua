@@ -42,7 +42,7 @@ local function NewSession()
         startedAt = (time and time()) or 0, clockStart = Now(), farm = 0, travel = 0, combat = 0, gather = 0,
         idle = 0, lastTick = Now(), lastActivity = Now(), paused = false,
         counts = { herb = 0, mine = 0, skin = 0, fish = 0, kills = 0 }, items = {}, value = 0,
-        skillups = 0, deaths = 0, areas = {}, skills = {}, seen = {},
+        skillups = 0, deaths = 0, areas = {}, skills = {}, seen = {}, events = {},
     }
 end
 
@@ -157,6 +157,9 @@ local function Activity(profShort, what, n, value, items, id)
     end
     cur.lastActivity = Now()
     cur.quietFarm = 0
+    -- When, on the farming clock: for the rolling rates (newest 400).
+    cur.events = cur.events or {}
+    U.Push(cur.events, { f = cur.farm, k = what }, 400)
     local key = S.AreaKey(profShort)
     cur.areaNow = key
     local a = Area(key)
@@ -299,6 +302,81 @@ function S.Rates()
         bph = math.max(c.kills, c.skin) / h, catches = c.fish, deaths = cur.deaths, paused = cur.paused,
         items = cur.items,
     }
+end
+
+---------------------------------------------------------------------------
+-- While farming: rolling rates, materials, pace, and observed vs predicted.
+---------------------------------------------------------------------------
+S.LIVE_WINDOW = 20 * 60     -- the rolling window: the last 20 farming minutes
+S.LIVE_MIN_SECS = 10 * 60   -- no verdict before 10 farming minutes...
+S.LIVE_MIN_EVENTS = 8       -- ...and 8 gathers, skins or catches
+
+local function ItemName(id)
+    local name = ns.itemIndex and ns.itemIndex[id] and ns.itemIndex[id].name
+    if not name and GetItemInfo then name = HME.Str((GetItemInfo(id))) end
+    return name or ("item " .. id)
+end
+
+-- Everything the HUD and Dashboard show about the session going on now.
+function S.Live()
+    if not cur then return nil end
+    Tick()
+    local farm = cur.farm
+    local h = math.max(farm, 1) / 3600
+    local c = cur.counts
+    local out = { farmSecs = farm, skins = c.skin, kills = c.kills, nodes = c.herb + c.mine, catches = c.fish,
+                  value = cur.value, skillups = cur.skillups, perHour = {}, recent = {}, items = {} }
+    out.perHour.skins, out.perHour.kills = c.skin / h, c.kills / h
+    out.perHour.nodes, out.perHour.catches = (c.herb + c.mine) / h, c.fish / h
+    out.perHour.value, out.perHour.skill = cur.value / h, cur.skillups / h
+    -- The rolling window: events within the last LIVE_WINDOW farming seconds.
+    local from = math.max(0, farm - S.LIVE_WINDOW)
+    local span = math.max(60, farm - from)
+    local counts = {}
+    for _, e in ipairs(cur.events or {}) do
+        if e.f >= from then counts[e.k or "?"] = (counts[e.k or "?"] or 0) + 1 end
+    end
+    for k, n in pairs(counts) do out.recent[k] = n / span * 3600 end
+    out.recentMinutes = span / 60
+    -- Materials, most first, with their rate.
+    for id, n in pairs(cur.items or {}) do out.items[#out.items + 1] = { id = id, name = ItemName(id), n = n, perHour = n / h } end
+    table.sort(out.items, function(a, b) return a.n > b.n end)
+    -- Pace: kill time from this session's clear fights, time between skins.
+    local sum, nk = 0, 0
+    for _, k in ipairs((HME.char and HME.char.eff and HME.char.eff.kill) or {}) do
+        if (k.t or 0) >= (cur.startedAt or 0) then sum, nk = sum + (k.s or 0), nk + 1 end
+    end
+    out.avgKill, out.killSamples = nk > 0 and sum / nk or nil, nk
+    out.betweenSkins = c.skin > 0 and farm / c.skin or nil
+    -- Observed against what the farm was predicted to give.
+    local pred = cur.areaNow and HME.Guidance and HME.Guidance.PredictionFor(cur.areaNow)
+    if pred then
+        local events = c.skin + c.herb + c.mine + c.fish
+        local enough = farm >= S.LIVE_MIN_SECS and events >= S.LIVE_MIN_EVENTS
+        local metric, observed, expected, unit
+        if (pred.skins or 0) > 0 and c.skin > 0 then metric, observed, expected, unit = "skins", out.perHour.skins, pred.skins, "skins"
+        elseif (pred.nodes or 0) > 0 then metric, observed, expected, unit = "nodes", out.perHour.nodes, pred.nodes, "nodes"
+        elseif (pred.catches or 0) > 0 then metric, observed, expected, unit = "catches", out.perHour.catches, pred.catches, "catches"
+        elseif (pred.beasts or 0) > 0 then metric, observed, expected, unit = "kills", out.perHour.kills, pred.beasts, "kills" end
+        if metric then
+            local ratio = expected > 0 and observed / expected or nil
+            out.verdict = { metric = metric, observed = observed, expected = expected, ratio = ratio, enough = enough, events = events }
+            if not enough then
+                out.verdict.text = ("%.0f %s/h so far (predicted %.0f): too early to judge (%d min, %d events)"):format(
+                    observed, unit, expected, farm / 60, events)
+            else
+                local how = ratio >= 1.15 and "better than predicted" or (ratio <= 0.85 and "below the prediction" or "about as predicted")
+                out.verdict.text = ("%.0f %s/h vs %.0f predicted after %d min: %s. This farm's numbers for you follow when the session ends."):format(
+                    observed, unit, expected, farm / 60, how)
+            end
+        end
+        if pred.items then
+            for _, it in ipairs(out.items) do
+                if pred.items[it.id] then it.expectedPerHour = pred.items[it.id] end
+            end
+        end
+    end
+    return out
 end
 
 -- Clock: once a second while running; ends a long-idle session.

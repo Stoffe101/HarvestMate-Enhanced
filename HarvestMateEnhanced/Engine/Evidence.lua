@@ -40,13 +40,19 @@ local function Stats(key) return key and HME.db and HME.db.stats[key] or nil end
 
 function E.Classify(r)
     local st = Stats(r.key)
-    local hours, sessions = st and st.hours or 0, st and st.sessions or 0
+    local allHours = st and st.hours or 0
+    -- "Measured" means this character's own sessions; other characters'
+    -- farming here only makes it partly measured.
+    local hours, sessions = HME.Learning.Own(r.key)
     local m = r.metrics or {}
     if hours >= 1.5 and sessions >= 2 then
         return { level = "measured", text = ("Measured: %d of your sessions here, %.1f h."):format(sessions, hours) }
     end
     if hours >= 0.1 then
         return { level = "partly measured", text = ("Partly measured: %.1f h of your farming here, blended with the model."):format(hours) }
+    end
+    if allHours >= 0.1 then
+        return { level = "partly measured", text = ("Partly measured by your other characters (%.1f h); your own pace may differ."):format(allHours) }
     end
     if r.prof == "Skinning" and (m.observedSkins or 0) >= 20 then
         return { level = "known yield", text = ("Yields from %d of your skins; kill pace and respawns are still assumed."):format(m.observedSkins) }
@@ -128,12 +134,132 @@ function E.Range(r, metric, evidence)
     return { low = low, mid = mid, high = high, samples = #list }
 end
 
--- Fills r.evidence, r.metrics.range (gold) and r.metrics.skillRange.
-function E.Apply(r)
+---------------------------------------------------------------------------
+-- Separate confidence dimensions. One number would hide that a farm can have
+-- well-known spawn points and unknown prices at the same time.
+--   spawn        where the nodes or beasts are
+--   route        whether the loop can be walked as drawn
+--   yield        what each node, beast or cast gives
+--   profit       what it is worth (prices)
+--   suitability  how well it fits this character (level, skill, pace, risk)
+-- Each: { level = "high" | "medium" | "low" | "unknown", why }.
+---------------------------------------------------------------------------
+E.DIMENSIONS = { "spawn", "route", "yield", "profit", "suitability" }
+E.DIM_LABEL = { spawn = "Spawns", route = "Route", yield = "Yield", profit = "Profit", suitability = "Fits you" }
+
+local function D(level, why) return { level = level, why = why } end
+
+local function PlannedRoute(r)
+    for _, route in ipairs((HME.Routes and HME.Routes.db and HME.Routes.db.routes) or {}) do
+        if route.planned and route.planned.key == r.key then return route end
+    end
+end
+
+function E.Dimensions(r, goal)
+    local m = r.metrics or {}
+    local dims = {}
+    -- Spawn
+    if r.prof == "Fishing" then
+        dims.spawn = (m.pools or 0) > 0 and D("low", "pool spots are where pools have been seen: pools move, none is known to be up")
+            or D("medium", "open water: no pool spots known")
+    elseif r.prof == "Skinning" then
+        local seenHere = 0
+        for _, t in ipairs(r.targets or {}) do
+            local rec = t.npcID and HME.db and HME.db.obs.skins[t.npcID]
+            if rec and rec.zones and rec.zones[r.mapID] then seenHere = seenHere + 1 end
+        end
+        dims.spawn = seenHere > 0 and D("high", ("you skinned %d of these beasts here"):format(seenHere))
+            or D("medium", "beast spawns from the bundled data, not yet seen by you here")
+    else
+        local c = m.confirmedShare or 0
+        dims.spawn = c >= 0.5 and D("high", ("%d%% of the sites confirmed"):format(c * 100))
+            or c >= 0.2 and D("medium", ("%d%% of the sites confirmed"):format(c * 100))
+            or D("low", "spawn points predicted from the bundled data")
+    end
+    -- Route
+    local route = PlannedRoute(r)
+    local t = route and HME.Terrain and HME.Terrain.Summary(route)
+    local caves = r.caveShare or 0
+    if route and route.recorded then
+        dims.route = D("high", "recorded in game")
+    elseif t and t.state == "full" then
+        dims.route = D(caves > 0.2 and "medium" or "high", "every leg follows the walking grid" .. (caves > 0.2 and ", but some nodes are in a cave" or ""))
+    elseif t and t.state == "partial" then
+        dims.route = D("medium", ("%d of %d legs walked on the grid"):format(t.walked, t.legs))
+    elseif r.prof == "Fishing" then
+        dims.route = D("unknown", "no loop: you fish from the shore")
+    elseif route then
+        dims.route = D("low", "straight lines between stops: terrain not checked")
+    else
+        dims.route = D("unknown", (caves > 0.2 and "some nodes are in a cave; " or "") .. "the loop is planned when you start")
+    end
+    -- Yield
+    local skins, gathers = m.observedSkins or 0, m.yieldGathers or 0
+    if r.prof == "Skinning" then
+        dims.yield = skins >= 60 and D("high", skins .. " of your skins")
+            or skins >= 20 and D("medium", skins .. " of your skins")
+            or D("low", "estimated yields until you skin these beasts")
+    elseif r.prof == "Fishing" then
+        dims.yield = m.basis == "measured" and D("medium", "your catch rate here") or D("low", "catch rate assumed")
+    else
+        dims.yield = gathers >= 60 and D("high", gathers .. " of your gathers")
+            or gathers >= 20 and D("medium", gathers .. " of your gathers")
+            or D("low", "typical node yields assumed")
+    end
+    -- Profit
+    if goal == "level" then
+        dims.profit = D("unknown", "not used for leveling")
+    elseif r.noPrice then
+        dims.profit = D("unknown", "no prices known")
+    else
+        local trust, n, oldest = 0, 0, 0
+        for id in pairs(m.items or {}) do
+            local rec = HME.Prices.Get(id)
+            trust = trust + HME.Prices.Trust(rec)
+            n = n + 1
+            if rec and rec.age and rec.age > oldest then oldest = rec.age end
+        end
+        trust = n > 0 and trust / n or 0
+        local src = HME.Prices.Available()[1] or "vendor values"
+        dims.profit = trust >= 0.7 and D("high", "prices from " .. src)
+            or trust >= 0.45 and D("medium", "prices from " .. src .. (oldest > 7 * 86400 and ", some old" or ""))
+            or D("low", "vendor values or very few prices")
+    end
+    -- Suitability
+    local why, level = {}, "high"
+    if r.prof == "Skinning" then
+        if m.killBasis == "measured" then why[#why + 1] = "your kill pace is measured"
+        else level = "medium"; why[#why + 1] = "kill pace " .. (m.killBasis or "assumed") end
+        for _, tg in ipairs(r.targets or {}) do
+            if tg.elite then level = "medium"; why[#why + 1] = "elites among the beasts" break end
+        end
+    elseif r.prof ~= "Fishing" then
+        if (m.skillChance or 0) < 0.3 then level = "medium"; why[#why + 1] = "most nodes are grey for you" end
+    end
+    if r.risk and r.risk.score >= 0.5 then level = "low"; why[#why + 1] = r.risk.label:lower()
+    elseif r.risk and r.risk.score >= 0.3 and level == "high" then level = "medium"; why[#why + 1] = r.risk.label:lower() end
+    if #why == 0 then why[1] = "within your level and skill" end
+    dims.suitability = D(level, table.concat(why, "; "))
+    return dims
+end
+
+-- "Spawns: high · Route: unknown · ..." for tooltips and the detail panel.
+function E.DimensionText(dims)
+    local parts = {}
+    for _, k in ipairs(E.DIMENSIONS) do
+        local d = dims and dims[k]
+        if d then parts[#parts + 1] = ("%s: %s"):format(E.DIM_LABEL[k], d.level) end
+    end
+    return table.concat(parts, " · ")
+end
+
+-- Fills r.evidence, r.metrics.range (gold), r.metrics.skillRange and r.dims.
+function E.Apply(r, goal)
     local ev = E.Classify(r)
     r.evidence = ev
     r.metrics.range = E.Range(r, "gph", ev)
     r.metrics.skillRange = E.Range(r, "sph", ev)
+    r.dims = E.Dimensions(r, goal)
     return ev
 end
 

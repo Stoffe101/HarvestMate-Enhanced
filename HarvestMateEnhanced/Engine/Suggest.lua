@@ -27,6 +27,8 @@ S.KINDS = {
     { key = "stalePrices", label = "Old prices" },
     { key = "underperform", label = "Farm below forecast" },
     { key = "betterArea", label = "Better area measured" },
+    { key = "goalNear", label = "Goal nearly reached" },
+    { key = "liveBelow", label = "Below prediction while farming" },
 }
 S.REPEAT = 1800
 S.CHAT_GAP = 60
@@ -123,6 +125,31 @@ local function CheckFarm()
         end
     end
 end
+
+-- While farming: a material goal nearly done, or a rate clearly below the
+-- prediction once there is enough to judge (10 minutes and 8 gathers).
+function S.CheckLive()
+    local live = HME.Session.Live()
+    if not live then return end
+    local v = live.verdict
+    if v and v.enough and v.ratio and v.ratio < 0.6 then
+        local g = HME.Guidance.Active()
+        S.Add("liveBelow", g and g.key or "here", ("You are getting about %d%% of the predicted %s here. Low-sample numbers can "
+            .. "swing; if it stays like this, another farm may suit you better."):format(v.ratio * 100, v.metric),
+            { kind = "finder", prof = g and g.prof })
+    end
+    for id, need in pairs(HME.Goals.Needed()) do
+        local g = need.goal
+        if g.type == "item" and g.target and need.missing > 0 and need.missing <= math.max(3, g.target * 0.15) then
+            local rate
+            for _, it in ipairs(live.items) do if it.id == id then rate = it.perHour end end
+            local mins = rate and rate > 0 and need.missing / rate * 60 or nil
+            S.Add("goalNear", g.id, ("%s: %d to go%s. A shorter loop or a last lap will do."):format(g.name or "Goal",
+                need.missing, mins and (" (about %d min at your pace)"):format(mins + 0.5) or ""))
+        end
+    end
+end
+HME.Listen("SESSION_CHANGED", function() HME.Soon("suggest-live", 20, S.CheckLive) end)
 
 HME.Listen("SKILL_UP", function(prof)
     CheckCaps()

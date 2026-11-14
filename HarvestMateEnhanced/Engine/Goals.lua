@@ -208,6 +208,25 @@ function Goals.Check()
     HME.Signal("GOALS_CHANGED")
 end
 
+-- Items your open goals still miss: { [itemID] = { missing, goal } }.
+function Goals.Needed()
+    local out = {}
+    for _, g in ipairs(List()) do
+        if not g.doneAt then
+            if g.type == "item" then
+                local p = Goals.Progress(g)
+                local miss = math.max(0, g.target - (p.have or 0))
+                if miss > 0 then out[g.itemID] = { missing = miss, goal = g } end
+            elseif g.type == "list" then
+                for _, part in ipairs(Goals.Progress(g).parts) do
+                    if part.missing > 0 then out[part.itemID] = { missing = part.missing, goal = g } end
+                end
+            end
+        end
+    end
+    return out
+end
+
 -- The Farm Finder query that serves a goal.
 function Goals.Query(g)
     if g.type == "item" then

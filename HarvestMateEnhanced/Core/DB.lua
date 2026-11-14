@@ -42,6 +42,8 @@ DB.LIMITS = {
 
 DB.SETTINGS = {
     debug = false,
+    combinedPriority = "equal",  -- Herbs + Ore: equal, herb, mine, lower, proven, short, profit
+    terrain = true,              -- walk planned loops on Forever-GPS's walking grid when it can
     performance = "normal",      -- "normal" or "low" (smaller background budget, fewer pins)
     scale = 1.0,                 -- main window scale
     layout = "expanded",         -- "expanded" or "compact"
@@ -96,6 +98,7 @@ local CHAR_DEFAULTS = {
     goals = {},
     ui = { tab = "dashboard", finder = { prof = nil, goal = "level" } },
     learnedOrder = {},
+    stats = {},            -- this character's measured totals per farming area (Engine/Learning.lua)
     showAllProfessions = false,
     arrowScale = 1,
 }
@@ -229,6 +232,9 @@ function DB.PrepareChar(saved)
     end
     if type(saved.plan.skills) ~= "table" then saved.plan.skills = {} end
     if type(saved.eff.kill) ~= "table" then saved.eff.kill = {} end
+    for k, st in pairs(saved.stats) do
+        if type(st) ~= "table" or type(st.hours) ~= "number" then saved.stats[k] = nil end
+    end
     return saved
 end
 

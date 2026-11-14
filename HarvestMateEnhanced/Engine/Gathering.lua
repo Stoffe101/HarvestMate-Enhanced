@@ -90,6 +90,31 @@ end
 G.COMBINED = { "Herbalism", "Mining" }
 function G.Profs(prof) return prof == "Combined" and G.COMBINED or { prof } end
 
+-- How a combined loop weighs herbs against ore (Farm Finder > Herbs + Ore):
+--   equal     both alike
+--   herb      herbs first (x1.6, ore x0.6)        mine   ore first
+--   lower     whichever skill is lower first (for leveling)
+--   proven    sites you or GatherMate2 confirmed count more (x1.4, others x0.8)
+--   short     fewer stops (a short loop)          profit / material: by the goal
+G.COMBINED_PRIORITY = { "equal", "herb", "mine", "lower", "proven", "short", "profit" }
+G.COMBINED_LABEL = { equal = "Equal", herb = "Herbs first", mine = "Ore first", lower = "Lower skill first",
+    proven = "Proven spots", short = "Short loop", profit = "Most gold" }
+
+function G.CombinedPriority() return (HME.settings and HME.settings.combinedPriority) or "equal" end
+
+local function ProfWeight(p, profile, priority)
+    if priority == "herb" then return p == "Herbalism" and 1.6 or 0.6 end
+    if priority == "mine" then return p == "Mining" and 1.6 or 0.6 end
+    if priority == "lower" then
+        local h = profile.skills.Herbalism and profile.skills.Herbalism.rank or 0
+        local m = profile.skills.Mining and profile.skills.Mining.rank or 0
+        if h == m then return 1 end
+        local lower = h < m and "Herbalism" or "Mining"
+        return p == lower and 1.6 or 0.7
+    end
+    return 1
+end
+
 function G.Weigh(prof, mapID, profile, goal, targets, which)
     local cache = {}
     local w, h = Geo.MapYards(mapID)
@@ -116,11 +141,16 @@ function G.Weigh(prof, mapID, profile, goal, targets, which)
         end
     end
     end
+    local priority = prof == "Combined" and G.CombinedPriority() or nil
     for _, e in ipairs(list) do
         if goal == "level" then e.w = e.level
-        elseif goal == "profit" then e.w = e.profit
+        elseif goal == "profit" or priority == "profit" then e.w = maxProfit > 0 and e.profit / maxProfit or 0
         elseif goal == "material" then e.w = e.material
         else e.w = (maxLevel > 0 and e.level / maxLevel or 0) + (maxProfit > 0 and e.profit / maxProfit or 0)
+        end
+        if priority and goal ~= "material" then
+            e.w = e.w * ProfWeight(e.prof, profile, priority)
+            if priority == "proven" then e.w = e.w * (e.site.confirmed and 1.4 or 0.8) end
         end
     end
     return list, cache, w, h
@@ -142,7 +172,8 @@ function G.Areas(prof, mapID, profile, goal, opts)
         local members = {}
         for _, i in ipairs(region.members) do members[#members + 1] = remaining[i] end
         table.sort(members, function(a, b) return a.w > b.w end)
-        while #members > G.MAX_SITES do members[#members] = nil end
+        local maxSites = (prof == "Combined" and G.CombinedPriority() == "short") and math.floor(G.MAX_SITES / 2) or G.MAX_SITES
+        while #members > maxSites do members[#members] = nil end
         local area = { prof = prof, mapID = mapID, goal = goal, cx = region.cx / w, cy = region.cy / h,
             yx = region.cx, yy = region.cy, sites = members, types = cache, cells = region.cells }
         local r = 0

@@ -35,6 +35,11 @@ if not ok then
     if ERRORS then for _, e in ipairs(ERRORS) do REAL_PRINT("  error handler: " .. e) end end
     return 1
 end
+if ERRORS and #ERRORS > 0 and not ALLOW_ERRORS then
+    REAL_PRINT("FAILED: Lua errors reached the error handler during the test:")
+    for _, e in ipairs(ERRORS) do REAL_PRINT("  error handler: " .. e) end
+    return 1
+end
 REAL_PRINT(("PASSED %d checks"):format(Passed()))
 return 0
 """

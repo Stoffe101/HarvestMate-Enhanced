@@ -96,6 +96,23 @@ function H.Update()
         local owner = HME.Guidance.ArrowOwner()
         if g and owner then lines[#lines + 1] = "|cff9d9d9dArrow: " .. owner .. "|r" end
     end
+    if size ~= "compact" and r then
+        -- What you get, and against the prediction once there is enough to judge.
+        local live = HME.Session.Live()
+        if live then
+            local top = live.items[1]
+            if top then
+                local exp = top.expectedPerHour and (" vs %.0f expected"):format(top.expectedPerHour) or ""
+                lines[#lines + 1] = ("%s: %d (%.0f/h%s)"):format(top.name, top.n, top.perHour, exp)
+            end
+            if live.skins > 0 or live.kills > 0 then
+                lines[#lines + 1] = ("%d kills · %d skins%s%s"):format(live.kills, live.skins,
+                    live.avgKill and (" · %.0f s a kill"):format(live.avgKill) or "",
+                    live.betweenSkins and (" · a skin every %.0f s"):format(live.betweenSkins) or "")
+            end
+            if size == "detailed" and live.verdict then lines[#lines + 1] = live.verdict.text end
+        end
+    end
     if size == "detailed" then
         if r then
             lines[#lines + 1] = ("Trip incl. %s travel: %s/h  ·  combat %s, gathering %s, idle %s"):format(U.Duration(r.travelSecs),
