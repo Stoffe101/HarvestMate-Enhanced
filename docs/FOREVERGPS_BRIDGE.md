@@ -13,45 +13,15 @@ HME uses only what Forever-GPS already exposes on its global `ForeverGPS` table,
 
 Internal functions such as these can change between Forever-GPS versions; that is why HME checks each one and falls back.
 
-## ForeverGPS.API v1 (implemented on a Forever-GPS branch)
+## ForeverGPS.API v1 and v2 (implemented on a Forever-GPS branch)
 
 Implemented in the Forever-GPS repository on branch `feature/public-api` (draft PR https://github.com/Stoffe101/Forever-GPS/pull/3, not merged) as `addons/ForeverGPS/Core/API.lua`, documented in its `docs/API.md`, tested on its real route engine (`tests/test_api.lua`, 9 tests; whole suite 614 passing). HME prefers it when present and is tested against that real file in `tests/test_fgps_api_live.lua`. Request states on both sides: pending, active, arrived, cancelled, superseded, released, stale. HME passes `start = true` because the player just asked for directions.
 
-### The original proposal (superseded by the implementation above)
+### Version 2 (implemented on the same branch)
 
-Not committed to the Forever-GPS repository: it needs review there first. Suggested `Core/API.lua`, loaded after `Core/Bridge.lua`:
+Added in 0.3.0, additive: `HoldArrow` / `ReleaseArrow` / `ArrowHeld` and the `hold` and `ended` events (one arrow: docs/NAVIGATION.md), `HasTerrain`, `LocalPath`, `LocalPaths`, `LocalBound` (walks on the walking grid: docs/TERRAIN.md), and `NavigateToService` (the nearest vendor, mailbox, trainer...). Documented in Forever-GPS's `docs/API.md`; tested on its real stack and walking grid in `tests/test_api_v2.lua`. HME checks each function before using it, so Forever-GPS 2.7 and API v1 keep working.
 
-```lua
--- ForeverGPS.API: a stable surface for other addons. Versioned; additive only.
-local FG = ForeverGPS
-local API = { VERSION = 1 }
-FG.API = API
-local listeners = { arrived = {}, cleared = {} }
-
--- Plans a journey to a map point and opens it for the player to start.
--- opts.source names the caller; opts.autoStart is ignored unless the player allowed it in settings.
-function API.NavigateTo(mapID, x, y, label, opts)
-    local result = FG.Search.CoordsFor(("%s %.1f %.1f"):format(FG.Bridge.MapName(mapID) or "", x * 100, y * 100))
-    if not result then return false, "unknown place" end
-    local target = FG.Search.Target(result)
-    target.name = label or target.name
-    target.source = opts and opts.source
-    FG.Window.Show("search")
-    FG.Planner.Inspect(target)
-    FG.Window.ShowRoute()
-    return true
-end
-
-function API.Stop() FG.Bridge.Stop() end
-function API.IsNavigating() return FG.Bridge.ActiveRoute() ~= nil end
-function API.EstimateSeconds(mapID, x, y) --[[ from FG.Bridge.EstimateRoute when cheap ]] end
-function API.On(event, fn) if listeners[event] then table.insert(listeners[event], fn) end end
-
-FG.On("route:arrived", function(...) for _, fn in ipairs(listeners.arrived) do FG.Try(fn, ...) end end)
-FG.On("route:cleared", function(...) for _, fn in ipairs(listeners.cleared) do FG.Try(fn, ...) end end)
-```
-
-HME already prefers `ForeverGPS.API` (VERSION ≥ 1) when present (`Integrations/ForeverGPS.lua`, tested in `tests/test_integrations.lua` with a fake). Tests on the Forever-GPS side would cover: missing destination, combat, a caller stopping only its own journey, and listeners that error.
+(0.2.0's text here carried an older API proposal; it was replaced by the implementation and is no longer documented here, to avoid confusion.)
 
 ## Ownership rule
-Only one arrow at a time: while Forever-GPS travels, HME hides its arrow; after arrival HME's loop guidance takes over and Forever-GPS's route has ended. HME calls `API.Stop` only for a journey it asked for.
+Only one arrow at a time: while Forever-GPS travels, HME hides its arrow; after arrival HME's loop guidance takes over and Forever-GPS's route has ended. HME calls `API.Release` only for a journey it asked for and that still runs. Beside a journey that is not HME's, HME shows its arrow only while Forever-GPS holds its own (API v2); otherwise it guides on the map. Details: docs/NAVIGATION.md.

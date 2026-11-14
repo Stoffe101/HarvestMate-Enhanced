@@ -12,7 +12,7 @@ python tools/run_tests.py
 
 Each `tests/test_*.lua` runs in a fresh **real Lua 5.1** interpreter (the one bundled with `lupa`), against a fake client in `tests/support/` (frames, events, maps, professions, items, loot, CVars, bindings that raise if changed in combat, timers, popups). Nothing opens a window or touches the desktop or the game. CI runs the same on every push (`.github/workflows/test.yml`) and builds the ZIP.
 
-## What runs (all passing at the time of writing, 14 files)
+## What runs (all passing at the time of writing, 19 files)
 
 | File | Covers |
 |---|---|
@@ -23,15 +23,22 @@ Each `tests/test_*.lua` runs in a fresh **real Lua 5.1** interpreter (the one bu
 | `test_safety.lua` | Nothing changes on first login; gather key needs a yes (and not in combat); bound only at a node; released on combat, binding change, turning off and logout; capture closes in combat; Soft Target Interact only with a yes and put back; no CVar in combat; old addons running: HME pauses without saving that; no protected calls |
 | `test_integrations.lua` | Forever-GPS 2.x journey panel and published API, scenario G hand-off, no second arrow, stopping in Forever-GPS, too-old Forever-GPS, TomTom, Auctionator/TSM/vendor prices, nothing installed |
 | `test_ui.lua` | Window and every page build lazily and refresh without errors; no widget outside the page; Farm Finder results, selection, empty states; compact layout, scaling; tab memory; tab cycling; capture closes with the window; settings persist; HUD; minimap button; slash commands |
-| `test_navigation.lua` | Request tokens, duplicate events, scenario 6 hand-off, scenario 7 changed destination, cancel without takeover, walking in with HME's or another journey, reload staleness, scenario 10 travel vs farming time |
-| `test_fgps_api_live.lua` | HME's guidance against Forever-GPS's real `Core/API.lua` (skipped, with a note, when no Forever-GPS checkout is present) |
+| `test_navigation.lua` | Request tokens, duplicate events, scenario 6 hand-off, scenario 7 changed destination, cancel without takeover, walking in with HME's or another journey, **one arrow on Guide me here with Forever-GPS 2.7 (map guidance)**, journeys started and ended during the farm, free mode, reload staleness, scenario 10 travel vs farming time |
+| `test_fgps_api_live.lua` | HME's guidance against Forever-GPS's real `Core/API.lua` (skipped, with a note, when no Forever-GPS checkout is present): **scenario G with the real API v2 arrow hold**, the nearest vendor through `NavigateToService` |
 | `test_skinning2.lua` | Four character fixtures, partial level ranges, eligibility vs efficiency, scenario 3 Heavy Leather, multi-mob and no-loot fights excluded, fading kill samples, loot counted once with sample sizes, evidence levels and ranges |
 | `test_goals.lua` | Scenario 5 goal, bank, invalid goals, shopping lists, scenario 11 staged plan, comparison, scenario 4 combined loop, scenario 9 exclusion, suggestions, sell/keep, profiles |
 | `test_maps.lua` | Overlay pins, crowd grouping, simple/heatmap, right-click corrections, hunting outlines, route editor, protection of edited routes, route quality, pin limits |
 | `test_zz_bench.lua` | Benchmarks (tools/bench.lua) with generous bounds |
 | `test_static.lua` | Every .toc file exists and compiles; vendored files equal upstream except declared patches; no unexpected globals; no saved-variable or command clashes |
+| `test_terrain.lua` | Scenario A on a replay of Forever-GPS's REAL walking-grid answers for two real HME loops (`tests/fixtures/fgps_terrain.lua`): batches, detours, approximate legs, drawing, the arrow through the turns, quality labels, the leg cache, cancellation, no terrain, recorded routes, the hybrid reorder (made-up ground, said so), caves |
+| `test_recorder.lua` | Scenario B: recording, standing still, turns, pause/resume, leaving the zone, reload, loops and there-and-back, gathers on the way, editing, trimming, limits, export/import, damaged state, recorded corridors |
+| `test_intel.lua` | Scenario I calibration per character, reputation, skin attribution, confidence dimensions, profit per effort, corrections in the Finder, goal reasons, scenario D best beasts, live feedback and its suggestion, adaptive loops and circuit, scenario E priorities, records and now-vs-before |
+| `test_expedition.lua` | Scenario F expeditions: stages, reasons for what cannot be planned, one-zone lists, progress, skip, reorder, replan, go; travel estimates; one-line shopping lists and the Goals page |
+| `test_economy.lua` | Price sanity (impossible, missing, outlier prices) and the optional recipe link (format copied from Forever-GPS's data) |
 
-Last run: 14 of 14 files passed (Lua 5.1 via lupa), ~14 s. Forever-GPS's own suite with the new API: 614 passed (`lua tests/run.lua` in the Forever-GPS checkout, branch feature/public-api). Benchmarks: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+Last run: 19 of 19 files passed (Lua 5.1 via lupa), ~16 s. The runner also fails a file when any Lua error reaches the error handler. Forever-GPS (branch feature/public-api) with API v2: its full suite (`lua tests/run.lua`), including `tests/test_api_v2.lua` on its real stack and walking grid. Benchmarks: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+
+Real-grid fixture: `tools/terrain_fixture.lua` (run from the Forever-GPS checkout) records what the real walking grid answers for every leg of real HME loops into `tests/fixtures/fgps_terrain.lua`; HME's terrain tests replay those answers.
 
 ## Verified where
 

@@ -147,6 +147,12 @@ eq(HME.Corrections.ForArea(1429, 0.401, 0.401).mult, 1, "a week later it no long
 HME.Corrections.Add("inaccessible", { mapID = 1429, x = 0.4, y = 0.4 })
 check(HME.Corrections.ForArea(1429, 0.4, 0.41).exclude, "inaccessible: left out")
 check(not HME.Corrections.ForArea(1429, 0.7, 0.7).exclude, "only there")
+ClearLog()
+SlashCmdList.HARVESTMATEENHANCED("corrections")
+check(Said("your corrections"), "/hme corrections lists them")
+local firstId = HME.Corrections.List()[1].id
+SlashCmdList.HARVESTMATEENHANCED("uncorrect " .. firstId)
+check(Said("undone"), "/hme uncorrect undoes one")
 for _, c in ipairs(HME.Corrections.List()) do HME.Corrections.Remove(c.id) end
 
 STEP("suggestions: shown once, can be switched off")

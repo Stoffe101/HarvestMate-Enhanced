@@ -63,8 +63,26 @@ Status key: **New** (HME), **Kept** (from upstream, unchanged in behaviour), **I
 - **Maps:** profession colours, confirmed vs predicted, grouped pins, hunting outlines, start marker, simple and heatmap modes, right-click corrections; route editor and route quality.
 - **Data:** damaged saves repaired, imports validated and limited, schema 2.
 
+## Added in 0.3.0 (implemented; real-client validation pending)
+- **One arrow at a time**: Guide me here pauses Forever-GPS's arrow (API v2) instead of adding a second; journeys started during a farm take over and hand back; `/hme here`, `/hme giveback`, Dashboard button, HUD says whose arrow.
+- **Terrain-aware loops** on Forever-GPS's walking grid, with approximate legs marked, the arrow through the turns, and a hybrid reorder pass.
+- **Record My Route**, recorded corridors, **caves** with entrances.
+- **Per-character calibration**, area reputation, five confidence dimensions, scoped reversible **corrections**, profit per skin/kill/trip.
+- **While farming**: rolling rates, materials vs expected, kill pace, verdict with enough data, now vs before; adaptive loops and the Adaptive circuit mode.
+- **Herbs + Ore priorities**, combined vs separate; **best beasts** for a material.
+- **Expeditions** from shopping lists; nearest vendor/mailbox through Forever-GPS; optional **recipes** from Forever-GPS's client tables.
+- **Records** with minimum times; journal filter; **heatmap views**.
+- **Diagnostics** to copy; **first-run setup**.
+
+## Partly implemented
+- Hunting styles: Guided, Adaptive and Free guidance plus the risk mode and material goal cover them; there is no separate "cluster" planner.
+- Heatmaps: density, your gathering and skill-up potential; no profitability heatmap.
+- Progression transitions: grey-farm, cap and tier suggestions (0.2.0) and the live "below prediction" suggestion; no automatic "next area" switch.
+- Combined tracking: reminders only (the game tracks one kind at a time; HME never switches it).
+- Best beasts for a material: in the engine (`Skinning.BestBeasts`) and tested; not yet its own panel in the Farm Finder.
+
 ## Proposals, not implemented
-- Terrain-aware routing from a road/terrain graph (needs a legally usable data source; Forever-GPS's walking grid could be exposed through its API later).
-- Crafting-based "use" advice (needs reliable recipe data).
-- Localized HME pages.
+- Localized HME pages (Swedish and others).
 - Sharing routes with other players in game (export text only today).
+- A full terrain-optimal tour (today: straight-distance tour, then terrain refinement).
+- Crafting profit comparisons in HME (Forever-GPS has its own).

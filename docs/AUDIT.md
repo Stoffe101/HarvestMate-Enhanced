@@ -44,3 +44,27 @@ Investigated, not reproduced:
 - New code in combat: no protected calls; editor, Glimmer, map preview and bindings refuse in combat (tests).
 
 Still unverified (needs the real client): all UI layouts, map canvas drawing and lines, nameplate and soft-target behaviour, secret values in combat, the live Forever-GPS 2.7 hand-off.
+
+## Third pass (0.3.0)
+
+Baseline first: 14 of 14 HME test files and Forever-GPS's suite passed before any change.
+
+Confirmed by reproduction and fixed:
+- Two arrows on "Guide me here" beside another Forever-GPS journey (the 0.2.0 test asserted it); and beside a journey started during the farm. Fixed with one presentation decision and Forever-GPS's arrow hold (docs/NAVIGATION.md).
+- The hint for it pointed at `/hme guide` (the Guides page); no button existed.
+- `Geo.TravelTime` gave Forever-GPS's from-here estimate for any starting point.
+- A corpse looted right after a skin counted as a skin; a repeated window of a skinned corpse could count as loot.
+- One right-click marked a beast species wrong everywhere, permanently.
+- Overlay error on a plan without a centre (found by the new rule that any caught Lua error fails a test).
+- Upgrade hazard: account-wide measured areas would have dropped to other-character weight.
+- Prices had no bounds; the session duplicate set had no bound.
+
+Investigated, no change needed:
+- Forever-GPS's `Market.Price` is copper per unit (buy, typical), as are Auctionator API v1 and TSM custom prices: no unit mismatch.
+- The walking grid's searches outside Forever-GPS's planner use their own scratch (`scratchMain`), so read-only walks between planner slices are safe; batches inside a coroutine use the planner's scratch only while no plan runs and restart if one ran across them.
+- The grid's settings (roads, danger, drop limit) are global; `LocalPath` never changes them (changing them resets the active route's drawn walks).
+- Forever-GPS's arrow modes (HUD, character, TomTom, beacon) all follow `Journey.ArrowMode()`, so one "held" mode covers them.
+- Kill time already excluded multi-mob fights; pet-assisted kills count as the character's pace.
+- `PLAYER_ENTERING_WORLD` fires on every loading screen: a held arrow is kept unless Forever-GPS dropped it.
+
+Still unverified in the real client: everything listed in docs/MANUAL_TESTING.md 37-52.

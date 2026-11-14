@@ -6,16 +6,18 @@ One addon folder, one private table (`ns`), one event frame, one account databas
 HarvestMateEnhanced/
   Core/         Namespace (events, signals, secret-value guards, jobs, perf), Util, DB (+ export/import),
                 Migrate (from the replaced addons), Player (level, faction, skills, position, speed),
-                GPCompat (Gatherpedia helpers), Commands
+                GPCompat (Gatherpedia helpers), Diagnostics (report to copy), Commands
   Data/         Zones (HME), Leather (HME estimates), Index; Gatherpedia/ (vendored data and logic)
   Gather/       HarvestMate's engine (vendored) + HGCore (its core, adapted) + Glue (prices, consent, safety)
   Glimmer/      Gatherpedia's Glimmer (vendored) + Glue
   Engine/       Geo, Spawns, SkillModel, Prices, Risk, Cluster, Optimize (GatherPath), Skinning, Gathering,
-                Learning, Session, Recommend, Planner, Guide
-  Routes/       GatherPath's routes, map lines and their pages (adapted)
-  Map/          Overlay (spawn pins, hunting areas), Arrow, Guidance (who navigates)
-  Integrations/ ForeverGPS (bridge), TomTom
-  UI/           Theme, Kit, Window, Page*.lua, HUD, Minimap
+                Learning, Evidence, Corrections, Session, Recommend, Planner, Guide, Goals, Expedition, Records,
+                Suggest
+  Routes/       GatherPath's routes, map lines and their pages (adapted), Editor, Terrain (walked legs),
+                Recorder (Record My Route)
+  Map/          Overlay (spawn pins, hunting areas, heatmaps), Arrow, Guidance (who navigates and who points), Caves
+  Integrations/ ForeverGPS (bridge: journeys, arrow hold, walks, services), TomTom, Crafting (recipes, optional)
+  UI/           Theme, Kit, Window, Page*.lua (incl. Setup), HUD, Minimap
 ```
 
 ## Data flow
@@ -98,3 +100,13 @@ Duplicate events are no-ops; with ForeverGPS.API the token decides instead of th
 
 ### Session timing
 `farm` accrues only after arrival or the first gather; idle stretches longer than `idleMinutes` move from farm to idle; combat and gathering casts are parts of farm; `travel` comes from Guidance. Area statistics learn farming hours only; travel per area is learned apart (`travelHours`).
+
+## 0.3.0 additions
+
+- **Who points** (docs/NAVIGATION.md): `Map/Guidance.lua` `G.Present()` is the single decision for the arrow (`hme`, `external`, `map`, `none`). Journeys keep their request tokens; Forever-GPS's arrow is paused through its API v2 hold, never by stopping its journey.
+- **Terrain** (docs/TERRAIN.md): `Routes/Terrain.lua` asks Forever-GPS's `LocalPaths` for every leg, caches legs per account, assembles `route.path` (drawn) and `route.terrain` (summary, quality), refines the order with a 2-opt pass, and gives the arrow the turns of each leg. Priority: your edits, then cave entrances (`Map/Caves.lua`), recorded corridors, the grid, and finally the straight line.
+- **Recording** (docs/RECORDING.md): `Routes/Recorder.lua`, passive, bounded, saved as recorded routes.
+- **Learning and confidence** (docs/INTELLIGENCE.md): per-character area totals (`HarvestMateEnhancedCharDB.stats`, seeded on upgrade), `Evidence.Dimensions`, `Engine/Corrections.lua`, `Session.Live`, `Engine/Records.lua`, `Engine/Expedition.lua`.
+- **Optional data from Forever-GPS**: walking grid and recipe tables are read through its API at run time, never copied.
+- **Diagnostics** (docs/DIAGNOSTICS.md): `Core/Diagnostics.lua` keeps the last errors and builds a scrubbed report.
+- **Saved data**: schema 3; new sections `terrain` (legs, bounded), `corrections` (bounded), `caves`, per-character `stats`, `recording`, `expedition`. Every collection that can grow has a bound.

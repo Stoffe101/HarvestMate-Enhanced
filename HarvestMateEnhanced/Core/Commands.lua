@@ -21,6 +21,7 @@ local function Help()
         "/hme rec [start name|pause|resume|stop|cancel]  record your own route as you ride it",
         "/hme exp [plan|go|next|skip n|replan|stop]  a farming expedition for your shopping list",
         "/hme recipe [n] <item>  the gathered materials a recipe still needs, as a shopping list",
+        "/hme corrections  your marks on spawn points, beasts and areas   ·   /hme uncorrect <n>  undo one",
         "/hme session start|pause|end   ·   /hme hud  show or hide the HUD",
         "/hme glimmer [on|off|preview]   ·   /hme soft [off]   ·   /hme key [KEY]",
         "/hme export  ·  /hme import <name>  copy data from HarvestMate/Gatherpedia/GatherPath",
@@ -105,6 +106,23 @@ function cmds.exp(rest)
     end
 end
 cmds.expedition = cmds.exp
+
+-- Your corrections: /hme corrections lists them, /hme uncorrect <n> undoes one.
+function cmds.corrections()
+    local list = HME.Corrections.List()
+    if #list == 0 then
+        HME.Print("no corrections. Right-click a pin on the map to mark a spawn point or a beast.")
+        return
+    end
+    HME.Print(("your corrections (%d):"):format(#list))
+    for _, c in ipairs(list) do print(("  %d. %s"):format(c.id, HME.Corrections.Text(c))) end
+    print("  /hme uncorrect <number> undoes one.")
+end
+function cmds.uncorrect(rest)
+    local id = tonumber(rest)
+    if id and HME.Corrections.Remove(id) then HME.Print("correction " .. id .. " undone.")
+    else HME.Print("no correction with that number (/hme corrections lists them).") end
+end
 
 -- /hme recipe [crafts] <item link or ID>: the gathered materials still missing
 -- for that many crafts, as a shopping list goal (recipes: the client's data

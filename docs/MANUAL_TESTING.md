@@ -55,3 +55,23 @@ Nothing below has been done yet. Tick items as they are confirmed in the real cl
 34. [ ] Map: crowded pins show counts zoomed out; right-click a pin to exclude it; heatmap and simple modes are readable; hunting areas outlined, not covered.
 35. [ ] Farm Finder comparison and filters; Herbs + Ore loops (you switch tracking yourself; nothing switches it for you).
 36. [ ] HUD compact / normal / detailed do not cover action bars at 1280x800.
+
+## 0.3.0 additions
+Install Forever-GPS from the branch `feature/public-api` for 37-44 (see README, Install).
+
+37. [ ] Two arrows (scenario G): Forever-GPS takes you somewhere; walk to an HME farm; HME waits. Guide me here: Forever-GPS's arrow disappears, its HUD steps stay, the journey keeps running; HME's arrow leads. Give arrow back, stop farming, or start a new journey in Forever-GPS: its arrow comes back. Never two arrows.
+38. [ ] The same with Forever-GPS 2.7 (released): Guide me here guides on the map/HUD only; no second arrow.
+39. [ ] During a farm, send Forever-GPS to a trainer: HME's arrow steps aside; when that journey ends, HME's arrow resumes.
+40. [ ] Terrain: plan a Mining loop in a hilly zone (Redridge, Arathi): within a minute the map lines bend round hills; Routes page says terrain-aware or partly; no stutter while it walks the legs (watch FPS).
+41. [ ] The arrow follows the bends of a walked leg, then the stop.
+42. [ ] Bags nearly full: the suggestion's Do it opens Forever-GPS's journey to the nearest vendor; you press Go; HME's loop resumes after.
+43. [ ] `/hme recipe 1` with an item link of a leather recipe's product: a shopping list appears on the Goals page.
+44. [ ] Expedition: a shopping list with two professions; Expedition plans stages; Go starts stage 1 (Forever-GPS journey); gathering counts; "stage 1 done" says what is next.
+45. [ ] Record My Route: record a short loop (Routes page), stand still for a minute (nothing written), stop: a recorded route on the map; follow it; Waypoints edit works; export and import it.
+46. [ ] Caves: stand at a cave mouth, Shift+right-click a node inside on the map: "cave marked"; a planned loop's leg into it goes through the mouth.
+47. [ ] Skinning: skin a beast, then loot a second corpse right away: one skin, one loot (`/hme diag` shows the decisions).
+48. [ ] HUD detailed while skinning: material and expected rate; after 10 minutes, the observed vs predicted line.
+49. [ ] Heatmap views (Settings): each labelled "not live nodes".
+50. [ ] `/hme diag` opens a selectable report with no character or realm name; it closes when combat starts.
+51. [ ] `/hme setup` lists what was found; one-key gathering and soft target buttons only open their consent popups.
+52. [ ] After upgrading from 0.2.0: routes, goals, profiles and measured areas are all there; old wrong-beast marks appear in `/hme corrections`.

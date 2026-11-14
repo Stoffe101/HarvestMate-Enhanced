@@ -1,6 +1,39 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.3.0 (development build, unreleased)
+
+### Fixed (confirmed by reproduction tests)
+- **Two arrows on "Guide me here"**: with another Forever-GPS journey running, taking over at the farm showed HME's arrow next to Forever-GPS's. Now one place decides who points; Forever-GPS pauses its arrow (API v2) or HME guides on the map only. The journey is never stopped.
+- A journey started during the farm (e.g. to a trainer) left HME's loop arrow up next to it; HME now steps aside and resumes after.
+- The "Guide me here" hint pointed at `/hme guide`, which opens the Guides page; there was no button. Now `/hme here`, `/hme giveback` and a Dashboard button.
+- Skinning: a corpse looted within 4 s of a skin was counted as a second skin; a repeated window of a skinned corpse could count as loot.
+- Travel estimates between two places other than where you stand used Forever-GPS's from-here estimate.
+- One right-click on a beast pin removed that species from recommendations everywhere, for good; now scoped and reversible (old marks migrated).
+- The map overlay errored on a plan without a centre.
+- 0.2.0 measured areas would have counted at "other characters" weight after the per-character change; they are seeded per character on upgrade.
+- No bounds on provider prices: impossible values could inflate rankings.
+- A running session's duplicate-event set grew without bound.
+
+### New
+- **Terrain-aware loops** through Forever-GPS's walking grid (API v2 `LocalPaths`), cached per leg, drawn along the walked turns, approximate legs in orange, the arrow following the turns, lap time from the walked length, and a hybrid reorder pass kept only when really shorter. Real-grid fixture of two real HME loops for tests (docs/TERRAIN.md).
+- **Record My Route**: start, pause, resume, stop, cancel, trim; simplified and bounded; loops and there-and-back; gathers along the way; export/import; recordings as preferred corridors for planned loops (docs/RECORDING.md).
+- **Caves**: Gatherpedia's cave outlines and entrances you mark; legs go through entrances; inaccessible caves rank lower.
+- **Per-character calibration**, area reputation, separate confidence dimensions (spawns, route, yield, profit, fits you), scoped reversible corrections, profit per skin/kill/trip, goal-driven reasons, history verdicts (docs/INTELLIGENCE.md).
+- **While farming**: rolling rates, materials with expected rates, kill pace, time between skins, observed vs predicted once there is enough data, now vs your earlier sessions.
+- **Adaptive loops** (skip stops you just emptied) and an **Adaptive circuit** guidance mode.
+- **Herbs + Ore priorities** and a combined-vs-separate check; best beasts for a material.
+- **Expeditions**: a shopping list across professions and zones as staged farms with travel; shopping lists typed in one line on the Goals page.
+- **Vendors and mailboxes** through Forever-GPS (API v2 `NavigateToService`) from the bags-full suggestion, on your click.
+- **Optional recipes** from Forever-GPS's copy of the client's tables: `/hme recipe` and uses in the sell/keep advisor.
+- **Records** with minimum farming times; journal text filter.
+- **Heatmap views**: predicted density, your gathering, skill-up potential.
+- **Diagnostics** to copy (`/hme diag`), privacy-scrubbed; a short **first-run setup** (`/hme setup`).
+- Save format 3. The test runner fails on any Lua error that reaches the error handler.
+
+### Forever-GPS (branch feature/public-api, API v2)
+- `HoldArrow`, `ReleaseArrow`, `ArrowHeld`; `ended` and `hold` events; `HasTerrain`, `LocalPath`, `LocalPaths`, `LocalBound`; `NavigateToService`. Tests on the real stack and walking grid (`tests/test_api_v2.lua`).
+
+## 0.2.0
 
 ### Fixed (confirmed by reproduction tests)
 - Forever-GPS: any arrival was treated as arriving at the farm, so a journey the player redirected elsewhere still started HME's loop.
