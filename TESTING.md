@@ -36,7 +36,7 @@ Each `tests/test_*.lua` runs in a fresh **real Lua 5.1** interpreter (the one bu
 | `test_expedition.lua` | Scenario F expeditions: stages, reasons for what cannot be planned, one-zone lists, progress, skip, reorder, replan, go; travel estimates; one-line shopping lists and the Goals page |
 | `test_economy.lua` | Price sanity (impossible, missing, outlier prices) and the optional recipe link (format copied from Forever-GPS's data) |
 
-Last run: 19 of 19 files passed (Lua 5.1 via lupa), ~16 s. The runner also fails a file when any Lua error reaches the error handler. Forever-GPS (branch feature/public-api) with API v2: its full suite (`lua tests/run.lua`), including `tests/test_api_v2.lua` on its real stack and walking grid. Benchmarks: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+Last run: 19 of 19 files passed (Lua 5.1 via lupa), ~16 s. The runner also fails a file when any Lua error reaches the error handler. Forever-GPS (branch feature/public-api) with API v2: its full suite (`lua tests/run.lua`): 629 passed, 0 failed, including `tests/test_api_v2.lua` on its real stack and walking grid. Benchmarks: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 Real-grid fixture: `tools/terrain_fixture.lua` (run from the Forever-GPS checkout) records what the real walking grid answers for every leg of real HME loops into `tests/fixtures/fgps_terrain.lua`; HME's terrain tests replay those answers.
 
