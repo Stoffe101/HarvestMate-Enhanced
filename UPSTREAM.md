@@ -36,7 +36,7 @@ These started from upstream code and were changed; their headers list the change
 | `Routes/Routes.lua` | GatherPath `Core.lua` | nodes from HME's spawn layer (GatherMate2 optional); planned routes; settings in `HarvestMateEnhancedDB.routes`; own global/frame/template names; pause while GatherPath runs; no own minimap button or slash command except `/gpf` when GatherPath is absent |
 | `Routes/RoutesUI.lua` | GatherPath `Options.lua` | pages hosted in HME's window; tab keys; wording |
 | `Routes/Pin.xml` | GatherPath `Pin.xml` | template and mixin names |
-| `UI/Theme.lua` | GatherPath `Theme.lua` | HME brand, wider window, lazy pages, sidebar headings, compact layout, scaling |
+| `UI/Theme.lua` | GatherPath `Theme.lua` | HME brand, wider window, lazy pages, sidebar headings, compact layout, scaling; redrawn in 0.3.0 as HME's own design system (docs/DESIGN.md), same functions |
 | `Gather/HGCore.lua` | HarvestMate `Core.lua` | HME's event bus and saved data; safer defaults (see below); no own load handler or slash commands |
 | `Core/GPCompat.lua` | Gatherpedia `Core.lua` helpers | profession scan replaced by HME's Player module |
 | `tests/support/wow.lua`, `tests/test_gatherpath_routes.lua` | GatherPath tests | load the whole addon; portable random numbers; names; lines marked `HME:` |

@@ -1,7 +1,8 @@
 -- HarvestMate Enhanced: UI/PageDashboard.lua
--- At a glance: the character, each gathering profession (skill, cap, next
--- milestone, training), the farm being followed, this session, advice, and
--- which optional addons HME found.
+-- At a glance: who you are, the one thing worth doing next (with a button),
+-- each gathering profession (skill, cap, training, next milestone), the farm
+-- being followed, this session, suggestions and saved profiles. Which
+-- optional addons HME found is on the window's status line.
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
 
 local _, ns = ...
@@ -13,117 +14,228 @@ local C = T.C
 
 local PAGE_W = 738
 
+-- The one thing worth doing now: { icon, title, text, button, run }.
+local function NextStep(profile)
+    local g = HME.Guidance.Active()
+    if g then
+        return { icon = "Interface\\Icons\\INV_Misc_Map_01", title = "Continue: " .. (g.name or "your farm"),
+            text = g.phaseText or "Follow the loop; the arrow points to the next stop.",
+            button = "Navigate", run = function() HME.Guidance.Navigate() end }
+    end
+    local s = HME.Suggest.Actionable()
+    if s then
+        return { icon = "Interface\\Icons\\INV_Misc_Note_02", title = "Suggested", text = s.text,
+            button = s.action.label or (s.action.kind == "finder" and "Open Farm Finder") or "Do it",
+            run = function() HME.Suggest.Run(s) end }
+    end
+    local any
+    for _, prof in ipairs(K.PROFS) do
+        local st = HME.Guide.Status(prof, profile)
+        if not st.missing then
+            any = true
+            if st.train == "capped" or st.train == "ready" then
+                return { icon = K.PROF_ICON[prof], title = ("Train %s"):format(st.nextRank and st.nextRank.name or prof),
+                    text = ("Your %s is %d / %d. Training raises the cap so skill-ups keep coming."):format(prof, st.skill, st.max),
+                    button = "Find a trainer", run = function() HME.OpenWindow("trainers") end }
+            end
+        end
+    end
+    for _, prof in ipairs(K.PROFS) do
+        local st = HME.Guide.Status(prof, profile)
+        if not st.missing and st.train ~= "max" then
+            local nextText = st.milestone and ("Next: %s at %d."):format(st.milestone.what, st.milestone.skill) or ""
+            return { icon = K.PROF_ICON[prof], title = ("Level %s: %d / %d"):format(prof, st.skill, st.max),
+                text = "The Farm Finder ranks every zone for this character. " .. nextText,
+                button = "Find a farm", run = function()
+                    HME.OpenWindow("finder")
+                    if HME.Pages.finderSet then HME.Pages.finderSet(prof, "level") end
+                end }
+        end
+    end
+    if not any then
+        return { icon = "Interface\\Icons\\INV_Misc_Book_11", title = "Learn a gathering profession",
+            text = "Herbalism, Mining, Skinning or Fishing: the Trainers page says where.",
+            button = "Find a trainer", run = function() HME.OpenWindow("trainers") end }
+    end
+    return { icon = "Interface\\Icons\\INV_Misc_Coin_02", title = "Every profession is maxed",
+        text = "Farm for gold or a material: the Farm Finder ranks farms by gold an hour.",
+        button = "Farm for gold", run = function()
+            HME.OpenWindow("finder")
+            if HME.Pages.finderSet then HME.Pages.finderSet(nil, "profit") end
+        end }
+end
+
 HME.Pages.dashboard = function(body, page)
     local refs = {}
     page.refs = refs
 
     -- Who
-    refs.who = K.Label(body, "", { template = "GameFontNormalLarge", color = C.title })
-    refs.who:SetPoint("TOPLEFT", 0, 0)
-    refs.where = K.Label(body, "", { template = "GameFontHighlightSmall", color = C.muted })
-    refs.where:SetPoint("TOPLEFT", 0, -22)
+    refs.who = K.Label(body, "", { template = "title", size = 17 })
+    refs.who:SetPoint("TOPLEFT", 0, 2)
+    refs.where = K.Label(body, "", { template = "small", color = C.text2 })
+    refs.where:SetPoint("TOPLEFT", 0, -20)
+    -- The greeting is the title here: the body takes the title's room.
+    page.title:SetText("")
+    body:ClearAllPoints()
+    body:SetPoint("TOPLEFT", page, "TOPLEFT", 0, 0)
+    body:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", 0, 0)
 
     -- Conflicts with the replaced addons
     refs.conflict = T.Card(body, "Old addons still enabled", 0, -44, PAGE_W, 54)
-    refs.conflict.text = K.Label(refs.conflict, "", { width = PAGE_W - 200, template = "GameFontHighlightSmall" })
-    refs.conflict.text:SetPoint("TOPLEFT", 12, -26)
-    refs.conflict.btn = K.Button(refs.conflict, "Import and turn off", 160, 22, function()
+    refs.conflict.bg:Paint({ C.warning[1] * 0.18, C.warning[2] * 0.14, C.warning[3] * 0.08, 1 })
+    refs.conflict.title:SetTextColor(C.warning[1], C.warning[2], C.warning[3])
+    refs.conflict.text = K.Label(refs.conflict, "", { width = PAGE_W - 210, template = "small" })
+    refs.conflict.text:SetPoint("TOPLEFT", 12, -27)
+    refs.conflict.btn = K.Button(refs.conflict, "Import and turn off", 170, 26, function()
         HME.Migrate.Run(true)
         local n = HME.Migrate.DisableReplaced()
         HME.Print(("copied their data in and turned off %d old addon%s. Type /reload to finish."):format(n, n == 1 and "" or "s"))
     end, "Copies their saved data into HME (theirs is kept as it is) and turns them off for this character. "
-        .. "Takes effect after /reload.")
-    refs.conflict.btn:SetPoint("TOPRIGHT", -12, -22)
+        .. "Takes effect after /reload.", "primary")
+    refs.conflict.btn:SetPoint("RIGHT", -12, 0)
+
+    -- Next step: one card, one primary button.
+    local hero = CreateFrame("Frame", nil, body)
+    hero:SetSize(PAGE_W, 70)
+    hero.bg = T.Surface(hero, { 0.09, 0.15, 0.12, 1 })
+    T.Outline(hero, { C.accent[1], C.accent[2], C.accent[3], 0.28 })
+    hero.icon = K.Icon(hero, 40, nil)
+    hero.icon:SetPoint("LEFT", 14, 0)
+    hero.kicker = K.Label(hero, "NEXT STEP", { template = "label", color = C.accent })
+    hero.kicker:SetPoint("TOPLEFT", 68, -13)
+    hero.title = K.Label(hero, "", { template = "strong", size = 15, width = PAGE_W - 260, wrap = false })
+    hero.title:SetPoint("TOPLEFT", 68, -27)
+    hero.text = K.Label(hero, "", { template = "small", color = C.text2, width = PAGE_W - 260, wrap = false })
+    hero.text:SetPoint("TOPLEFT", 68, -47)
+    hero.go = K.Button(hero, "", 150, 30, function(self) if self.run then self.run() end end, nil, "primary")
+    hero.go:SetPoint("RIGHT", -16, 0)
+    refs.hero = hero
 
     -- Professions: four cards in a row
-    local cardW = (PAGE_W - 3 * 8) / 4
+    local cardW = (PAGE_W - 3 * 10) / 4
     refs.profs = {}
     for i, prof in ipairs(K.PROFS) do
-        local c = T.Card(body, prof, (i - 1) * (cardW + 8), -106, cardW, 128)
-        c.icon = K.Icon(c, 28, K.PROF_ICON[prof])
-        c.icon:SetPoint("TOPRIGHT", -10, -8)
-        c.bar = K.Bar(c, cardW - 24, 16)
+        local c = T.Card(body, "", (i - 1) * (cardW + 10), 0, cardW, 128)
+        c.title:Hide()
+        c.icon = K.Icon(c, 22, K.PROF_ICON[prof])
+        c.icon:SetPoint("TOPLEFT", 12, -12)
+        c.name = K.Label(c, prof, { template = "strong" })
+        c.name:SetPoint("LEFT", c.icon, "RIGHT", 8, 0)
+        c.skill = K.Label(c, "", { template = "strong", color = C.text })
+        c.skill:SetPoint("TOPRIGHT", -12, -16)
+        c.skill:SetJustifyH("RIGHT")
+        c.bar = K.Bar(c, cardW - 24, 6)
+        c.bar.text:Hide()
         c.bar:SetPoint("TOPLEFT", 12, -42)
-        c.line1 = K.Label(c, "", { template = "GameFontHighlightSmall", width = cardW - 24 })
-        c.line1:SetPoint("TOPLEFT", 12, -64)
-        c.line2 = K.Label(c, "", { template = "GameFontDisableSmall", width = cardW - 24 })
-        c.line2:SetPoint("TOPLEFT", 12, -82)
-        c.find = K.Button(c, "Find a farm", cardW - 24, 20, function()
+        c.line1 = K.Label(c, "", { template = "small", width = cardW - 24, wrap = false })
+        c.line1:SetPoint("TOPLEFT", 12, -55)
+        c.line2 = K.Label(c, "", { template = "meta", width = cardW - 24, wrap = false })
+        c.line2:SetPoint("TOPLEFT", 12, -71)
+        c.find = K.Button(c, "Find a farm", cardW - 24, 24, function()
             HME.OpenWindow("finder")
             if HME.Pages.finderSet then HME.Pages.finderSet(prof, nil) end
         end)
-        c.find:SetPoint("BOTTOMLEFT", 12, 8)
+        c.find:SetPoint("BOTTOMLEFT", 12, 10)
         refs.profs[prof] = c
     end
 
     -- The farm being followed
-    local farm = T.Card(body, "Your farm", 0, -242, PAGE_W / 2 - 4, 150)
+    local half = (PAGE_W - 10) / 2
+    local farm = T.Card(body, "Your farm", 0, 0, half, 140)
     refs.farm = farm
-    farm.name = K.Label(farm, "", { template = "GameFontNormal", color = C.gold, width = PAGE_W / 2 - 30 })
-    farm.name:SetPoint("TOPLEFT", 12, -28)
-    farm.text = K.Label(farm, "", { template = "GameFontHighlightSmall", width = PAGE_W / 2 - 30 })
-    farm.text:SetPoint("TOPLEFT", 12, -48)
-    farm.stop = K.Button(farm, "Stop", 80, 20, function() HME.Guidance.Stop() end)
+    farm.name = K.Label(farm, "", { template = "strong", size = 14, width = half - 24, wrap = false })
+    farm.name:SetPoint("TOPLEFT", 12, -30)
+    farm.text = K.Label(farm, "", { template = "small", color = C.text2, width = half - 24 })
+    farm.text:SetPoint("TOPLEFT", 12, -50)
+    farm.stop = K.Button(farm, "Stop", 70, 24, function() HME.Guidance.Stop() end, nil, "ghost")
     farm.stop:SetPoint("BOTTOMRIGHT", -12, 10)
-    farm.nav = K.Button(farm, "Navigate", 100, 20, function() HME.Guidance.Navigate() end,
+    farm.nav = K.Button(farm, "Navigate", 100, 24, function() HME.Guidance.Navigate() end,
         "Get there: Forever-GPS plans the journey when it is installed; otherwise HME's arrow points the way.")
-    farm.nav:SetPoint("RIGHT", farm.stop, "LEFT", -8, 0)
+    farm.nav:SetPoint("RIGHT", farm.stop, "LEFT", -6, 0)
     -- Guide me here: shown only while another Forever-GPS journey leads at the farm.
-    farm.here = K.Button(farm, "Guide me here", 120, 20, function()
+    farm.here = K.Button(farm, "Guide me here", 120, 24, function()
         local g = HME.Guidance.Active()
         if g and g.tookOver then HME.Guidance.GiveBack() else HME.Guidance.TakeOver() end
     end, "Follow HME's loop arrow here. Your other Forever-GPS journey keeps running: Forever-GPS only pauses its "
-        .. "arrow, and gets it back when you stop farming, hand it back, or start a new journey.")
-    farm.here:SetPoint("BOTTOMRIGHT", farm.nav, "TOPRIGHT", 0, 6)
+        .. "arrow, and gets it back when you stop farming, hand it back, or start a new journey.", "primary")
+    farm.here:SetPoint("BOTTOMLEFT", 12, 10)
     farm.here:Hide()
-    farm.find = K.Button(farm, "Open Farm Finder", 150, 20, function() HME.OpenWindow("finder") end)
+    farm.find = K.Button(farm, "Open Farm Finder", 140, 24, function() HME.OpenWindow("finder") end)
     farm.find:SetPoint("BOTTOMLEFT", 12, 10)
 
     -- This session
-    local ses = T.Card(body, "This session", PAGE_W / 2 + 4, -242, PAGE_W / 2 - 4, 150)
+    local ses = T.Card(body, "This session", half + 10, 0, half, 140)
     refs.ses = ses
-    ses.big = K.Label(ses, "", { template = "GameFontNormalLarge", color = C.gold })
+    ses.big = K.Label(ses, "", { template = "display", size = 20 })
     ses.big:SetPoint("TOPLEFT", 12, -28)
-    ses.text = K.Label(ses, "", { template = "GameFontHighlightSmall", width = PAGE_W / 2 - 30 })
-    ses.text:SetPoint("TOPLEFT", 12, -54)
-    ses.start = K.Button(ses, "Start", 70, 20, function()
+    ses.text = K.Label(ses, "", { template = "small", color = C.text2, width = half - 24 })
+    ses.text:SetPoint("TOPLEFT", 12, -56)
+    ses.start = K.Button(ses, "Start", 76, 24, function()
         if HME.Session.Current() then HME.Session.Pause() else HME.Session.Start() end
     end)
     ses.start:SetPoint("BOTTOMLEFT", 12, 10)
-    ses.stop = K.Button(ses, "End", 70, 20, function() HME.Session.Stop("manual") end,
-        "Ends the session: its rates go into what HME has learned about this area.")
-    ses.stop:SetPoint("LEFT", ses.start, "RIGHT", 8, 0)
-    ses.hud = K.Button(ses, "HUD", 60, 20, function() if HME.HUD then HME.HUD.Toggle() end end,
-        "Show or hide the small farming display.")
+    ses.stop = K.Button(ses, "End", 64, 24, function() HME.Session.Stop("manual") end,
+        "Ends the session: its rates go into what HME has learned about this area.", "ghost")
+    ses.stop:SetPoint("LEFT", ses.start, "RIGHT", 6, 0)
+    ses.hud = K.Button(ses, "HUD", 60, 24, function() if HME.HUD then HME.HUD.Toggle() end end,
+        "Show or hide the small farming display.", "ghost")
     ses.hud:SetPoint("BOTTOMRIGHT", -12, 10)
 
-    -- Suggestions and advice (left), quick start and goals (right)
-    local adv = T.Card(body, "Suggestions", 0, -400, PAGE_W / 2 + 60, 112)
+    -- Suggestions (left), quick start and goals (right)
+    local advW = PAGE_W - 250
+    local adv = T.Card(body, "Suggestions", 0, 0, advW, 104)
     refs.adv = adv
-    adv.text = K.Label(adv, "", { template = "GameFontHighlightSmall", width = PAGE_W / 2 + 36 })
-    adv.text:SetPoint("TOPLEFT", 12, -26)
-    adv.act = K.Button(adv, "Do it", 120, 18, function(self) if self.s then HME.Suggest.Run(self.s) end end,
+    adv.text = K.Label(adv, "", { template = "small", width = advW - 150 })
+    adv.text:SetPoint("TOPLEFT", 12, -28)
+    adv.act = K.Button(adv, "Do it", 120, 24, function(self) if self.s then HME.Suggest.Run(self.s) end end,
         "Does what the newest suggestion offers (opens the Farm Finder, or asks Forever-GPS for the nearest vendor). Only when you click.")
-    adv.act:SetPoint("TOPRIGHT", -8, -4)
+    adv.act:SetPoint("TOPRIGHT", -12, -10)
     adv.act:Hide()
-    adv.integ = K.Label(body, "", { template = "GameFontDisableSmall", width = PAGE_W })
-    adv.integ:SetPoint("TOPLEFT", 0, -516)
-    local qs = T.Card(body, "Quick start", PAGE_W / 2 + 68, -400, PAGE_W / 2 - 68, 112)
+    local qs = T.Card(body, "Quick start", advW + 10, 0, 240, 104)
     refs.qs = qs
     qs.buttons = {}
-    for i = 1, 3 do
-        local b = K.Button(qs, "", PAGE_W / 2 - 92, 20, function(self) if self.p then HME.Profiles.Apply(self.p) end end)
-        b:SetPoint("TOPLEFT", 12, -24 - (i - 1) * 24)
+    for i = 1, 2 do
+        local b = K.Button(qs, "", 216, 22, function(self) if self.p then HME.Profiles.Apply(self.p) end end)
+        b:SetPoint("TOPLEFT", 12, -26 - (i - 1) * 26)
         qs.buttons[i] = b
     end
-    qs.goals = K.Label(qs, "", { template = "GameFontDisableSmall", width = PAGE_W / 2 - 92 })
-    qs.goals:SetPoint("BOTTOMLEFT", 12, 8)
+    qs.goals = K.Label(qs, "", { template = "meta", width = 216, wrap = false })
+    qs.goals:SetPoint("BOTTOMLEFT", 12, 10)
+
+    -- Rows placed from the top, so the conflict card can push the rest down.
+    local function Layout(conflict)
+        local y = -44
+        if conflict then y = y - 64 end
+        hero:ClearAllPoints()
+        hero:SetPoint("TOPLEFT", 0, y)
+        y = y - 82
+        for i, prof in ipairs(K.PROFS) do
+            local c = refs.profs[prof]
+            c:ClearAllPoints()
+            c:SetPoint("TOPLEFT", (i - 1) * (cardW + 10), y)
+        end
+        y = y - 140
+        farm:ClearAllPoints()
+        farm:SetPoint("TOPLEFT", 0, y)
+        ses:ClearAllPoints()
+        ses:SetPoint("TOPLEFT", half + 10, y)
+        y = y - 152
+        adv:ClearAllPoints()
+        adv:SetPoint("TOPLEFT", 0, y)
+        qs:ClearAllPoints()
+        qs:SetPoint("TOPLEFT", advW + 10, y)
+        adv:SetShown(not conflict)
+        qs:SetShown(not conflict)
+    end
 
     function page.Refresh()
         local profile = HME.Player.Profile()
         local name = UnitName and HME.Str((UnitName("player"))) or "You"
-        refs.who:SetText(("%s  |cffcfc4adlevel %d %s|r"):format(name, profile.level, profile.faction))
-        refs.where:SetText((profile.zone or "") .. (profile.real and "" or "   |cffff8a3d(planning with your overrides)|r"))
+        refs.who:SetText(name)
+        local parts = { ("Level %d %s"):format(profile.level or 0, profile.faction or "") }
+        if profile.zone and profile.zone ~= "" then parts[#parts + 1] = profile.zone end
+        if not profile.real then parts[#parts + 1] = K.Paint("planning with your overrides", T.HEX.warning) end
+        refs.where:SetText(table.concat(parts, "  ·  "))
         local conflicts = HME.Migrate.Conflicts()
         if #conflicts > 0 then
             local names = {}
@@ -134,30 +246,55 @@ HME.Pages.dashboard = function(body, page)
         else
             refs.conflict:Hide()
         end
+        Layout(#conflicts > 0)
+
+        local step = NextStep(profile)
+        refs.hero.icon.tex:SetTexture(step.icon)
+        refs.hero.title:SetText(step.title)
+        refs.hero.text:SetText(step.text or "")
+        refs.hero.go:SetText(step.button)
+        refs.hero.go.run = step.run
+
         for _, prof in ipairs(K.PROFS) do
             local c = refs.profs[prof]
             local st = HME.Guide.Status(prof, profile)
+            local color = K.PROF_COLOR[prof]
             if st.missing then
-                c.bar:Set(0, 0, K.PROF_COLOR[prof], "not learned")
+                c.bar:Set(0, 0, color, "")
                 c.bar:Mark(nil)
-                c.line1:SetText("Not learned on this character.")
-                c.line2:SetText("")
+                c.skill:SetText("")
+                c.line1:SetText(K.Paint("Not learned", T.HEX.text3))
+                c.line2:SetText("Trainers page: where to learn it")
                 c.icon.tex:SetDesaturated(true)
+                c.name:SetTextColor(C.text2[1], C.text2[2], C.text2[3])
+                c.find:SetText("Trainers")
+                c.find:SetScript("OnClick", function() HME.OpenWindow("trainers") end)
             else
                 c.icon.tex:SetDesaturated(false)
-                c.bar:Set(st.skill, st.max, K.PROF_COLOR[prof], st.skill .. " / " .. st.max)
-                c.bar:Mark(st.milestone and st.milestone.skill)
-                local trainText = ({ capped = "|cffff8a3dAt cap: train now|r", ready = "|cff48c75aCan train " .. (st.nextRank and st.nextRank.name or "") .. "|r",
-                    level = "|cffffe14dNext rank at level " .. (st.nextRank and st.nextRank.level or "?") .. "|r", max = "|cff48c75aMaxed|r" })[st.train]
+                c.name:SetTextColor(C.text[1], C.text[2], C.text[3])
+                c.skill:SetText(("%d |cff78808c/ %d|r"):format(st.skill, st.max))
+                c.bar:Set(st.skill, st.max, color, "", st.max > 0 and st.max or 300)
+                c.bar:Mark(nil)
+                local trainText = ({ capped = K.Paint("At cap: train now", T.HEX.warning),
+                    ready = K.Paint("Can train " .. (st.nextRank and st.nextRank.name or ""), T.HEX.accent),
+                    level = "Next rank at level " .. (st.nextRank and st.nextRank.level or "?"),
+                    max = K.Paint("Maxed", T.HEX.accent) })[st.train]
                 c.line1:SetText(trainText or (st.rank and st.rank.name or ""))
                 local eta = ""
                 if st.milestone then
                     local sph = HME.Guide.PersonalRate(prof)
-                    if sph and sph > 0 then eta = (" · ~%s at your pace"):format(U.Duration((st.milestone.skill - st.skill) / sph * 3600)) end
+                    if sph and sph > 0 then eta = (" · ~%s"):format(U.Duration((st.milestone.skill - st.skill) / sph * 3600)) end
                 end
                 c.line2:SetText(st.milestone and ("Next: %s at %d%s"):format(st.milestone.what, st.milestone.skill, eta) or "")
+                c.find:SetText("Find a farm")
+                c.find:SetScript("OnClick", function()
+                    if c.find.disabled then return end
+                    HME.OpenWindow("finder")
+                    if HME.Pages.finderSet then HME.Pages.finderSet(prof, nil) end
+                end)
             end
         end
+
         local g = HME.Guidance.Active()
         if g then
             refs.farm.name:SetText(g.name or "Farm")
@@ -170,6 +307,7 @@ HME.Pages.dashboard = function(body, page)
             refs.farm.text:SetText(table.concat(lines, "\n"))
             refs.farm.stop:Show()
             refs.farm.nav:Show()
+            refs.farm.find:Hide()
             if HME.Guidance.CanTakeOver() then
                 refs.farm.here:SetText("Guide me here")
                 refs.farm.here:Show()
@@ -180,50 +318,57 @@ HME.Pages.dashboard = function(body, page)
                 refs.farm.here:Hide()
             end
         else
-            refs.farm.name:SetText("No farm selected")
+            refs.farm.name:SetText(K.Paint("No farm selected", T.HEX.text2))
             refs.farm.text:SetText("Pick one in the Farm Finder: it draws the route, points the way and tracks how it goes.")
             refs.farm.stop:Hide()
             refs.farm.nav:Hide()
             refs.farm.here:Hide()
+            refs.farm.find:Show()
         end
+
         local r = HME.Session.Rates()
         if r then
-            refs.ses.big:SetText(K.Money(r.gph) .. " /h")
-            refs.ses.text:SetText(("%s farmed%s\n%d skill-ups (%.0f /h)  ·  %d nodes  ·  %d skins  ·  %d catches\nValue %s")
-                :format(U.Duration(r.secs), r.paused and ("  |cffff8a3d(paused" .. (r.paused == "idle" and ": idle" or "") .. ")|r") or "",
-                r.skillups, r.sph, r.nodes, r.skins, r.catches, K.Money(r.value)))
+            refs.ses.big:SetText(K.Money(r.gph) .. K.Paint(" /h", T.HEX.text3))
+            refs.ses.big:SetTextColor(C.gold[1], C.gold[2], C.gold[3])
+            refs.ses.text:SetText(("%s farmed%s\n%d skill-ups (%.0f /h)  ·  %d nodes  ·  %d skins  ·  %d catches")
+                :format(U.Duration(r.secs), r.paused and ("  " .. K.Paint("(paused" .. (r.paused == "idle" and ": idle" or "") .. ")", T.HEX.warning)) or "",
+                r.skillups, r.sph, r.nodes, r.skins, r.catches))
             refs.ses.start:SetText(r.paused and "Resume" or "Pause")
             refs.ses.stop:Show()
         else
             refs.ses.big:SetText("Not running")
+            refs.ses.big:SetTextColor(C.text2[1], C.text2[2], C.text2[3])
             refs.ses.text:SetText("A session starts by itself with your first gather, skin or catch.")
             refs.ses.start:SetText("Start")
             refs.ses.stop:Hide()
         end
+
         local advice = {}
         for i = #HME.Suggest.list, math.max(1, #HME.Suggest.list - 2), -1 do
             local s = HME.Suggest.list[i]
-            if s then advice[#advice + 1] = "|cffffd100•|r " .. s.text end
+            if s then advice[#advice + 1] = K.Paint("•", T.HEX.accent) .. "  " .. s.text end
         end
         for _, prof in ipairs(K.PROFS) do
             local st = HME.Guide.Status(prof, profile)
             for _, m in ipairs(st.messages or {}) do
                 if m[1] ~= "info" then
-                    local hex = m[1] == "good" and "48c75a" or "ffe14d"
-                    advice[#advice + 1] = "|cff" .. hex .. "•|r " .. m[2]
+                    advice[#advice + 1] = K.Paint("•", m[1] == "good" and T.HEX.accent or T.HEX.warning) .. "  " .. m[2]
                 end
             end
         end
-        if #advice == 0 then advice[1] = "Nothing needs your attention. Happy gathering." end
+        if #advice == 0 then advice[1] = K.Paint("Nothing needs your attention. Happy gathering.", T.HEX.text2) end
         local actionable = HME.Suggest.Actionable()
         refs.adv.act.s = actionable
         if actionable then
             refs.adv.act:SetText((actionable.action.label or (actionable.action.kind == "finder" and "Open Farm Finder") or "Do it"))
         end
         refs.adv.act:SetShown(actionable ~= nil)
-        while #advice > 4 do table.remove(advice) end
+        while #advice > 3 do table.remove(advice) end
         refs.adv.text:SetText(table.concat(advice, "\n"))
-        refs.adv.integ:SetText(HME.IntegrationLine and HME.IntegrationLine() or "")
+        if HME.Window.frame and HME.Window.frame.hint and HME.IntegrationLine then
+            HME.Window.frame.hint:SetText(HME.IntegrationLine())
+        end
+
         local profiles = HME.Profiles.List()
         for i, b in ipairs(refs.qs.buttons) do
             local p = profiles[i]
@@ -233,10 +378,10 @@ HME.Pages.dashboard = function(body, page)
         end
         local goals, open = HME.Goals.List(), 0
         local first
-        for _, g in ipairs(goals) do
-            if not g.doneAt then
+        for _, g2 in ipairs(goals) do
+            if not g2.doneAt then
                 open = open + 1
-                first = first or g
+                first = first or g2
             end
         end
         if first then

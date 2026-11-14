@@ -40,6 +40,8 @@ Last run: 19 of 19 files passed (Lua 5.1 via lupa), ~17 s. The runner also fails
 
 Forever-GPS (branch feature/public-api) with API v2, every check its CI runs, on this PC: vendored pins, repository checks, Lua 5.1 syntax, Luacheck (0 warnings in 64 files), all four test suites through `tools/run_tests.py` (EasyFind 1312, GPS 432, Questie 6, Forever-GPS 630 passed, 0 failed) and the package build, at Forever-GPS commit 3afbfa6. Benchmarks: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
+Interface previews: `python tools/ui_preview.py` draws every page, the HUD and the Skinning levels box from the real layout code in the test client, as HTML in `build/preview/` (docs/DESIGN.md). They are layout renders with estimated text sizes and stand-in fonts and textures, not game screenshots.
+
 Real-grid fixture: `tools/terrain_fixture.lua` (run from the Forever-GPS checkout) records what the real walking grid answers for every leg of real HME loops into `tests/fixtures/fgps_terrain.lua`; HME's terrain tests replay those answers.
 
 ## Verified where

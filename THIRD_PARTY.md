@@ -8,6 +8,7 @@ HarvestMate Enhanced (HME) as distributed is licensed under the **GNU GPL versio
 | HarvestMate 2.0.13 | AndreiBerkut | MIT | `Gather/*.lua` (16 modules and 10 locales, one-line namespace patch), `Gather/HGCore.lua` (adapted from `Core.lua`) | One-key gathering, banner, tooltips, learning, achievements, reminders |
 | HarvestMate locale names | via GatherSkillTooltip (as HarvestMate credits) | MIT | `Gather/Locale/*.lua` | Herb and ore names in non-English clients |
 | Gatherpedia 1.0.1 | Curs3d221 | GPL-3.0-or-later | `Data/Gatherpedia/*.lua` (unchanged), `Glimmer/Sparkles.lua` (texture paths), `Glimmer/SparklesCloud.lua` (renderer part of `SparklesUI.lua`), `Core/GPCompat.lua` (helpers from `Core.lua`), `Media/GP_*.tga` (art) | Field guide data, guides and recorded routes, trainers, zones, Glimmer, arrow art |
+| Inter 3.019 (font) | The Inter Project Authors (rsms/inter) | SIL Open Font License 1.1 | `Media/Fonts/Inter-Regular.ttf`, `Inter-SemiBold.ttf`, `Inter-Bold.ttf`, with `Media/Fonts/Inter-LICENSE.txt` (copied unchanged from the copy EasyFind ships, inside Forever-GPS) | The interface font (Settings can switch to the game's font) |
 | QuestieDB (Forever build) spawn data | the Questie team | GPLv3 (see below) | `Data/Gatherpedia/NodeSpawns.lua`, `Data/Gatherpedia/SkinningMobs.lua` (as redistributed by Gatherpedia) | Herb, ore, pool and beast spawn points |
 
 ## License versions checked (2026-11-14)

@@ -149,7 +149,7 @@ function ST.Lines()
     local safe = ST.SafeLevel(profile)
     local lines = {}
     local function add(s) lines[#lines + 1] = s end
-    add(("|cffffd100Skinning %d|r / %d"):format(skill, max or 0))
+    add(("|cffedf0f2Skinning %d|r |cff78808c/ %d|r"):format(skill, max or 0))
     local shown = 0
     for _, c in ipairs({ "orange", "yellow", "green" }) do
         local b = bands[c] and Cut(bands[c], safe)
@@ -162,9 +162,9 @@ function ST.Lines()
         add(Paint("grey", "Nothing you can fight gives a point now: train, or level up."))
     end
     if bands.orange and bands.orange[2] > safe then
-        add(("|cff9a9a9aOrange goes up to %d; above %d is too high for you now.|r"):format(bands.orange[2], safe))
+        add(("|cff78808cOrange goes up to %d; above %d is too high for you now.|r"):format(bands.orange[2], safe))
     end
-    if bands.greyTo then add(("|cff9a9a9aLevel %d and below: no points.|r"):format(bands.greyTo)) end
+    if bands.greyTo then add(("|cff78808cLevel %d and below: no points.|r"):format(bands.greyTo)) end
     local nextLevel, req, away = ST.Next(skill)
     if nextLevel then
         if max and req > max then
@@ -177,7 +177,7 @@ function ST.Lines()
     local here = ST.ZoneBeasts(zone, skill, safe)
     local zoneName = (zone and HME.ZoneData.Name(zone)) or "this zone"
     if #here == 0 then
-        add(("|cff9a9a9a%s: no beast in those levels in the bundled data.|r"):format(zoneName))
+        add(("|cff78808c%s: no beast in those levels in the bundled data.|r"):format(zoneName))
         for _, z in ipairs(ST.Elsewhere(zone, skill, safe)) do
             local e = z.best
             add(("Closest: %s, %s (about %s)"):format(z.name,
@@ -203,28 +203,100 @@ end
 ---------------------------------------------------------------------------
 -- The box
 ---------------------------------------------------------------------------
+local function K_Paint(text, hex) return "|cff" .. hex .. text .. "|r" end
 local f
+local W = 264
+local STRIP_MAX = 28
+
+-- What the box shows, as data (ST.Lines is the same as text).
+function ST.Model()
+    local profile = HME.Player.Profile()
+    local sk = profile.skills and profile.skills.Skinning
+    if not sk then return nil end
+    local skill, max = sk.rank, sk.max
+    local bands = ST.Bands(skill)
+    local safe = ST.SafeLevel(profile)
+    local m = { skill = skill, max = max, bands = bands, safe = safe, picks = {} }
+    for _, c in ipairs({ "orange", "yellow", "green" }) do
+        local b = bands[c] and Cut(bands[c], safe)
+        if b and #m.picks < 2 then m.picks[#m.picks + 1] = { range = b, color = c, say = ST.SAYS[c] } end
+    end
+    if bands.orange and bands.orange[2] > safe then
+        m.cap = ("Orange goes up to %d; above %d is too high for you now."):format(bands.orange[2], safe)
+    end
+    local nextLevel, req, away = ST.Next(skill)
+    if nextLevel then m.next = { level = nextLevel, req = req, away = away, train = max and req > max } end
+    local zone = profile.mapID and HME.Geo.ZoneOf(profile.mapID)
+    m.zoneName = (zone and HME.ZoneData.Name(zone)) or "this zone"
+    m.here = ST.ZoneBeasts(zone, skill, safe)
+    if #m.here == 0 then m.elsewhere = ST.Elsewhere(zone, skill, safe) end
+    m.target = ST.Target(skill)
+    return m
+end
 
 local function Build()
     f = CreateFrame("Frame", "HarvestMateEnhancedSkinLevels", UIParent)
-    f:SetSize(250, 60)
+    f:SetSize(W, 120)
     f:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -220, -320)
     f:SetFrameStrata("MEDIUM")
     f:SetClampedToScreen(true)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
-    T.Panel(f, 0.82)
+    f.shadow = T.Shadow(f, 10)
+    T.Panel(f, 0.9)
     f.head = CreateFrame("Frame", nil, f)
-    f.head:SetPoint("TOPLEFT")
-    f.head:SetPoint("TOPRIGHT")
-    f.head:SetHeight(16)
-    T.HeaderStrip(f.head, "Skinning levels")
-    f.text = T.Text(f, "", "GameFontHighlightSmall")
-    f.text:SetPoint("TOPLEFT", 8, -20)
-    f.text:SetWidth(234)
-    f.text:SetWordWrap(true)
-    f.text:SetJustifyH("LEFT")
+    f.head:SetPoint("TOPLEFT", 0, -2)
+    f.head:SetPoint("TOPRIGHT", 0, -2)
+    f.head:SetHeight(18)
+    T.HeaderStrip(f.head, "SKINNING LEVELS")
+    f.head.logo:SetTexture("Interface\\Icons\\INV_Misc_Pelt_Wolf_01")
+    f.head.logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    f.skill = T.Text(f.head, "", "strong", nil, 11)
+    f.skill:SetPoint("RIGHT", -8, 0)
+    f.skill:SetJustifyH("RIGHT")
+
+    f.killLabel = T.Text(f, "KILL LEVEL", "label", nil, 9)
+    f.kill = T.Text(f, "", "display", nil, 24)
+    f.kill:SetWordWrap(false)
+    f.killSay = T.Text(f, "", "small", T.C.text2)
+    f.alt = T.Text(f, "", "small")
+    f.cap = T.Text(f, "", "meta")
+    f.cap:SetWidth(W - 20)
+    f.cap:SetWordWrap(true)
+
+    -- A strip of level cells, coloured by what a skin there gives you.
+    f.strip = CreateFrame("Frame", nil, f)
+    f.strip:SetSize(W - 20, 8)
+    f.cells = {}
+    for i = 1, STRIP_MAX do
+        local c = f.strip:CreateTexture(nil, "ARTWORK")
+        c:SetHeight(8)
+        f.cells[i] = c
+    end
+    f.stripLo = T.Text(f, "", "meta", nil, 9)
+    f.stripHi = T.Text(f, "", "meta", nil, 9)
+    f.stripHi:SetJustifyH("RIGHT")
+
+    f.next = T.Text(f, "", "small")
+    f.next:SetWidth(W - 20)
+    f.next:SetWordWrap(false)
+    f.nextBar = HME.Kit.Bar(f, W - 20, 4)
+    f.nextBar.text:Hide()
+
+    f.divider = f:CreateTexture(nil, "BORDER")
+    f.divider:SetHeight(1)
+    f.divider:SetColorTexture(unpack(T.C.line))
+    f.zone = T.Text(f, "", "label", nil, 9)
+    f.zone:SetWidth(W - 20)
+    f.zone:SetWordWrap(false)
+    f.places = T.Text(f, "", "small")
+    f.places:SetWidth(W - 20)
+    f.places:SetWordWrap(true)
+    f.target = T.Text(f, "", "small")
+    f.target:SetWidth(W - 20)
+    f.target:SetWordWrap(false)
+
     f:SetScript("OnDragStart", function(self)
         if not (HME.settings and HME.settings.hudLocked) then self:StartMoving() end
     end)
@@ -237,8 +309,8 @@ local function Build()
         if button == "RightButton" then ST.Toggle(false) end
     end)
     T.Tooltip(f, "Skinning levels", "Which beast levels give Skinning points now, from your skill; it updates as you skin. "
-        .. "Beasts named for the zone are where they appear (bundled data), not live targets. Drag to move; right-click or "
-        .. "/hme skinlevels to hide.")
+        .. "The strip runs from no points (grey) to too high to skin (red). Beasts named for the zone are where they "
+        .. "appear (bundled data), not live targets. Drag to move; right-click or /hme sl to hide.")
     local pos = HME.char and HME.char.ui and HME.char.ui.skinLevels
     if type(pos) == "table" and pos[1] then
         f:ClearAllPoints()
@@ -248,16 +320,159 @@ end
 
 function ST.Shown() return f ~= nil and f:IsShown() end
 
+-- Everything the box shows now, as plain text (tests and /hme sl print).
+function ST.Text()
+    if not (f and f:IsShown()) then return "" end
+    local parts = {}
+    for _, fs in ipairs({ f.skill, f.killLabel, f.kill, f.killSay, f.alt, f.cap, f.stripLo, f.stripHi, f.next, f.zone, f.places, f.target }) do
+        if fs:IsShown() and (fs:GetText() or "") ~= "" then parts[#parts + 1] = fs:GetText() end
+    end
+    return table.concat(parts, "\n")
+end
+
+local function Place(fs, y, x)
+    fs:ClearAllPoints()
+    fs:SetPoint("TOPLEFT", x or 10, y)
+end
+
 function ST.Update()
     local on = HME.settings and HME.settings.skinLevels
-    local lines = on and ST.Lines()
-    if not lines then
+    local m = on and ST.Model()
+    if not m then
         if f then f:Hide() end
         return
     end
     if not f then Build() end
-    f.text:SetText(table.concat(lines, "\n"))
-    f:SetHeight(26 + (f.text:GetStringHeight() or (#lines * 12)))
+    local y = -28
+    f.skill:SetText(("%d |cff78808c/ %d|r"):format(m.skill, m.max or 0))
+
+    -- What to kill
+    Place(f.killLabel, y)
+    y = y - 13
+    local first, second = m.picks[1], m.picks[2]
+    if first then
+        f.kill:SetText(Range(first.range))
+        local c = SM.COLORS[first.color]
+        f.kill:SetTextColor(c[1], c[2], c[3])
+        f.killSay:SetText(first.say)
+    else
+        f.kill:SetText("–")
+        f.kill:SetTextColor(T.C.text3[1], T.C.text3[2], T.C.text3[3])
+        f.killSay:SetText("nothing you can fight gives a point now: train, or level up")
+    end
+    Place(f.kill, y)
+    f.killSay:ClearAllPoints()
+    f.killSay:SetPoint("BOTTOMLEFT", f.kill, "BOTTOMRIGHT", 8, 3)
+    f.killSay:SetPoint("RIGHT", f, "RIGHT", -10, 0)
+    f.killSay:SetWordWrap(false)
+    y = y - 30
+    f.alt:SetShown(second ~= nil)
+    if second then
+        f.alt:SetText(("%s  %s"):format(Paint(second.color, "or " .. Range(second.range)), K_Paint(second.say, T.HEX.text2)))
+        Place(f.alt, y)
+        y = y - 16
+    end
+    f.cap:SetShown(m.cap ~= nil)
+    if m.cap then
+        f.cap:SetText(m.cap)
+        Place(f.cap, y)
+        y = y - (f.cap:GetStringHeight() or 12) - 4
+    end
+
+    -- The strip: from a little below the first band that gives points to a little above what you can skin.
+    local b = m.bands
+    local lo = math.max(1, ((b.green and b.green[1]) or (b.yellow and b.yellow[1]) or (b.orange and b.orange[1]) or 1) - 2)
+    local hi = math.min(ST.MAX_LEVEL, b.maxLevel + 3)
+    if hi - lo + 1 > STRIP_MAX then lo = hi - STRIP_MAX + 1 end
+    local n = hi - lo + 1
+    local gap = 1
+    local cw = ((W - 20) - (n - 1) * gap) / n
+    y = y - 6
+    f.strip:ClearAllPoints()
+    f.strip:SetPoint("TOPLEFT", 10, y)
+    for i, cell in ipairs(f.cells) do
+        local level = lo + i - 1
+        if i <= n then
+            local c = SM.Color(m.skill, SM.SkinReq(level))
+            local rgb = SM.COLORS[c] or SM.COLORS.grey
+            cell:ClearAllPoints()
+            cell:SetPoint("TOPLEFT", (i - 1) * (cw + gap), 0)
+            cell:SetWidth(cw)
+            cell:SetColorTexture(rgb[1], rgb[2], rgb[3], level > m.safe and 0.35 or 0.95)
+            cell:Show()
+        else
+            cell:Hide()
+        end
+    end
+    y = y - 11
+    f.stripLo:SetText(("level %d"):format(lo))
+    Place(f.stripLo, y)
+    f.stripHi:SetText(("%d"):format(hi))
+    f.stripHi:ClearAllPoints()
+    f.stripHi:SetPoint("TOPRIGHT", -10, y)
+    y = y - 18
+
+    -- The next unlock
+    if m.next then
+        if m.next.train then
+            f.next:SetText(("Level %d needs %d Skinning: %s"):format(m.next.level, m.next.req,
+                K_Paint(("train first (your cap is %d)"):format(m.max), T.HEX.warning)))
+            f.nextBar:Hide()
+        else
+            f.next:SetText(("Next: level %d at %d Skinning %s"):format(m.next.level, m.next.req, K_Paint(("(+%d)"):format(m.next.away), T.HEX.accent)))
+            local from = SM.SkinReq(m.next.level - 1)
+            f.nextBar:Set(m.skill - from, m.next.req - from, T.C.accent, "", math.max(1, m.next.req - from))
+            f.nextBar:Show()
+        end
+        Place(f.next, y)
+        y = y - 16
+        if f.nextBar:IsShown() then
+            f.nextBar:ClearAllPoints()
+            f.nextBar:SetPoint("TOPLEFT", 10, y)
+            y = y - 10
+        end
+        f.next:Show()
+    else
+        f.next:Hide()
+        f.nextBar:Hide()
+    end
+
+    -- Where
+    y = y - 4
+    f.divider:ClearAllPoints()
+    f.divider:SetPoint("TOPLEFT", 10, y)
+    f.divider:SetPoint("TOPRIGHT", -10, y)
+    y = y - 9
+    local lines = {}
+    local function Name(e) return Paint(e.color, ("%s %s"):format(e.name, e.min == e.max and e.min or (e.min .. "-" .. e.max))) end
+    if #m.here > 0 then
+        f.zone:SetText(m.zoneName:upper())
+        for i = 1, math.min(ST.ZONE_BEASTS, #m.here) do lines[#lines + 1] = Name(m.here[i]) end
+    else
+        f.zone:SetText((m.zoneName .. ": none in range · closest"):upper())
+        for _, z in ipairs(m.elsewhere or {}) do
+            lines[#lines + 1] = ("%s  %s"):format(z.name, K_Paint("· " .. HME.U.Duration(z.secs), T.HEX.text3))
+            lines[#lines + 1] = "   " .. Name(z.best)
+        end
+        if #lines == 0 then lines[1] = K_Paint("No beast in those levels in the bundled data.", T.HEX.text3) end
+    end
+    Place(f.zone, y)
+    y = y - 14
+    f.places:SetText(table.concat(lines, "\n"))
+    Place(f.places, y)
+    y = y - (f.places:GetStringHeight() or (#lines * 13)) - 6
+
+    -- Your target
+    local t = m.target
+    f.target:SetShown(t ~= nil)
+    if t then
+        local say = t.why or (t.color == "red" and ("needs %d Skinning"):format(t.req)) or (t.color == "grey" and "no points")
+            or ST.SAYS[t.color] or ""
+        f.target:SetText(("Target  %s  %s"):format(Paint(t.color, "level " .. t.level), K_Paint(say, T.HEX.text2)))
+        Place(f.target, y)
+        y = y - 16
+    end
+    f:SetHeight(-y + 6)
     f:Show()
 end
 

@@ -17,26 +17,46 @@ HME.HUD = H
 local f
 local hidden = false
 
+local C = T.C
+local KPI_Y = -26
+
 local function Build()
     f = CreateFrame("Frame", "HarvestMateEnhancedHUD", UIParent)
-    f:SetSize(230, 74)
+    f:SetSize(240, 80)
     f:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -220, -220)
     f:SetFrameStrata("MEDIUM")
     f:SetClampedToScreen(true)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
-    T.Panel(f, 0.82)
+    f.shadow = T.Shadow(f, 10)
+    T.Panel(f, 0.88)
     f.head = CreateFrame("Frame", nil, f)
-    f.head:SetPoint("TOPLEFT")
-    f.head:SetPoint("TOPRIGHT")
-    f.head:SetHeight(16)
-    T.HeaderStrip(f.head, "HarvestMate")
-    f.big = T.Text(f, "", "GameFontNormal", T.C.gold)
-    f.big:SetPoint("TOPLEFT", 8, -20)
-    f.text = T.Text(f, "", "GameFontHighlightSmall")
-    f.text:SetPoint("TOPLEFT", 8, -36)
-    f.text:SetWidth(214)
+    f.head:SetPoint("TOPLEFT", 0, -2)
+    f.head:SetPoint("TOPRIGHT", 0, -2)
+    f.head:SetHeight(18)
+    T.HeaderStrip(f.head, "FARMING")
+    f.state = T.Text(f.head, "", "label")
+    f.state:SetPoint("RIGHT", -8, 0)
+    f.state:SetJustifyH("RIGHT")
+    -- Three live numbers: gold an hour, skill-ups an hour, time.
+    f.kpi = {}
+    for i, label in ipairs({ "GOLD / H", "SKILL / H", "FARMED" }) do
+        local col = CreateFrame("Frame", nil, f)
+        col:SetSize(70, 34)
+        col.value = T.Text(col, "", "strong", nil, 15)
+        col.value:SetPoint("TOPLEFT", 0, 0)
+        col.value:SetWordWrap(false)
+        col.label = T.Text(col, label, "label", nil, 9)
+        col.label:SetPoint("TOPLEFT", 0, -19)
+        f.kpi[i] = col
+    end
+    f.big = T.Text(f, "", "strong", C.text, 13)
+    f.big:SetPoint("TOPLEFT", 10, KPI_Y)
+    f.big:SetWordWrap(false)
+    f.text = T.Text(f, "", "small", C.text2)
+    f.text:SetPoint("TOPLEFT", 10, KPI_Y - 40)
+    f.text:SetWidth(220)
     f.text:SetWordWrap(true)
     f:SetScript("OnDragStart", function(self)
         if not (HME.settings and HME.settings.hudLocked) then self:StartMoving() end
@@ -82,19 +102,34 @@ function H.Update()
     local size = s.hudSize or (s.hudCompact and "compact") or "normal"
     local r = HME.Session.Rates()
     local g = HME.Guidance.Active()
+    local width = size == "detailed" and 300 or 240
+    local colW = (width - 20) / 3
+    for i, col in ipairs(f.kpi) do
+        col:ClearAllPoints()
+        col:SetPoint("TOPLEFT", 10 + (i - 1) * colW, KPI_Y)
+        col:SetWidth(colW - 4)
+        col:SetShown(r ~= nil)
+    end
+    f.big:SetShown(r == nil)
     if r then
-        f.big:SetText(("%s/h  ·  %.0f skill/h%s"):format(K.Money(r.gph), r.sph, r.paused and "  |cffff8a3dpaused|r" or ""))
+        f.kpi[1].value:SetText((r.gph or 0) > 0 and K.Money(r.gph) or "–")
+        f.kpi[1].value:SetTextColor(C.gold[1], C.gold[2], C.gold[3])
+        f.kpi[2].value:SetText(("%.0f"):format(r.sph or 0))
+        f.kpi[2].value:SetTextColor(C.accent[1], C.accent[2], C.accent[3])
+        f.kpi[3].value:SetText(U.Duration(r.farmSecs or r.secs or 0))
+        f.state:SetText(r.paused and K.Paint("PAUSED", T.HEX.warning) or (g and K.Paint("GUIDED", T.HEX.accent) or ""))
     else
         f.big:SetText(g and g.name or "Session not started")
+        f.state:SetText(g and K.Paint("GUIDED", T.HEX.accent) or "")
     end
     local lines = {}
     if size ~= "compact" then
         if r then
-            lines[#lines + 1] = ("%s farming  ·  %d nodes  ·  %d skins  ·  %d catches"):format(U.Duration(r.farmSecs), r.nodes, r.skins, r.catches)
+            lines[#lines + 1] = ("%d nodes  ·  %d skins  ·  %d catches"):format(r.nodes, r.skins, r.catches)
         end
         if g then lines[#lines + 1] = g.phaseText or "" end
         local owner = HME.Guidance.ArrowOwner()
-        if g and owner then lines[#lines + 1] = "|cff9d9d9dArrow: " .. owner .. "|r" end
+        if g and owner then lines[#lines + 1] = "|cff78808cArrow: " .. owner .. "|r" end
     end
     if size ~= "compact" and r then
         -- What you get, and against the prediction once there is enough to judge.
@@ -133,10 +168,13 @@ function H.Update()
     end
     f.text:SetText(table.concat(lines, "\n"))
     f.text:SetShown(#lines > 0)
-    local h = 40 + (#lines > 0 and (f.text:GetStringHeight() or 12) or 0)
-    f:SetHeight(size == "compact" and 38 or h)
-    f:SetWidth(size == "detailed" and 300 or 230)
-    f.text:SetWidth(size == "detailed" and 284 or 214)
+    local top = r and 64 or 46
+    local h = top + (#lines > 0 and ((f.text:GetStringHeight() or 12) + 10) or 0)
+    f.text:ClearAllPoints()
+    f.text:SetPoint("TOPLEFT", 10, -(top - 2))
+    f:SetHeight(size == "compact" and top or h)
+    f:SetWidth(width)
+    f.text:SetWidth(width - 20)
     f:Show()
 end
 

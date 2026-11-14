@@ -86,16 +86,17 @@ HME.Pages.setup = function(body, page)
     end)
     Row("Nearby highlighting (asks first)", "Needs the game's Soft Target Interact setting; HME asks before changing it.", soft)
 
-    local doneBtn = K.Button(root, "Done", 120, 24, function()
+    local doneBtn = K.Button(root, "Done", 120, 28, function()
         HME.db.setupDone = HME.VERSION
         HME.OpenWindow("dashboard")
     end, "You can come back here any time: Setup in the sidebar, or /hme setup.")
     doneBtn:SetPoint("TOPRIGHT", -20, -416)
+    doneBtn:SetKind("primary")
 
     function page.Refresh()
         local lines = {}
         for _, f in ipairs(HME.SetupFindings()) do
-            lines[#lines + 1] = (f[1] and "|cff48c75a✓|r " or "|cffffe14d•|r ") .. f[2]
+            lines[#lines + 1] = (f[1] and "|cff4fd68c✓|r " or "|cfff2c452•|r ") .. f[2]
         end
         find.text:SetText(table.concat(lines, "\n"))
         for _, w in ipairs({ nav, terrain, map, hud }) do w:Refresh() end

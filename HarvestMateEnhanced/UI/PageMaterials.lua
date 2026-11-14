@@ -117,7 +117,7 @@ HME.Pages.materials = function(body, page)
             or (e.status == "classic" and "classic data" or "unverified")))
         local lines = {}
         if e.found then lines[#lines + 1] = e.found end
-        if e.tiers then lines[#lines + 1] = ("Skill-up colors: |cffff8a3d%d|r |cffffe14d%d|r |cff48c75a%d|r |cff9a9a9a%d|r")
+        if e.tiers then lines[#lines + 1] = ("Skill-up colors: |cfff7a845%d|r |cfff2c452%d|r |cff4fd68c%d|r |cff78808c%d|r")
             :format(e.tiers[1], e.tiers[2], e.tiers[3], e.tiers[4]) end
         if e.id then
             local p = HME.Prices.Get(e.id)
@@ -125,11 +125,11 @@ HME.Pages.materials = function(body, page)
                 local parts = {}
                 if p.typical then parts[#parts + 1] = ("auction %s (%s, %s)"):format(K.Money(p.typical), p.source, HME.Prices.AgeText(p.age)) end
                 if p.vendor then parts[#parts + 1] = "vendor " .. K.Money(p.vendor) end
-                if #parts > 0 then lines[#lines + 1] = "|cffe8a040Price|r  " .. table.concat(parts, "  ·  ") end
+                if #parts > 0 then lines[#lines + 1] = "|cff78808cPrice|r  " .. table.concat(parts, "  ·  ") end
             end
         end
         lines[#lines + 1] = ""
-        lines[#lines + 1] = "|cffe8a040Known zones|r"
+        lines[#lines + 1] = "|cff78808cKnown zones|r"
         local Zones = ns.Zones
         local view = ns:SourceZones(e)
         local counts = ns.db.counts and e.id and ns.db.counts[e.id]
@@ -140,14 +140,14 @@ HME.Pages.materials = function(body, page)
             rows, hint = Zones:Build({ zones = view, zoneNotes = e.zoneNotes, prof = e.prof, water = e.water }, counts, here, faction,
                 ns.db.options and ns.db.options.onlyGatheredZones)
         end
-        if hint then lines[#lines + 1] = "|cff9a9a9a" .. hint .. "|r" end
+        if hint then lines[#lines + 1] = "|cff78808c" .. hint .. "|r" end
         for i, r in ipairs(rows) do
             if i > 24 then lines[#lines + 1] = "  ..." break end
             local name = r.zone or "?"
-            local tag = r.faction and (r.faction == faction and " |cff48c75a(your side)|r" or " |cffff8a3d(" .. r.faction .. ")|r") or ""
+            local tag = r.faction and (r.faction == faction and " |cff4fd68c(your side)|r" or " |cfff7a845(" .. r.faction .. ")|r") or ""
             if r.yours then tag = tag .. " |cff6fcf97yours|r" end
             local mine = (r.n or 0) > 0 and (" |cffffd100x" .. r.n .. "|r") or ""
-            local note = r.note and ("  |cff9a9a9a" .. r.note .. "|r") or ""
+            local note = r.note and ("  |cff78808c" .. r.note .. "|r") or ""
             local cur = name == here and "|cffffffff> |r" or "  "
             lines[#lines + 1] = cur .. name .. tag .. mine .. note
         end

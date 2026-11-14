@@ -9,7 +9,6 @@ local _, ns = ...
 local HME = ns.HME
 local T = ns.Theme
 local K = HME.Kit
-local C = T.C
 
 local PAGE_W = 738
 
@@ -30,7 +29,7 @@ HME.Pages.guides = function(body, page)
     status.bar:SetPoint("TOPLEFT", 12, -28)
     status.text = K.Label(status, "", { template = "GameFontHighlightSmall", width = PAGE_W - 340 })
     status.text:SetPoint("TOPLEFT", 324, -26)
-    status.best = K.Button(status, "Best farm for my skill", 180, 22, function()
+    status.best = K.Button(status, "Best farm for my skill", 180, 24, function()
         HME.OpenWindow("finder")
         if HME.Pages.finderSet then HME.Pages.finderSet(ui.guideProf, "level") end
     end)
@@ -109,7 +108,7 @@ HME.Pages.guides = function(body, page)
             btn:SetPoint("LEFT", (i - 1) * bw, 0)
             btn:SetText(b.key)
             btn:SetScript("OnClick", function() bracketKey = b.key; page.Refresh() end)
-            btn.bg:SetColorTexture(unpack(b.key == bracketKey and C.redHi or C.red))
+            btn:SetKind(b.key == bracketKey and "primary" or "secondary")
             btn:Show()
         end
         for i = #brackets + 1, #ranges.buttons do ranges.buttons[i]:Hide() end
@@ -117,16 +116,16 @@ HME.Pages.guides = function(body, page)
         local lines = {}
         if bracket then
             local mine = st.skill and st.skill >= bracket.min and st.skill < bracket.max
-            lines[#lines + 1] = ("|cffffd100%s|r   |cff9a9a9askill %d-%d%s|r"):format(bracket.title or "", bracket.min, bracket.max,
+            lines[#lines + 1] = ("|cffedf0f2%s|r   |cff78808cskill %d-%d%s|r"):format(bracket.title or "", bracket.min, bracket.max,
                 mine and "  ·  you are here" or "")
             if bracket.short then lines[#lines + 1] = bracket.short end
             lines[#lines + 1] = ""
-            if bracket.catches then lines[#lines + 1] = "|cffe8a040What you'll find|r  " .. bracket.catches end
-            if bracket.train then lines[#lines + 1] = "|cffe8a040Training|r  " .. bracket.train end
-            if bracket.gear then lines[#lines + 1] = "|cffe8a040Gear|r  " .. bracket.gear end
-            if bracket.tips then lines[#lines + 1] = "|cffe8a040Tips|r  " .. bracket.tips end
+            if bracket.catches then lines[#lines + 1] = "|cff78808cWhat you'll find|r  " .. bracket.catches end
+            if bracket.train then lines[#lines + 1] = "|cff78808cTraining|r  " .. bracket.train end
+            if bracket.gear then lines[#lines + 1] = "|cff78808cGear|r  " .. bracket.gear end
+            if bracket.tips then lines[#lines + 1] = "|cff78808cTips|r  " .. bracket.tips end
             lines[#lines + 1] = ""
-            lines[#lines + 1] = "|cffe8a040Where to go|r (" .. HME.Player.Faction() .. ")"
+            lines[#lines + 1] = "|cff78808cWhere to go|r (" .. HME.Player.Faction() .. ")"
         elseif ns.Guides then
             lines[#lines + 1] = ns.Guides:Intro(prof) or ""
         end
@@ -138,7 +137,7 @@ HME.Pages.guides = function(body, page)
             r:ClearAllPoints()
             r:SetPoint("TOPLEFT", 0, y)
             local hasRoute = ns.Guides:HasRoute(spot)
-            r.text:SetText(("%s  |cff9a9a9a%s%s|r"):format(spot.label or spot.zone or "?", spot.zone or "",
+            r.text:SetText(("%s  |cff78808c%s%s|r"):format(spot.label or spot.zone or "?", spot.zone or "",
                 hasRoute and "  ·  recorded route" or ""))
             r.go.spot, r.nav.spot = spot, spot
             r.go:SetShown(hasRoute)

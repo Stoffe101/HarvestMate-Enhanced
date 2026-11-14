@@ -57,7 +57,7 @@ HME.Pages.stats = function(body, page)
     T.Tooltip(search, "Filter", "Only sessions whose zone, materials, route or character contain this text.")
 
     local list = K.List(body, {
-        width = PAGE_W, height = 380, rowHeight = 34, empty = "Nothing yet: sessions appear here once you farm.",
+        width = PAGE_W, height = 380, rowHeight = 34, empty = "No sessions yet. A session starts by itself with your first gather, skin or catch; pick a farm in the Farm Finder to get going.",
         makeRow = function(row)
             row.a = K.Label(row, "", { template = "GameFontHighlight", width = 330, wrap = false })
             row.a:SetPoint("TOPLEFT", 8, -4)
@@ -247,7 +247,7 @@ HME.Pages.stats = function(body, page)
                 local done = r.earned >= r.total
                 local value = type(r.value) == "number" and r.value or 0
                 items[#items + 1] = {
-                    (done and "|cff48c75a" or "|cffffd100") .. (okN and name or "?") .. "|r  |cff9a9a9a" .. (r.category or "") .. "|r",
+                    (done and "|cff4fd68c" or "|cffedf0f2") .. (okN and name or "?") .. "|r  |cff78808c" .. (r.category or "") .. "|r",
                     okD and desc or "",
                     ("%d of %d tiers"):format(r.earned, r.total),
                     ("%s / %s"):format(math.floor(value), tostring(r.threshold or "")),

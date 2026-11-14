@@ -33,6 +33,14 @@
 - **Heatmap views**: predicted density, your gathering, skill-up potential.
 - **Diagnostics** to copy (`/hme diag`), privacy-scrubbed; a short **first-run setup** (`/hme setup`).
 - **Best beasts** panel in the Farm Finder (Skinning, a material).
+- **A new, modern interface**: an own design system (docs/DESIGN.md).
+  - Inter as the interface font, bundled under the SIL OFL.
+  - Calm charcoal surfaces, rounded panels, a leaf-green accent kept for the one main action of each view.
+  - Primary, secondary, ghost and danger buttons; pill switches; tinted badges; KPI tiles.
+  - The Dashboard leads with one "Next step", and the Farm Finder details lead with three numbers.
+  - The HUD and the Skinning levels box lead with large figures; the Skinning box adds a coloured level strip.
+  - Settings can switch to the game's font or to square corners.
+  - `tools/ui_preview.py` draws every screen as HTML, to check layouts without the game.
 - **Skinning levels** box (`/hme skinlevels` or `/hme sl`, or Settings): which beast levels to kill for skill-ups right now, updated on every skill-up, level-up, zone and target change; the next unlock; this zone's beasts in those levels or the two closest zones that have them; a chat line when a higher level becomes skinnable.
 - Walking legs uses 3 ms a frame in batches of 16, and no new batch starts in combat.
 - Save format 3. The test runner fails on any Lua error that reaches the error handler.

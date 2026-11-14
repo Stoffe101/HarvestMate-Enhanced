@@ -40,7 +40,7 @@ HME.Pages.goals = function(body, page)
     amountL:SetPoint("LEFT", amount, "RIGHT", 6, 0)
     local status = K.Label(add, "", { template = "GameFontDisableSmall", width = 200 })
     status:SetPoint("TOPLEFT", 12, -56)
-    local addBtn = K.Button(add, "Add goal", 100, 22, function()
+    local addBtn = K.Button(add, "Add goal", 100, 24, function()
         local text = U.Trim(what:GetText() or "")
         local n = tonumber(amount:GetText())
         local g, why
@@ -63,6 +63,7 @@ HME.Pages.goals = function(body, page)
         if g then what:SetText(""); amount:SetText(""); page.Refresh() end
     end)
     addBtn:SetPoint("TOPLEFT", 520, -32)
+    addBtn:SetKind("primary")
 
     -- Goals list (rows made as needed)
     local goalsCard = T.Card(root, "Your goals", 0, -78, PAGE_W - 20, 60)
@@ -83,7 +84,7 @@ HME.Pages.goals = function(body, page)
             HME.Goals.Recommend(g, function(res, eta)
                 self:SetText("Best farm")
                 if not res then
-                    r.info:SetText("|cffff8a3d" .. tostring(eta) .. "|r")
+                    r.info:SetText("|cfff7a845" .. tostring(eta) .. "|r")
                     return
                 end
                 local text = ("Best: %s (%s)"):format(res.zone, res.subarea)
@@ -104,7 +105,7 @@ HME.Pages.goals = function(body, page)
             end)
         end, "Finds the best farm for this goal and opens it in the Farm Finder.")
         r.find:SetPoint("TOPRIGHT", -70, -26)
-        r.del = K.Button(r, "Remove", 64, 20, function(self) HME.Goals.Remove(self.goal.id); page.Refresh() end)
+        r.del = K.Button(r, "Remove", 64, 22, function(self) HME.Goals.Remove(self.goal.id); page.Refresh() end, nil, "danger")
         r.del:SetPoint("TOPRIGHT", 0, -26)
         -- A staged trip for everything still missing (Engine/Expedition.lua).
         r.exp = K.Button(r, "Expedition", 90, 20, function(self)
@@ -135,7 +136,7 @@ HME.Pages.goals = function(body, page)
     toL:SetPoint("LEFT", to, "RIGHT", 6, 0)
     plan.text = K.Label(plan, "", { template = "GameFontHighlightSmall", width = PAGE_W - 50 })
     plan.text:SetPoint("TOPLEFT", 12, -60)
-    local build = K.Button(plan, "Build plan", 100, 22, function(self)
+    local build = K.Button(plan, "Build plan", 100, 24, function(self)
         self:SetText("Planning...")
         plan.text:SetText("Working out each stage in the background...")
         HME.Guide.Plan(ui.planProf, tonumber(to:GetText()) or 300, function(p)
@@ -178,7 +179,7 @@ HME.Pages.goals = function(body, page)
                 U.Duration(st.hours.low * 3600), U.Duration(st.hours.high * 3600)) or ""
             local alts = {}
             for _, a in ipairs(st.alternatives or {}) do if a then alts[#alts + 1] = a.zone end end
-            lines[#lines + 1] = ("|cffffd100%d-%d|r  %s%s"):format(st.from, st.to, where, hours)
+            lines[#lines + 1] = ("|cffedf0f2%d-%d|r  %s%s"):format(st.from, st.to, where, hours)
             if f and f.targets and f.targets[1] then
                 local names = {}
                 for i, t in ipairs(f.targets) do if i <= 3 then names[#names + 1] = t.name end end
@@ -186,10 +187,10 @@ HME.Pages.goals = function(body, page)
             end
             if #alts > 0 then lines[#lines + 1] = "      or: " .. table.concat(alts, ", ") end
             if st.train then
-                lines[#lines + 1] = ("      |cffff8a3dthen train %s (character level %d)|r"):format(st.train.name, st.train.level)
+                lines[#lines + 1] = ("      |cfff7a845then train %s (character level %d)|r"):format(st.train.name, st.train.level)
             end
             if (st.level or 0) > HME.Player.Level() then
-                lines[#lines + 1] = ("      |cff9a9a9aplanned for level %d|r"):format(st.level)
+                lines[#lines + 1] = ("      |cff78808cplanned for level %d|r"):format(st.level)
             end
         end
         if p.hours and p.hours.mid > 0 then
@@ -214,7 +215,7 @@ HME.Pages.goals = function(body, page)
             r.goal = g
             r.find.goal, r.del.goal, r.exp.goal = g, g, g
             r.exp:SetShown(g.type == "list" or g.type == "item")
-            r.name:SetText((g.doneAt and "|cff48c75a✓ |r" or "") .. g.name)
+            r.name:SetText((g.doneAt and "|cff4fd68c✓ |r" or "") .. g.name)
             local label
             if g.type == "value" then label = ("%s / %s"):format(U.Money(p.have or 0, true), U.Money(p.target, true))
             else label = ("%d / %d"):format(p.have or 0, p.target or 0) end
@@ -268,7 +269,7 @@ HME.Pages.goals = function(body, page)
             if pr then
                 local left = {}
                 for _, it in ipairs(pr.items) do if it.left > 0 then left[#left + 1] = ("%d %s"):format(it.left, HME.Goals.ItemName(it.itemID)) end end
-                lines[#lines + 1] = #left > 0 and ("Still to gather: " .. table.concat(left, ", ")) or "|cff48c75aEverything gathered.|r"
+                lines[#lines + 1] = #left > 0 and ("Still to gather: " .. table.concat(left, ", ")) or "|cff4fd68cEverything gathered.|r"
             end
         else
             lines[1] = "Press Expedition on a shopping list or material goal: HME plans the farms in order, with travel, and tracks what you gather."
@@ -293,13 +294,13 @@ HME.Pages.goals = function(body, page)
                 r.text:SetPoint("LEFT", 0, 0)
                 r.go = K.Button(r, "Start", 64, 20, function(self) HME.Profiles.Apply(self.p) end)
                 r.go:SetPoint("RIGHT", -70, 0)
-                r.del = K.Button(r, "Delete", 64, 20, function(self) HME.Profiles.Delete(self.p.name); page.Refresh() end)
+                r.del = K.Button(r, "Delete", 64, 22, function(self) HME.Profiles.Delete(self.p.name); page.Refresh() end, nil, "danger")
                 r.del:SetPoint("RIGHT", 0, 0)
                 prow[i] = r
             end
             r:ClearAllPoints()
             r:SetPoint("TOPLEFT", 12, yy)
-            r.text:SetText(("%s  |cff9a9a9a%s · %s · %s%s|r"):format(p.name, p.prof or "?", HME.Recommend.GOAL_LABEL[p.goal] or p.goal or "?",
+            r.text:SetText(("%s  |cff78808c%s · %s · %s%s|r"):format(p.name, p.prof or "?", HME.Recommend.GOAL_LABEL[p.goal] or p.goal or "?",
                 p.risk or "balanced", p.minutes and (" · " .. p.minutes .. " min") or ""))
             r.go.p, r.del.p = p, p
             r:Show()

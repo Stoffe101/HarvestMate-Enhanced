@@ -127,6 +127,14 @@ HME.Pages.settings = function(body, page)
         .. "HME never takes over keys or controller buttons; set 'Next/Previous page' in the game's Key Bindings if you "
         .. "want to page with a key or button.", function() return S().controller end, function(v) S().controller = v end)
     EndRow()
+    Drop("Interface font", "Inter, bundled with HME (SIL Open Font License), or the game's own font. Applies after /reload.",
+        { "inter", "game" }, { inter = "Inter (modern)", game = "Game font" },
+        function() return S().uiFont or "inter" end, function(k) S().uiFont = k; HME.Print("the font changes after /reload.") end)
+    Drop("Corners", "Rounded panels and buttons, or square ones. Square is also what HME falls back to where the game "
+        .. "cannot draw rounded shapes. Applies after /reload.", { "rounded", "square" }, { rounded = "Rounded", square = "Square" },
+        function() return S().uiRounded == false and "square" or "rounded" end,
+        function(k) S().uiRounded = (k == "rounded"); HME.Print("corners change after /reload.") end)
+    EndRow()
     Slider("Window scale", "Size of HME's window (60-150%).", function() return math.floor((S().scale or 1) * 100 + 0.5) end,
         function(v) S().scale = v / 100 end, 60, 150, 5, "%")
 

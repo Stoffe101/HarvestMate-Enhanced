@@ -44,7 +44,7 @@ HME.Pages.trainers = function(body, page)
         end,
         fillRow = function(row, e)
             local Tr = ns.Trainers
-            row.a:SetText(("%s  |cff9a9a9a%s %s|r"):format(e.name, e.prof or "", e.kind == "trainer" and (e.rank or "") or (e.kind or "")))
+            row.a:SetText(("%s  |cff78808c%s %s|r"):format(e.name, e.prof or "", e.kind == "trainer" and (e.rank or "") or (e.kind or "")))
             row.b:SetText(Tr:WhereText(e) .. (e.x and ("  ·  " .. Tr:CoordsText(e)) or "") .. (e.note and ("  ·  " .. e.note) or ""))
             row.go.entry = e
             row.go:SetShown(e.x ~= nil)
