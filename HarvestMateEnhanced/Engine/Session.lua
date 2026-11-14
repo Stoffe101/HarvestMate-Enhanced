@@ -148,6 +148,11 @@ local function Activity(profShort, what, n, value, items, id)
     if not cur then S.Start() end
     if id then
         if cur.seen[id] then return false end
+        -- Bounded: a duplicate arrives within seconds, so the newest 500 are enough.
+        cur.seenN = (cur.seenN or 0) + 1
+        if cur.seenN > 500 then
+            cur.seen, cur.seenN = {}, 1
+        end
         cur.seen[id] = true
     end
     Tick()

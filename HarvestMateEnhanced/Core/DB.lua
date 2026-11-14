@@ -28,7 +28,7 @@ local U = HME.U
 local DB = {}
 HME.DBM = DB
 
-DB.SCHEMA = 2
+DB.SCHEMA = 3
 
 -- Limits on what grows with play. Old entries go first.
 DB.LIMITS = {
@@ -136,7 +136,63 @@ DB.UPGRADES = {
             if type(sess) == "table" and sess.farmSecs == nil then sess.farmSecs, sess.mixedTravel = sess.secs, true end
         end
     end,
+    -- 0.2.0 -> 0.3.0: new sections (terrain cache, corrections) start empty;
+    -- 0.2.0's beast marks become corrections at load (Engine/Corrections.lua,
+    -- the old table kept); area stats get per-character copies at load
+    -- (DB.SeedCharStats). Nothing is removed.
+    [3] = function(db)
+        if db.terrain ~= nil and type(db.terrain) ~= "table" then db.terrain = nil end
+        if db.corrections ~= nil and type(db.corrections) ~= "table" then db.corrections = nil end
+        db.upgradedFrom2 = true
+    end,
 }
+
+-- Area totals were per account before 0.3.0. When the journal shows one
+-- character only (or none named), they are this character's: copied in full.
+-- With several characters, this character's own share is rebuilt from its
+-- sessions in the journal. Done once per character.
+function DB.SeedCharStats(db, char, me)
+    if type(char) ~= "table" or char.statsSeeded then return 0 end
+    char.stats = type(char.stats) == "table" and char.stats or {}
+    char.statsSeeded = true
+    local names = {}
+    local n = 0
+    for _, s in ipairs(type(db.sessions) == "table" and db.sessions or {}) do
+        if type(s) == "table" and s.char then names[s.char] = true end
+    end
+    for _ in pairs(names) do n = n + 1 end
+    local seeded = 0
+    if n == 0 or (n == 1 and (not me or names[me])) then
+        for key, st in pairs(type(db.stats) == "table" and db.stats or {}) do
+            if type(st) == "table" and type(st.hours) == "number" and not char.stats[key] then
+                char.stats[key] = U.Copy(st)
+                char.stats[key].samples = nil
+                seeded = seeded + 1
+            end
+        end
+        return seeded
+    end
+    for _, s in ipairs(db.sessions) do
+        if type(s) == "table" and s.char == me then
+            for _, a in ipairs(s.areas or {}) do
+                if type(a) == "table" and a.key and (a.secs or 0) >= 60 then
+                    local st = char.stats[a.key] or { hours = 0, sessions = 0 }
+                    char.stats[a.key] = st
+                    local h = a.secs / 3600
+                    st.hours, st.sessions = st.hours + h, st.sessions + 1
+                    st.nodes = (st.nodes or 0) + (a.nodes or 0)
+                    st.beasts = (st.beasts or 0) + math.max(a.beasts or 0, a.skins or 0)
+                    st.skins = (st.skins or 0) + (a.skins or 0)
+                    st.catches = (st.catches or 0) + (a.catches or 0)
+                    st.skillups = (st.skillups or 0) + (a.skillups or 0)
+                    st.value = (st.value or 0) + (a.value or 0)
+                    seeded = seeded + 1
+                end
+            end
+        end
+    end
+    return seeded
+end
 
 function DB.Prepare(saved)
     if type(saved) ~= "table" then saved = {} end
@@ -244,6 +300,7 @@ function DB.Init()
     HME.db = _G.HarvestMateEnhancedDB
     HME.char = _G.HarvestMateEnhancedCharDB
     HME.settings = HME.db.settings
+    HME.Try(DB.SeedCharStats, HME.db, HME.char, UnitName and HME.Str((UnitName("player"))))
     if HME.Migrate then HME.Try(HME.Migrate.Run) end
     -- Gatherpedia's modules read ns.db (their section) and ns.charDB.
     ns.db = HME.db.gp

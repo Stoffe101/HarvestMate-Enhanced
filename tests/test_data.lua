@@ -156,13 +156,41 @@ local old = {
     routes = { routes = { { id = 1, mapID = 1429, name = "Kept", points = { 0.1, 0.1, 0.2, 0.2, 0.3, 0.1 }, kinds = {} } } },
 }
 local up = HME.DBM.Prepare(old)
-eq(up.schema, 2, "schema 2")
+eq(up.schema, HME.DBM.SCHEMA, "upgraded to the current schema")
 eq(up.settings.hudSize, "compact", "the compact HUD carries over")
 eq(up.settings.riskMode, "safer", "settings kept")
 eq(up.stats["Skinning@1431:1:2"].travelHours, 0, "travel time starts at zero for old areas")
 eq(up.sessions[1].farmSecs, 1800, "old sessions keep their time")
 check(up.sessions[1].mixedTravel, "and are marked as possibly including travel")
 eq(up.routes.routes[1].name, "Kept", "routes untouched")
+
+STEP("upgrade from 0.2.0 data: one character's history becomes its own; several are split by the journal")
+local v2 = {
+    schema = 2, settings = { hudSize = "detailed" },
+    stats = { ["Skinning@1433:1:1"] = { hours = 3, sessions = 3, beasts = 300, value = 90000, travelHours = 0.5,
+                                        samples = { { h = 1, gph = 30000 } } } },
+    sessions = { { t = 1, char = "Alpha", farmSecs = 3600, secs = 3600, value = 30000, skillups = 0, counts = { skin = 100 },
+                   areas = { { key = "Skinning@1433:1:1", secs = 3600, beasts = 100, skins = 100, value = 30000 } } } },
+    obs = { badBeasts = { [1126] = true } },
+    routes = { routes = { { id = 1, mapID = 1433, name = "Kept", points = { 0.1, 0.1, 0.2, 0.2, 0.3, 0.1 }, kinds = {} } } },
+}
+local up2 = HME.DBM.Prepare(v2)
+eq(up2.schema, 3, "schema 3")
+eq(up2.settings.hudSize, "detailed", "settings kept")
+eq(up2.settings.combinedPriority, "equal", "new settings get their defaults")
+eq(up2.routes.routes[1].name, "Kept", "routes untouched")
+check(up2.obs.badBeasts[1126], "0.2.0 beast marks kept (they become corrections at load)")
+local alpha = {}
+eq(HME.DBM.SeedCharStats(up2, alpha, "Alpha"), 1, "one character in the journal: the account's history is theirs")
+eq(alpha.stats["Skinning@1433:1:1"].hours, 3)
+eq(alpha.stats["Skinning@1433:1:1"].samples, nil, "the per-session samples stay with the account")
+eq(HME.DBM.SeedCharStats(up2, alpha, "Alpha"), 0, "once only")
+table.insert(up2.sessions, { t = 2, char = "Beta", farmSecs = 1800, secs = 1800, value = 5000, skillups = 0, counts = { skin = 20 },
+    areas = { { key = "Skinning@1433:1:1", secs = 1800, beasts = 20, skins = 20, value = 5000 } } })
+local beta = {}
+HME.DBM.SeedCharStats(up2, beta, "Beta")
+eq(beta.stats["Skinning@1433:1:1"].hours, 0.5, "several characters: only Beta's own sessions")
+eq(beta.stats["Skinning@1433:1:1"].beasts, 20)
 
 STEP("damaged saves are repaired, not fatal")
 local bad = {
