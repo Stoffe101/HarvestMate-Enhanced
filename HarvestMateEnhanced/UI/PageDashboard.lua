@@ -102,6 +102,10 @@ HME.Pages.dashboard = function(body, page)
     refs.adv = adv
     adv.text = K.Label(adv, "", { template = "GameFontHighlightSmall", width = PAGE_W / 2 + 36 })
     adv.text:SetPoint("TOPLEFT", 12, -26)
+    adv.act = K.Button(adv, "Do it", 120, 18, function(self) if self.s then HME.Suggest.Run(self.s) end end,
+        "Does what the newest suggestion offers (opens the Farm Finder, or asks Forever-GPS for the nearest vendor). Only when you click.")
+    adv.act:SetPoint("TOPRIGHT", -8, -4)
+    adv.act:Hide()
     adv.integ = K.Label(body, "", { template = "GameFontDisableSmall", width = PAGE_W })
     adv.integ:SetPoint("TOPLEFT", 0, -516)
     local qs = T.Card(body, "Quick start", PAGE_W / 2 + 68, -400, PAGE_W / 2 - 68, 112)
@@ -211,6 +215,12 @@ HME.Pages.dashboard = function(body, page)
             end
         end
         if #advice == 0 then advice[1] = "Nothing needs your attention. Happy gathering." end
+        local actionable = HME.Suggest.Actionable()
+        refs.adv.act.s = actionable
+        if actionable then
+            refs.adv.act:SetText((actionable.action.label or (actionable.action.kind == "finder" and "Open Farm Finder") or "Do it"))
+        end
+        refs.adv.act:SetShown(actionable ~= nil)
         while #advice > 4 do table.remove(advice) end
         refs.adv.text:SetText(table.concat(advice, "\n"))
         refs.adv.integ:SetText(HME.IntegrationLine and HME.IntegrationLine() or "")

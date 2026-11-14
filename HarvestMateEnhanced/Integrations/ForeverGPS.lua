@@ -360,6 +360,29 @@ HME.On("PLAYER_LOGIN", function()
 end)
 HME.On("ADDON_LOADED", function(_, name) if name == "ForeverGPS" then Setup() end end)
 
+-- The nearest vendor, mailbox, repair, bank or trainer: Forever-GPS finds it
+-- (faction-safe, API v2) and opens the journey for you to start with Go.
+-- HME has no vendor or mailbox data of its own, so without Forever-GPS it
+-- says so instead of guessing. Returns true, name | false, why.
+function B.GoToService(kind, profession)
+    local api = APIv2()
+    if api and type(api.NavigateToService) == "function" and B.Available() then
+        local ok, done, name = pcall(api.NavigateToService, kind, { profession = profession })
+        if ok and done then
+            HME.Print(("Forever-GPS found the nearest %s%s: press Go there. HME's farm guidance waits and comes back after."):format(
+                kind, name and (" (" .. name .. ")") or ""))
+            return true, name
+        end
+        return false, ok and name or "Forever-GPS could not search"
+    end
+    if FG() then
+        HME.Print(("type /fgps go nearest %s (this Forever-GPS has no API for it)."):format(kind == "vendor" and "vendor" or kind))
+        return false, "needs Forever-GPS API v2"
+    end
+    HME.Print("HME has no vendor or mailbox locations of its own; Forever-GPS knows them.")
+    return false, "no Forever-GPS"
+end
+
 -- Trainers, vendors, mailboxes: Forever-GPS if available, else HME's arrow.
 -- These are one-off trips, not farms: no ownership hand-over needed.
 function B.GoToPlace(mapID, x, y, label)

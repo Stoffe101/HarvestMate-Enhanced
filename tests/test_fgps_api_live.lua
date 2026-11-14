@@ -150,6 +150,25 @@ eq(FG.arrowMode, "hud")
 eq(stopped, before, "their journey was never stopped")
 route = nil
 PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
+
+STEP("bags full: the nearest vendor through Forever-GPS's real API, opened for the player to start")
+local searched
+FG.Search = { Run = function(q)
+    searched = q
+    return { { name = "Hostile vendor", hostile = true }, { name = "Brog's General Goods", data = { mapID = 1453, x = 0.5, y = 0.5 } } }
+end }
+plan = nil
+local okS, nameS = HME.FGPS.GoToService("vendor")
+check(okS, "asked")
+eq(searched, "nearest general goods", "Forever-GPS's own search, nearest first")
+eq(nameS, "Brog's General Goods", "enemy ground passed over")
+check(plan and plan.status == "ready", "the journey is planned...")
+eq(route, nil, "...and not started: the player presses Go")
+HME.Suggest.Add("bagsFull", "bags-live", "Bags nearly full.", { kind = "service", what = "mailbox" })
+check(HME.Suggest.Run(HME.Suggest.Actionable()), "the suggestion's Do it does the same")
+eq(searched, "nearest mailbox")
+eq(select(2, HME.FGPS.GoToService("teleporter")), "unknown service", "unknown kinds refused")
+plan = nil
 end
 
 STEP("walking in: HME releases only its own API journey")

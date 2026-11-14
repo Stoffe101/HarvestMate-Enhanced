@@ -59,6 +59,26 @@ function S.Add(kind, key, text, action)
     return true
 end
 
+-- Carries out a suggestion's action (only ever when you click it).
+function S.Run(s)
+    local a = s and s.action
+    if not a then return false end
+    if a.kind == "service" and HME.FGPS then return HME.FGPS.GoToService(a.what, a.profession) end
+    if a.kind == "finder" then
+        HME.OpenWindow("finder")
+        if HME.Pages.finderSet and a.prof then HME.Pages.finderSet(a.prof, a.goal) end
+        return true
+    end
+    return false
+end
+
+-- The newest suggestion that offers something to do.
+function S.Actionable()
+    for i = #S.list, 1, -1 do
+        if S.list[i].action then return S.list[i] end
+    end
+end
+
 function S.Dismiss(i)
     table.remove(S.list, i)
     HME.Signal("SUGGESTIONS_CHANGED")
@@ -88,8 +108,10 @@ local function CheckBags()
     local free, total = HME.Inventory.FreeSlots()
     if not free or not HME.Session.Current() then return end
     if free <= 2 and total and total > 0 then
-        local where = HME.FGPS and HME.FGPS.Available() and " Forever-GPS can take you to a vendor or mailbox (/fgps go nearest mailbox)." or ""
-        S.Add("bagsFull", "bags", ("Bags nearly full (%d free).%s"):format(free, where))
+        local where = HME.FGPS and HME.FGPS.Available() and " Do it: the nearest vendor through Forever-GPS (you press Go; "
+            .. "HME's loop waits and comes back after)." or ""
+        S.Add("bagsFull", "bags", ("Bags nearly full (%d free).%s"):format(free, where),
+            HME.FGPS and HME.FGPS.Available() and { kind = "service", what = "vendor", label = "Nearest vendor" } or nil)
     end
 end
 
