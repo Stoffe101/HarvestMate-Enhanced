@@ -12,6 +12,13 @@
 --   typical       the typical price after the 5% cut
 --   optimistic    5% above typical, after the cut (prices drift up between scans)
 -- Listings are what sellers ask, not what buyers pay; HME says so in the UI.
+--
+-- Sanity (0.3.0): every provider's figure is copper per single item (checked
+-- against each addon's API: Forever-GPS Market.Price buy/typical per unit,
+-- Auctionator API v1 per unit, TSM custom prices in copper). A price that is
+-- not a positive number, or above MAX_COPPER, is dropped; one far above the
+-- vendor price (SUSPECT_X times and over 50 gold) is kept but marked suspect,
+-- trusted less and valued at its lowest listing instead of typical.
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
 
 local _, ns = ...
@@ -22,6 +29,21 @@ local Pr = {}
 HME.Prices = Pr
 
 Pr.AH_CUT = 0.05
+Pr.MAX_COPPER = 50000000       -- 5000 gold for one gathered item: anything above is a data error
+Pr.SUSPECT_X = 200
+
+-- A provider's record made safe: nil when unusable.
+local function Sane(raw)
+    if type(raw) ~= "table" then return nil end
+    local function ok(v) return type(v) == "number" and v == v and v > 0 and v <= Pr.MAX_COPPER end
+    local low, typical = ok(raw.low) and raw.low or nil, ok(raw.typical) and raw.typical or nil
+    if not (low or typical) then return nil end
+    raw.low, raw.typical = low or typical, typical or low
+    if raw.low > raw.typical then raw.low = raw.typical end
+    if raw.age and not (type(raw.age) == "number" and raw.age >= 0) then raw.age = nil end
+    return raw
+end
+Pr.Sane = Sane
 Pr.PROVIDERS = { "ForeverGPS", "Auctionator", "TSM", "vendor" }
 
 local GetItemInfo = (C_Item and C_Item.GetItemInfo) or _G.GetItemInfo
@@ -128,7 +150,13 @@ function Pr.Get(itemID)
             end
         end
     end
+    raw = Sane(raw)
+    if not raw then source = nil end
     local net = 1 - Pr.AH_CUT
+    if raw and rec.vendor and raw.typical > rec.vendor * Pr.SUSPECT_X and raw.typical > 500000 then
+        rec.suspect = true
+        raw.typical = raw.low   -- the cheapest listing, not an outlier's typical
+    end
     if raw then
         rec.source = source
         rec.age = raw.age
@@ -186,6 +214,7 @@ end
 function Pr.Trust(rec)
     if not rec then return 0 end
     if not rec.source then return rec.vendor and 0.5 or 0 end
+    if rec.suspect then return 0.3 end
     if not rec.age then return 0.6 end
     if rec.age <= 2 * 86400 then return 0.9 end
     if rec.age <= 7 * 86400 then return 0.7 end

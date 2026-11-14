@@ -114,6 +114,7 @@ Map\Guidance.lua
 # Integrations
 Integrations\ForeverGPS.lua
 Integrations\TomTom.lua
+Integrations\Crafting.lua
 
 # Interface
 UI\Kit.lua

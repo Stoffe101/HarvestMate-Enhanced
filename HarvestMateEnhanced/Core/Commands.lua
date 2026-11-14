@@ -20,6 +20,7 @@ local function Help()
         "/hme here  guide the loop beside another Forever-GPS journey   ·   /hme giveback  hand the arrow back",
         "/hme rec [start name|pause|resume|stop|cancel]  record your own route as you ride it",
         "/hme exp [plan|go|next|skip n|replan|stop]  a farming expedition for your shopping list",
+        "/hme recipe [n] <item>  the gathered materials a recipe still needs, as a shopping list",
         "/hme session start|pause|end   ·   /hme hud  show or hide the HUD",
         "/hme glimmer [on|off|preview]   ·   /hme soft [off]   ·   /hme key [KEY]",
         "/hme export  ·  /hme import <name>  copy data from HarvestMate/Gatherpedia/GatherPath",
@@ -104,6 +105,39 @@ function cmds.exp(rest)
     end
 end
 cmds.expedition = cmds.exp
+
+-- /hme recipe [crafts] <item link or ID>: the gathered materials still missing
+-- for that many crafts, as a shopping list goal (recipes: the client's data
+-- through Forever-GPS; nothing without it).
+function cmds.recipe(rest)
+    if not (HME.Crafting and HME.Crafting.Available()) then
+        HME.Print("recipe data comes from Forever-GPS (the client's own tables); it is not installed or too old.")
+        return
+    end
+    local crafts, what = (rest or ""):match("^(%d+)%s+(.+)$")
+    what = what or rest
+    local id = tonumber((what or ""):match("item:(%d+)")) or tonumber(what)
+    if not id then
+        HME.Print("/hme recipe [how many] <shift-click the item, or its ID>")
+        return
+    end
+    local spec, other = HME.Crafting.ShoppingList(id, tonumber(crafts) or 1)
+    if not spec then
+        HME.Print(tostring(other) .. ".")
+        return
+    end
+    if #spec.items == 0 then
+        HME.Print("you already have the gathered materials for that.")
+    else
+        local g = HME.Goals.Add(spec)
+        HME.Print(("shopping list added: %s (Goals page; Expedition plans the farms)."):format(g and g.name or spec.name))
+    end
+    if #other > 0 then
+        local names = {}
+        for _, o in ipairs(other) do names[#names + 1] = ("%d %s"):format(o.n, HME.Goals.ItemName(o.itemID)) end
+        HME.Print("also needed, not gathered: " .. table.concat(names, ", ") .. ".")
+    end
+end
 function cmds.giveback() HME.Guidance.GiveBack() end
 function cmds.hud() HME.HUD.Toggle() end
 

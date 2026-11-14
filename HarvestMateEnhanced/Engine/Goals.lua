@@ -88,7 +88,12 @@ end
 ---------------------------------------------------------------------------
 local function ItemName(id)
     local rec = ns.itemIndex[id]
-    return (rec and ns.GetItemName(rec.entry)) or (rec and rec.entry.name) or ("item " .. id)
+    local name = (rec and ns.GetItemName(rec.entry)) or (rec and rec.entry.name)
+    if not name and GetItemInfo then
+        local ok, n = pcall(GetItemInfo, id)
+        name = ok and HME.Str(n) or nil
+    end
+    return name or ("item " .. id)
 end
 Goals.ItemName = ItemName
 
@@ -329,6 +334,16 @@ HME.Advice = Advice
 
 -- { action = "keep"|"auction"|"vendor"|"unknown", text, value }
 function Advice.For(itemID)
+    local a = Advice.Plain(itemID)
+    -- What it is used for, from the client's recipe tables (Forever-GPS), when known.
+    local use = HME.Crafting and HME.Crafting.UseLine(itemID)
+    if use then a.use = use a.text = a.text .. " " .. use end
+    local p = HME.Prices.Get(itemID)
+    if p and p.suspect then a.text = a.text .. " The auction price looks unusual (far above the vendor's): treat it with care." end
+    return a
+end
+
+function Advice.Plain(itemID)
     local reserved = HME.char and HME.char.reserved and HME.char.reserved[itemID]
     for _, g in ipairs(List()) do
         if not g.doneAt then
