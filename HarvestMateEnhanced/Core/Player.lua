@@ -110,7 +110,8 @@ function P.Faction()
 end
 
 function P.Class()
-    local _, token = UnitClass and UnitClass("player")
+    if not UnitClass then return "UNKNOWN" end
+    local _, token = UnitClass("player")      -- not `UnitClass and UnitClass()`: that keeps one value
     return Str(token) or "UNKNOWN"
 end
 

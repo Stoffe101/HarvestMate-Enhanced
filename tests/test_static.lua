@@ -87,3 +87,22 @@ for _, f in ipairs(TocFiles(ADDON_DIR)) do
         check(not src:find("Interface\\%a"), f .. ": a texture path with a single backslash")
     end
 end
+
+STEP("no `local a, b = x and f()`: and/or keeps only f's first value")
+-- Ported from Forever-GPS's static test. It caught /hme diag saying "no
+-- position" and every character's class reading as UNKNOWN in the real client.
+for _, f in ipairs(TocFiles(ADDON_DIR)) do
+    if f:match("%.lua$") then
+        local n = 0
+        for line in ((Read(ADDON_DIR .. "/" .. f) or "") .. "\n"):gmatch("([^\n]*)\n") do
+            n = n + 1
+            local code = line:gsub("%-%-.*$", "")
+            local rhs = code:match("^%s*local%s+[%w_]+%s*,[%w_%s,]*=%s*(.+)$") or code:match("^%s*[%w_%.]+%s*,[%w_%s,%.]*=%s*(.+)$")
+            if rhs then
+                local top = rhs:gsub('"[^"]*"', '""'):gsub("'[^']*'", "''"):gsub("%b()", "()"):gsub("%b{}", "{}"):gsub("%b[]", "[]")
+                local logic = top:find("%f[%w]and%f[%W]") or top:find("%f[%w]or%f[%W]")
+                check(top:find(",", 1, true) or not logic, f .. ":" .. n .. ": several values from one and/or: " .. line:gsub("^%s+", ""))
+            end
+        end
+    end
+end

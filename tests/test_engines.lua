@@ -46,7 +46,7 @@ HME.db.obs.mobs[1] = nil
 
 STEP("kill time learns this character's pace, slowly")
 local model = Sk.KillSeconds(Beast(36, 36), profile)
-near(model, Sk.BASE_KILL, 0.01, "model at equal level")
+near(model, Sk.BASE_KILL * Sk.CLASS_PRIOR.HUNTER, 0.01, "model at equal level, for a hunter")
 HME.char.eff.kill = { { d = 0, s = 7 } }
 local one = Sk.KillSeconds(Beast(36, 36), profile)
 check(one < model and one > 7, "one fast fight moves it a little (" .. one .. ")")

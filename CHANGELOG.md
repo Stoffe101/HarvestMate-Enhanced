@@ -15,6 +15,7 @@
 - A running session's duplicate-event set grew without bound.
 - Item names outside the field guide (shopping lists, recipe reagents, live materials) asked only for the global `GetItemInfo`, which the WoW Forever client does not have: they would have shown as "item 12345". Now `C_Item.GetItemInfo` first. The test client no longer has the global either.
 - Building a long loop froze the game for a moment when recordings were on the map: every leg was checked against every recorded point in one frame (~0.3 s for 99 stops and 10 recordings). Now a background job with a prepared search.
+- Found by the first real-client report: `/hme diag` said "no position" (a `local a, b = x and f()` line keeps only f's first value), and the same mistake made every character's class read as UNKNOWN, so the kill-time model's class adjustment never applied. Both fixed; a static test now rejects that pattern in every HME file.
 - The terrain reorder pass changed the route's stops over several frames and could not be stopped: a route rebuilt meanwhile could be reordered or set back. It now works on a copy, commits once, and stops with the route (rebuild, edit, delete).
 
 ### New

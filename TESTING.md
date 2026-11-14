@@ -47,6 +47,6 @@ Real-grid fixture: `tools/terrain_fixture.lua` (run from the Forever-GPS checkou
 | Level | Status |
 |---|---|
 | Headless tests on real Lua 5.1 with a simulated client | **Done** (above) |
-| Real WoW Forever client | **Not yet.** Nothing in HME has been run in the game. The checklist is [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). |
+| Real WoW Forever client | **Loading only** (2026-11-14, client 1.60.1.70938): HME 0.3.0 and Forever-GPS 2.7.0 (API v2) loaded; `/hme diag` found API v2, the walking grid and the arrow hold, with no errors; `/fgps diag` found all 28 game functions it checks, including `CreateVector2D`. That report also showed two HME bugs, fixed since (position and class, see CHANGELOG). Nothing else has been tried in the game; the checklist is [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). |
 
 The fake client accepts any method on a frame, so it cannot catch a wrong widget method name, layout that looks bad, textures that fail to load, or behaviour of the real map canvas, nameplates, soft targeting, secret values or protected functions. Those need the in-game checklist.

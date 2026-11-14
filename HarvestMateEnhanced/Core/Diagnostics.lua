@@ -81,7 +81,8 @@ function D.Lines()
     Add("Character: level %d %s; %s", profile.level or 0, tostring(profile.faction), #profs > 0 and table.concat(profs, ", ") or "no gathering professions")
     -- Where (map only)
     local mapID, x, y = HME.Player.Position()
-    local zm, zx, zy = mapID and HME.Geo.ZoneOf(mapID, x, y)
+    local zm, zx, zy
+    if mapID then zm, zx, zy = HME.Geo.ZoneOf(mapID, x, y) end   -- not `a and f()`: that keeps one value
     Add("Map: %s (%s) at %s; zone size %s", tostring(mapID), tostring(HME.ZoneData.Name(zm or mapID) or "?"),
         zx and ("%.1f, %.1f"):format(zx * 100, zy * 100) or "no position",
         (zm and HME.Geo.MapYards(zm)) and "known" or "unknown")
