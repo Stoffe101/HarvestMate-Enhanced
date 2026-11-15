@@ -15,6 +15,7 @@
 local _, ns = ...
 local HME = ns.HME
 local T = ns.Theme
+local C = T.C
 local K = HME.Kit
 local U = HME.U
 
@@ -43,30 +44,75 @@ HME.Pages.stats = function(body, page)
     seg:SetPoint("TOPLEFT", 0, 0)
     local pf = T.Dropdown(body, 120, { "All", "Herbalism", "Mining", "Skinning", "Fishing" }, {},
         function() return profFilter end, function(k) profFilter = k; page.Refresh() end)
-    pf:SetPoint("TOPLEFT", 0, -28)
+    pf:SetPoint("TOPLEFT", 0, -34)
     local per = T.Dropdown(body, 120, { "all", "week", "month" }, { all = "All time", week = "Last 7 days", month = "Last 30 days" },
         function() return period end, function(k) period = k; page.Refresh() end)
-    per:SetPoint("TOPLEFT", 128, -28)
-    local headline = K.Label(body, "", { template = "GameFontHighlightSmall", width = 330 })
-    headline:SetPoint("TOPLEFT", 256, -32)
+    per:SetPoint("TOPLEFT", 128, -34)
+    local headline = K.Label(body, "", { template = "meta", width = PAGE_W - 420, wrap = false })
+    headline:SetPoint("TOPLEFT", 260, -40)
     -- Free-text filter: a zone, a material, a route or a character.
-    local search = T.EditBox(body, 140)
-    search:SetPoint("TOPRIGHT", -4, -28)
+    local search = T.EditBox(body, 196)
+    search:SetPoint("TOPRIGHT", -4, -34)
+    search.hint = K.Label(search, "Filter: zone, material, route", { template = "GameFontDisableSmall" })
+    search.hint:SetPoint("LEFT", 6, 0)
     local filterText = ""
-    search:SetScript("OnTextChanged", function(self) filterText = U.Trim(self:GetText() or ""):lower() page.Refresh() end)
+    search:SetScript("OnTextChanged", function(self)
+        filterText = U.Trim(self:GetText() or ""):lower()
+        self.hint:SetShown(filterText == "")
+        page.Refresh()
+    end)
     T.Tooltip(search, "Filter", "Only sessions whose zone, materials, route or character contain this text.")
 
+    -- The period at a glance: three totals and a small trend of the last sessions.
+    local strip = CreateFrame("Frame", nil, body)
+    strip:SetSize(PAGE_W, 74)
+    strip:SetPoint("TOPLEFT", 0, -68)
+    local TREND_W = 230
+    local tileW = (PAGE_W - TREND_W - 30) / 3
+    local tiles = {}
+    for i, label in ipairs({ "Farming time", "Gathered", "Skill-ups" }) do
+        local t = K.Stat(strip, label, tileW, 74)
+        t:SetPoint("TOPLEFT", (i - 1) * (tileW + 10), 0)
+        tiles[i] = t
+    end
+    local trend = CreateFrame("Frame", nil, strip)
+    trend:SetSize(TREND_W, 74)
+    trend:SetPoint("TOPRIGHT", 0, 0)
+    trend.bg = T.Surface(trend, C.card)
+    T.Outline(trend, C.line)
+    trend.label = K.Label(trend, "Skill-ups an hour, last 12", { template = "label", width = TREND_W - 24, wrap = false })
+    trend.label:SetPoint("TOPLEFT", 12, -10)
+    trend.bars = {}
+    local BAR_W = (TREND_W - 24 - 11 * 4) / 12
+    for i = 1, 12 do
+        local b = trend:CreateTexture(nil, "ARTWORK")
+        b:SetWidth(BAR_W)
+        b:SetPoint("BOTTOMLEFT", 12 + (i - 1) * (BAR_W + 4), 12)
+        trend.bars[i] = b
+    end
+    trend.empty = K.Label(trend, "Shows after your first sessions.", { template = "meta", width = TREND_W - 24 })
+    trend.empty:SetPoint("BOTTOMLEFT", 12, 16)
+    trend:EnableMouse(true)
+    trend:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine("Skill-ups an hour, your last 12 sessions")
+        for _, it in ipairs(self.points or {}) do GameTooltip:AddLine(it, 1, 1, 1) end
+        GameTooltip:AddLine("Oldest on the left. Only sessions of 10 minutes or more.", 0.7, 0.7, 0.7, true)
+        GameTooltip:Show()
+    end)
+    trend:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
     local list = K.List(body, {
-        width = PAGE_W, height = 380, rowHeight = 34, empty = "No sessions yet. A session starts by itself with your first gather, skin or catch; pick a farm in the Farm Finder to get going.",
+        width = PAGE_W, height = 340, rowHeight = 40, empty = "No sessions yet. A session starts by itself with your first gather, skin or catch; pick a farm in the Farm Finder to get going.",
         makeRow = function(row)
-            row.a = K.Label(row, "", { template = "GameFontHighlight", width = 330, wrap = false })
-            row.a:SetPoint("TOPLEFT", 8, -4)
-            row.b = K.Label(row, "", { template = "GameFontDisableSmall", width = 330, wrap = false })
-            row.b:SetPoint("TOPLEFT", 8, -19)
-            row.c = K.Label(row, "", { template = "GameFontHighlightSmall", width = 380, justify = "RIGHT", wrap = false })
-            row.c:SetPoint("TOPRIGHT", -10, -4)
-            row.d = K.Label(row, "", { template = "GameFontDisableSmall", width = 380, justify = "RIGHT", wrap = false })
-            row.d:SetPoint("TOPRIGHT", -10, -19)
+            row.a = K.Label(row, "", { template = "strong", width = 320, wrap = false })
+            row.a:SetPoint("TOPLEFT", 12, -5)
+            row.b = K.Label(row, "", { template = "meta", width = 320, wrap = false })
+            row.b:SetPoint("TOPLEFT", 12, -23)
+            row.c = K.Label(row, "", { template = "small", width = 370, justify = "RIGHT", wrap = false })
+            row.c:SetPoint("TOPRIGHT", -14, -5)
+            row.d = K.Label(row, "", { template = "meta", width = 370, justify = "RIGHT", wrap = false })
+            row.d:SetPoint("TOPRIGHT", -14, -23)
         end,
         fillRow = function(row, it)
             row.a:SetText(it[1] or "")
@@ -75,11 +121,66 @@ HME.Pages.stats = function(body, page)
             row.d:SetText(it[4] or "")
         end,
     })
-    list:SetPoint("TOPLEFT", 0, -56)
+    list:SetPoint("TOPLEFT", 0, -152)
 
-    local foot = T.Card(body, "Prices", 0, -442, PAGE_W, 72)
-    foot.text = K.Label(foot, "", { template = "GameFontHighlightSmall", width = PAGE_W - 24 })
-    foot.text:SetPoint("TOPLEFT", 12, -26)
+    -- Where the gold figures come from, in one line (details on hover).
+    local foot = CreateFrame("Frame", nil, body)
+    foot:SetSize(PAGE_W, 18)
+    foot:SetPoint("TOPLEFT", 0, -498)
+    foot.text = K.Label(foot, "", { template = "meta", width = PAGE_W, wrap = false })
+    foot.text:SetPoint("LEFT", 2, 0)
+    foot:EnableMouse(true)
+    foot:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Where gold figures come from")
+        GameTooltip:AddLine(self.full or "", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    foot:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    -- The strip: totals for the sessions shown, and the trend.
+    local function Strip(list_)
+        local farm, travel, idle, value, skill = 0, 0, 0, 0, 0
+        local skins, nodes, catches = 0, 0, 0
+        for _, ss in ipairs(list_) do
+            farm, travel, idle = farm + (ss.farmSecs or ss.secs or 0), travel + (ss.travelSecs or 0), idle + (ss.idleSecs or 0)
+            value, skill = value + (ss.value or 0), skill + (ss.skillups or 0)
+            local c = ss.counts or {}
+            skins, nodes, catches = skins + (c.skin or 0), nodes + (c.herb or 0) + (c.mine or 0), catches + (c.fish or 0)
+        end
+        tiles[1]:Set(farm > 0 and U.Duration(farm) or "–", farm > 0 and ("%s travel · %s idle"):format(U.Duration(travel), U.Duration(idle))
+            or "no sessions in this view")
+        local parts = {}
+        if skins > 0 then parts[#parts + 1] = U.Thousands(skins) .. " skins" end
+        if nodes > 0 then parts[#parts + 1] = U.Thousands(nodes) .. " nodes" end
+        if catches > 0 then parts[#parts + 1] = U.Thousands(catches) .. " catches" end
+        tiles[2]:Set(U.Thousands(skins + nodes + catches), #parts > 0 and table.concat(parts, ", ") or "nothing yet")
+        tiles[3]:Set(U.Thousands(skill), value > 0 and ("about %s gathered, est."):format(K.Money(value, true)) or "", C.accent)
+        -- Trend: oldest left, sessions of 10 minutes or more.
+        local pts = {}
+        for i = #list_, 1, -1 do
+            local ss = list_[i]
+            local secs = ss.farmSecs or ss.secs or 0
+            if secs >= 600 then pts[#pts + 1] = { v = (ss.skillups or 0) / secs * 3600, t = ss.t } end
+        end
+        while #pts > 12 do table.remove(pts, 1) end
+        local top = 1
+        for _, pt in ipairs(pts) do top = math.max(top, pt.v) end
+        trend.points = {}
+        for i, b in ipairs(trend.bars) do
+            local pt = pts[i]
+            if pt then
+                b:SetHeight(math.max(2, (pt.v / top) * 34))
+                local last = i == #pts
+                b:SetColorTexture(C.accent[1], C.accent[2], C.accent[3], last and 1 or 0.55)
+                b:Show()
+                trend.points[#trend.points + 1] = ("%s: %s/h"):format(date and date("%d %b", pt.t or 0) or "?", U.Thousands(pt.v))
+            else
+                b:Hide()
+            end
+        end
+        trend.empty:SetShown(#pts == 0)
+    end
 
     local function InPeriod(t)
         if period == "all" then return true end
@@ -132,7 +233,7 @@ HME.Pages.stats = function(body, page)
                 ("%s · %s farmed%s"):format(when, U.Duration(farm), (s.travelSecs or 0) > 0 and (" + " .. U.Duration(s.travelSecs) .. " travel") or ""),
                 table.concat(areas, ", "),
                 ("est. %s/h farming · %s/h trip · %.0f skill/h"):format(K.Money(s.value / h), K.Money(s.value / trip), s.skillups / h),
-                ("%s%s%s"):format(ItemsLine(s.items), (s.deaths or 0) > 0 and (" · " .. s.deaths .. " deaths") or "", pred),
+                ("%s%s%s"):format(ItemsLine(s.items), (s.deaths or 0) > 0 and (" · " .. s.deaths .. (s.deaths == 1 and " death" or " deaths")) or "", pred),
             }
         end
         return items
@@ -270,13 +371,17 @@ HME.Pages.stats = function(body, page)
         elseif view == "records" then items = Records()
         else items = Achievements() end
         list:SetItems(items, true)
-        local n = #Sessions()
-        headline:SetText(("%d session%s shown · quantities are observed, gold is estimated from prices"):format(n, n == 1 and "" or "s"))
+        local shown = Sessions()
+        local n = #shown
+        Strip(shown)
+        headline:SetText(("%d session%s · gold is estimated"):format(n, n == 1 and "" or "s"))
         local avail = HME.Prices.Available()
         local s = HME.settings
-        foot.text:SetText(("Prices from: %s. Estimate: %s. Selling: %s. Profit counts: %s. Listings are what sellers ask, not sales.")
+        foot.full = ("Prices from: %s. Estimate: %s. Selling: %s. Profit counts: %s. Listings are what sellers ask, not sales.")
             :format(#avail > 0 and table.concat(avail, ", ") or "vendor only (Auctionator, TSM or Forever-GPS add auction prices)",
                 s.priceMode, s.saleMode == "best" and "whichever pays more" or s.saleMode,
-                s.profitScope == "total" and "skinning plus mob loot" or "skinning materials only"))
+                s.profitScope == "total" and "skinning plus mob loot" or "skinning materials only")
+        foot.text:SetText(("Gold figures: %s prices, %s estimate. Hover for details."):format(
+            #avail > 0 and table.concat(avail, ", ") or "vendor-only", s.priceMode or "typical"))
     end
 end
