@@ -2,6 +2,26 @@
 
 Measured with `tools/bench.lua` (`python tools/run_tests.py bench -v`) on the full bundled data, Lua 5.1 via lupa on the development PC, outside the game. In the game every search and route build runs as a background job of at most 8 ms per frame (4 ms in low-performance mode), and Forever-GPS's walking-grid batches run at its own planning share (4-12 ms per frame); these are total CPU times.
 
+## 0.3.0, 0.4.0 and 0.5.0 compared
+
+`python tools/perf_compare.py` runs the same script (`tools/perf.lua`) against each version's addon folder, taken from git, in today's test client: three fresh runs each, the middle value kept. Headless CPU time and Lua memory on the development PC (an i7-class desktop), **not game frame times**: the game also draws, measures text and runs other addons.
+
+| What | 0.3.0 | 0.4.0 | 0.5.0 |
+|---|---|---|---|
+| Load the addon (every file, data indexes) | 65 ms | 67 ms | 68 ms |
+| Memory after load | 3.31 MB | 3.37 MB | 3.41 MB |
+| Farm Finder, Skinning leveling (cold) | 43 ms | 44 ms | 41 ms |
+| Farm Finder, Skinning leveling (warm) | 3.3 ms | 3.7 ms | 3.3 ms |
+| Farm Finder, Medium Leather | 25 ms | 24 ms | 24 ms |
+| Open the window and build every page | 17 ms | 17 ms | 17 ms |
+| Dashboard refresh | 0.1 ms | 0.1 ms | 0.1 ms |
+| 200 skin events (cast, loot, close) | 243 ms | 239 ms | 244 ms |
+| HUD update, detailed | 0.1 ms, 5.6 KB garbage | 0.1 ms, 7.2 KB | 0.1 ms, 7.2 KB |
+| Skinning levels update | 0.1 ms | 0.1 ms | 0.1 ms |
+| Memory at the end of the run | 8.71 MB | 8.90 MB | 8.94 MB |
+
+No path got slower. The redesign costs about 100 KB after load (art and font objects). The detailed HUD makes about 7 KB of garbage per update (once a second while shown), about 26 MB an hour, collected in small steps by the game; compact makes 2 KB. A skin event (with its session, goal, HUD and recorder updates) takes about 1.2 ms of CPU here; skins come every 20 seconds or more. Search and route work still runs as background jobs in the game (8 ms a frame), so these totals are spread over frames.
+
 ## Compared with 0.2.0
 
 | Workload | 0.2.0 | 0.3.0 |

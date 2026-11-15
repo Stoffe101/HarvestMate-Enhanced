@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.0 (development build, unreleased)
+
+### Fixed (found in the real client or by new tests, each reproduced first)
+- **The farming HUD's route title ran outside the panel** (real-client screenshot: "Hillsbrad Foothills - Skinning leveling" over the world beside a route-only HUD). The title had a start and no width. A route's name is now two lines, each fitted to the panel: the zone, then what for and the stop ("Skinning leveling · stop 1/12"); the full name is in the tooltip. Every text in the HUD now has a width inside it. `/hme hud reset` puts the HUD back.
+- **A failed or interrupted skinning cast could turn the next ordinary loot into a skin** (since 0.4.0's cast-start detection). Failed and interrupted casts now clear it.
+- A skin after a skinning cast but **without a named creature** is counted once, as uncertain, and `/hme diag` says how many.
+- **Skins during a manual pause** went into the session; now only the beast's yield record learns from them.
+- **New route asked everyone without GatherMate2 to install it**, though HME always has nodes (bundled spawns, your gathers, GatherMate2 when there).
+- **The route pages were laid out for a 540-wide page** (HME's is 738): buttons ran past their row. Rows now have room for three lines; the terrain note no longer names a git branch or says "straight lines" twice. Zone names fall back to HME's bundled names before "Map 1424".
+- **The detailed HUD showed "0 s" and "0c/h"** in its time split, and repeated the stop count; only parts with something in them show now.
+
+### New
+- **Route Inspector** (Inspect on each route): length (walked only when legs were walked, else the straight loop), lap time at your speed, how much follows the terrain, approximate and long legs to check, what it is for, your sessions on it (a measured rate only after an hour over two sessions), the stop nearest you, Follow and Waypoints.
+- **Practical alternatives** in the Farm Finder: the best farm from the same search with clearly lower risk and at least 70% of the goal's number, and, for a far farm, the closest with half the travel and 80% of the number.
+- **Materials** as an encyclopedia entry: opens on your profession with a material selected; skill needed and your colour in words, price (auction estimate or vendor), what you gathered and where, the zones with your side, Farm this, Add goal.
+- **Profits & Stats** opens with the period at a glance: farming time with travel and idle, what was gathered, skill-ups with an estimated value, and a trend of skill-ups an hour over the last 12 sessions.
+- **Skinning levels: compact mode** (a chevron in its title row): skill, highest and best levels, the next unlock and your target.
+- `/hme diag` has an **Interface** line: font in use (and whether Inter loaded), corners, window scale and fitted scale, HUD state and size, Skinning levels.
+
+### Tools and tests
+- Previews: a **text outside its panel** check (respecting scroll clipping), which flags the 0.4.0 HUD; 16 new states (the HUD route-only in every size, travelling, nothing recognised, session only, paused; Skinning levels with targets and compact; Routes with a route; the Route Inspector); the gallery shows **before and after** against the approved baseline.
+- `tools/perf.lua` and `tools/perf_compare.py`: the same headless measurements against any versions (docs/PERFORMANCE.md).
+- New tests: `test_hud.lua` (every HUD text bounded, in every state and size; fails on 0.4.0), `test_skincount.lua` (ten skin-counting cases), the GatherMate2 message, the Route Inspector, alternatives, the compact levels box.
+
+### Forever-GPS (feature/public-api)
+- The intermittent `manyReroutesInAMinute_pause` failure: reproduced every time at an ordinary machine speed. The test assumed a fast machine (planning slices use real time); it now sets the machine's speed, with new variants for ordinary and slow machines. Not a product bug.
+
 ## 0.4.0 (development build, unreleased)
 
 ### Fixed (found in the real client, reproduced in tests)

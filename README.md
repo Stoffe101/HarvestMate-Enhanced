@@ -2,7 +2,7 @@
 
 An all-in-one gathering companion for **World of Warcraft: Forever** (1.60.1, interface 16001): where to level Herbalism, Mining, Skinning and Fishing, which farms pay best for *your* character, routes drawn on the world map and minimap, Skinning treated as real hunting (beast clusters, kill time, respawns), goals and staged leveling plans, one-key gathering, and session statistics that teach the recommendations what you actually achieve — with every estimate saying what it rests on.
 
-Version 0.4.0 (development build). Loads in the real game client; the 0.4.0 interface and fixes are tested headless only so far: see [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). A personal-use project: no public releases.
+Version 0.5.0 (development build). What has been seen in the real game client: 0.3.0 and 0.4.0 load, `/hme diag` and `/fgps diag` work, and two screenshots of 0.4.0 (Farm Finder, Dashboard, the farming HUD) led to the fixes in 0.4.0 and 0.5.0. The 0.5.0 changes themselves are tested headless only so far: see [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). A personal-use project: no public releases.
 
 It brings three addons together into one coherent addon, one window, one minimap button and one saved database:
 
@@ -34,7 +34,7 @@ Optional addons HME uses when present: Forever-GPS (navigation, prices, and with
 
 HME detects the API at login and uses each part it finds. Going back to the released Forever-GPS needs nothing in HME.
 
-**Before trusting it in the game**, run the checklist in [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md) (items 37-62 came with 0.3.0, 63-76 with 0.4.0). Everything so far is tested only headless; see [TESTING.md](TESTING.md#verified-where).
+**Before trusting it in the game**, run the checklist in [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md) (items 37-62 came with 0.3.0, 63-76 with 0.4.0, 77-88 with 0.5.0). Everything so far is tested only headless; see [TESTING.md](TESTING.md#verified-where).
 
 ## Using it
 

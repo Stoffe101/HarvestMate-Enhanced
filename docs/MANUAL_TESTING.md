@@ -105,3 +105,17 @@ Install Forever-GPS from the branch `feature/public-api` for 37-44 and 54-56 (RE
 74. [ ] **Goals**: add several materials: one calm row each (icon, name, bags and gathered, count and bar, Best farm, x).
 75. [ ] **Leveling Guides** open on Skinning; the bar under the ranges is filled to your skill with a white diamond where you are and brass ticks at 50, 125 and 200.
 76. [ ] **Look**: header with faint contour lines and a brass rule, "HarvestMate" white and "Enhanced" in brass, medallions round profession icons. Readable over a bright zone. If text shows as boxes: Settings, General, Interface font: Game font, and tell me.
+
+### 0.5.0
+77. [ ] **The HUD title stays inside.** Follow a farm from the Farm Finder (Start farming) and do not gather yet. The HUD shows "Hillsbrad Foothills" (or your zone) on one line and "Skinning leveling · stop 1/12" under it, both inside the panel, in compact, normal and detailed (the chevron in the HUD's title). Hover the HUD: the full route name. Screenshot it for me either way.
+78. [ ] `/hme hud reset` puts the HUD back at the top right; dragging it, then /reload, keeps it where you put it.
+79. [ ] **Skins, case by case.** Skin five beasts: five. Start a skin and move to interrupt it, then loot a corpse: no skin. Pause the session (right-click the HUD), skin one: the session does not count it. `/hme diag` "Skin detection" shows the counts, including failed casts and uncertain skins.
+80. [ ] **Skinning levels compact.** The chevron beside its × switches to compact (no strip, no zone list); target a beast in both modes.
+81. [ ] **Route Inspector.** Routes, Inspect on a route: length, a lap, how much follows the terrain, legs to check, your sessions, the stop nearest you. Escape closes it; so does closing the window.
+82. [ ] **New route without GatherMate2** never asks you to install it; it lists herbs and ores from HME's own data.
+83. [ ] **Routes rows** fit the page: Edit, Rebuild, Delete, Waypoints, Follow and Inspect all inside the row.
+84. [ ] **Farm Finder alternatives.** Pick a farm with Moderate or higher risk: Overview names a lower-risk farm with its share of the skill-ups; a far farm names a closer one.
+85. [ ] **Materials** opens on Skinning with a material selected; the tiles show skill needed and your colour, a price and what you gathered.
+86. [ ] **Profits & Stats**: the three totals and the trend bars match your sessions; hover the bars.
+87. [ ] `/hme diag` has an **Interface** line; "font Inter" means the bundled font loaded.
+88. [ ] Everything at the largest UI scale and at your usual one: nothing outside its panel, nothing cut.
