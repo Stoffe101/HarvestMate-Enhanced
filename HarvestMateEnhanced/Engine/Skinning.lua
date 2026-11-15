@@ -395,7 +395,8 @@ function Sk.ClearCache() areaCacheVersion = -1 end
 -- Returns areas sorted by weight, each:
 --   { mapID, cx, cy (map 0-1), yx, yy (yards), radius (yards), spawns,
 --     beasts = { [npcID] = { beast, elig, count } }, points = { {x,y}... } }
-function Sk.Areas(mapID, profile, goal, mode, targets)
+function Sk.Areas(mapID, profile, goal, mode, targets, npcs)
+    if npcs then return Sk.AreasUncached(mapID, profile, goal, mode, targets, npcs) end
     -- Cached per map, goal, mode, skill and level while the data is unchanged
     -- (material searches are not cached: their targets vary).
     local key
@@ -412,7 +413,9 @@ function Sk.Areas(mapID, profile, goal, mode, targets)
     return areas, cands
 end
 
-function Sk.AreasUncached(mapID, profile, goal, mode, targets)
+-- npcs (0.6.0): { [npcID] = true } hunts only those creatures (the Skinning
+-- Explorer's "Hunt this creature"); every other beast weighs nothing.
+function Sk.AreasUncached(mapID, profile, goal, mode, targets, npcs)
     local w, h = Geo.MapYards(mapID)
     w, h = w or 1500, h or 1000
     local pts = {}
@@ -420,7 +423,9 @@ function Sk.AreasUncached(mapID, profile, goal, mode, targets)
     for _, c in ipairs(cands) do
         if c.elig.killable then
             local weight
-            if goal == "level" then
+            if npcs then
+                weight = npcs[c.beast.npcID] and 1 or 0
+            elseif goal == "level" then
                 weight = c.elig.chance or 0
             elseif goal == "material" and targets then
                 -- How much of the wanted material one skin gives (estimate or measured).

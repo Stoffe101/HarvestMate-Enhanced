@@ -89,6 +89,7 @@ Engine\Suggest.lua
 Engine\Bags.lua
 Engine\Quests.lua
 Engine\Copilot.lua
+Engine\Bestiary.lua
 
 # HarvestMate's gathering engine, continued (needs the session)
 Gather\Stats.lua
@@ -131,6 +132,7 @@ UI\PageFinder.lua
 UI\PageGoals.lua
 UI\PageGuides.lua
 UI\PageMaterials.lua
+UI\PageBeasts.lua
 UI\PageStats.lua
 UI\PageTrainers.lua
 UI\PageSettings.lua

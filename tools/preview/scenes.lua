@@ -216,6 +216,33 @@ Page("goals", "goals-many", "Goals & Plans: a long shopping list", "Goals & Plan
 
 Page("guides", "guides-skinning", "Leveling Guides: Skinning", "Leveling Guides")
 Page("materials", "materials", "Materials: the field guide", "Materials")
+
+-- The Skinning Explorer (0.6.0), with a drop journal for the beasts you skinned.
+Page("beasts", "explorer-empty-journal", "Skinning Explorer: skinnable now, best for you (nothing skinned yet)", "Skinning Explorer")
+do
+    local Bx = HME.Bestiary
+    local hits = Bx.Search({ text = "", filter = "zone" }, HME.Player.Profile())
+    for i, e in ipairs(hits) do
+        if i <= 4 then
+            HME.db.obs.skins[e.npcID] = { n = 40 - i * 7, qty = { [2318] = 30 - i * 4, [2319] = 18 - i * 3, [4232] = 2 }, items = {},
+                zones = { [1424] = 40 - i * 7 }, ups = 12 - i * 2, t = time() - i * 5000 }
+            HME.db.obs.mobs[e.npcID] = true
+            HME.db.obs.loot[e.npcID] = { n = 20, copper = 1600, vendor = 900 }
+        end
+    end
+end
+Page("beasts", "explorer", "Skinning Explorer: Hillsbrad beasts with your drop journal", "Skinning Explorer",
+    function() HME.Pages.beastsShow("hillsbrad") end)
+Page("beasts", "explorer-medium-leather", "Skinning Explorer: who gives Medium Leather, best for you first", "Skinning Explorer",
+    function() HME.Pages.beastsShow("medium leather") end)
+Page("beasts", "explorer-level", "Skinning Explorer: level 35 creatures", "Skinning Explorer", function()
+    HME.char.ui.bxFilter = "all"
+    HME.Pages.beastsShow("35")
+end)
+Page("beasts", "explorer-nothing", "Skinning Explorer: a search that finds nothing", "Skinning Explorer",
+    function() HME.Pages.beastsShow("zzzz") end)
+HME.char.ui.bxFilter = "canskin"
+HME.Pages.beastsShow("")
 Page("stats", "stats-history", "Profits & Stats: three weeks of history", "Profits & Stats")
 local keep = HME.db.sessions
 HME.db.sessions = {}

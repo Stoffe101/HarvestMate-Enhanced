@@ -223,7 +223,7 @@ end
 local function SkinResults(mapID, profile, query)
     local goal = BaseGoal(query.goal)
     local areaGoal = (goal == "level" and "level") or (goal == "material" and "material") or "profit"
-    local areas = HME.Skinning.Areas(mapID, profile, areaGoal, query.risk, query.targets)
+    local areas = HME.Skinning.Areas(mapID, profile, areaGoal, query.risk, query.targets, query.npcs)
     local out = {}
     -- Up to two circuits per zone, starting from the two best areas.
     local starts = 0
@@ -603,7 +603,9 @@ function R.Find(query, done, profile)
     query.risk = query.risk or (HME.settings and HME.settings.riskMode) or "balanced"
     local prof = query.prof
     local maps
-    if query.goal == "here" then
+    if query.maps then
+        maps = query.maps        -- a fixed list (the Skinning Explorer's "Hunt this creature")
+    elseif query.goal == "here" then
         local here = profile.mapID and Geo.ZoneOf(profile.mapID)
         maps = { here }
     else

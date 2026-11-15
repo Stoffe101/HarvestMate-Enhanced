@@ -30,6 +30,8 @@ local function Tabs()
           tip = "1-300 for each profession, with what to do next." },
         { key = "materials", label = "Materials", icon = "Interface\\Icons\\INV_Misc_Herb_07", build = P.materials,
           tip = "The field guide: every herb, ore, fish and hide, where it is, and its price." },
+        { key = "beasts", label = "Skinning Explorer", icon = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01", build = P.beasts,
+          tip = "Every beast: Skinning needed, what it gives per skin, what you skinned yourself, where it lives, and a hunt for it alone." },
         { key = "stats", label = "Profits & Stats", icon = "Interface\\Icons\\INV_Misc_Coin_02", build = P.stats,
           tip = "Sessions, measured rates, records and achievements." },
         { key = "trainers", label = "Trainers", icon = "Interface\\Icons\\INV_Misc_Book_11", build = P.trainers,
