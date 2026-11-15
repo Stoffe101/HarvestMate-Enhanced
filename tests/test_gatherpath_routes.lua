@@ -368,7 +368,8 @@ check(SwitchFor("Peacebloom"):IsOn() and SwitchFor("Silverleaf"):IsOn() and not 
 check(herbHead.all:GetText() == "Clear all", "then reads Clear all")
 for _, h in ipairs(ui.kindHeads) do
     local pt = h.all.__points[#h.all.__points]
-    check(pt[3] <= 0 and pt[2] + 84 <= 540 - 30, "Select all sits inside the list (not cut off at its top)")
+    -- (HME's window gives the page 738; GatherPath's own window gave 540)
+    check(pt[3] <= 0 and pt[2] + 84 <= 738 - 30, "Select all sits inside the list (not cut off at its top)")
 end
 check(GP.config.__h >= 556 + 100, "HME: the window has room for the longer list")
 Click(herbHead.all)

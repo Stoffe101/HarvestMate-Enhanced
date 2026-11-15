@@ -220,6 +220,24 @@ if gd then
     HME.Guidance.Stop()
 end
 HME.settings.hudSize = "normal"
+-- The Routes page with the farm's planned loop, and its inspector.
+do
+    HME.OpenWindow("routes")
+    local rp = HME.Window.frame.pages.routes
+    if rp and rp.Refresh then rp.Refresh() end
+    Settle()
+    Alone()
+    Write("routes-with-route", "Routes: a planned Skinning loop", "Routes and maps", { around = HME.Window.frame, pad = 16 })
+    local list = HME.Routes.db and HME.Routes.db.routes or {}
+    local first
+    for _, r in pairs(list) do first = first or r end
+    if first and HME.Routes.InspectRoute then
+        HME.Routes:InspectRoute(first)
+        Write("routes-inspector", "Route Inspector", "Routes and maps", { around = HME.Window.frame, pad = 16 })
+        if _G.HarvestMateEnhancedRouteInspector then _G.HarvestMateEnhancedRouteInspector:Hide() end
+    end
+    HME.Window.frame:Hide()
+end
 HME.Session.Start()
 cur = HME.Session.Current()
 for k, v in pairs(hudSession) do if type(v) ~= "table" or k == "counts" or k == "items" then cur[k] = v end end

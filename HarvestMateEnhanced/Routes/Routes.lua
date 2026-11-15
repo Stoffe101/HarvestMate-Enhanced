@@ -187,7 +187,11 @@ end
 ---------------------------------------------------------------------------
 function GP:MapName(mapID)
     local info = mapID and C_Map.GetMapInfo(mapID)
-    return info and info.name or ("Map " .. tostring(mapID))
+    if info and info.name then return info.name end
+    -- The bundled zone names, before a bare number.
+    local bundled = mapID and HME.ZoneData and HME.ZoneData.Name and HME.ZoneData.Name(mapID)
+    if type(bundled) == "string" and bundled ~= "" and not bundled:find("^Map ") then return bundled end
+    return "Map " .. tostring(mapID)
 end
 
 function GP:PlayerMap()

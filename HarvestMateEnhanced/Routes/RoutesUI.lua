@@ -12,8 +12,10 @@ local GP = ns.GP
 local HME = ns.HME
 local T = ns.Theme
 local C, Text, FlatButton, Card = T.C, T.Text, T.FlatButton, T.Card
+local U = HME.U
 
-local PAGE_W = T.WINDOW.PAGE_W
+-- HME's window gives a page 738 wide (GatherPath's own window gave 540).
+local PAGE_W = 738   -- (UI/Window.lua: 940 wide, a 170 sidebar; this file loads first)
 local WINDOW_H = T.WINDOW.H + 120   -- taller than the other addons' windows: room for more nodes
 local BODY_H = T.BodyHeight(WINDOW_H)
 local DROP_X = 52
@@ -95,7 +97,7 @@ end
 ---------------------------------------------------------------------------
 -- Routes tab
 ---------------------------------------------------------------------------
-local ROW_H = 74
+local ROW_H = 92   -- room for three lines of what the route is
 local INFO_W = PAGE_W - 16 - 84 - 40 - 10   -- from under the name to Show
 local routesZone   -- the map whose routes are listed
 
@@ -171,7 +173,7 @@ local function BuildRoutes(p)
             function(b, cr, cg, cb) GP:SetRouteColor(b.route, cr, cg, cb) end,
             "Line color", "Click to pick the color of this route's line.")
         r.swatch:SetPoint("TOPLEFT", 10, -8)
-        r.name = T.EditBox(r, 230)
+        r.name = T.EditBox(r, 190)
         r.name:SetPoint("LEFT", r.swatch, "RIGHT", 8, 0)
         local function rename(self)
             if r.route and self:GetText() ~= r.route.name then GP:RenameRoute(r.route, self:GetText()) end
@@ -210,9 +212,14 @@ local function BuildRoutes(p)
         r.points:SetScript("OnClick", function() if r.route then HME.RouteEditor.Start(r.route) end end)
         T.Tooltip(r.points, "Waypoints", "Edit this route on the world map: left-click adds a waypoint, right-click removes one, "
             .. "with Reverse, Undo and Cancel. Use it to steer round a cliff or into a cave entrance.")
+        r.inspect = FlatButton(r, "Inspect", 70, 20)
+        r.inspect:SetScript("OnClick", function() if r.route then GP:InspectRoute(r.route) end end)
+        T.Tooltip(r.inspect, "Inspect", "Length, lap time, how much follows the terrain, legs to check, what it is for, "
+            .. "and how it went for you.")
         r.follow = FlatButton(r, "Follow", 70, 20)
         r.follow:SetPoint("LEFT", r.points, "RIGHT", 6, 0)
         r.follow:SetScript("OnClick", function() if r.route then HME.Guidance.Start(r.route) end end)
+        r.inspect:SetPoint("LEFT", r.follow, "RIGHT", 6, 0)
         T.Tooltip(r.follow, "Follow", "Guide me round this route (Forever-GPS takes the trip there if it is far).")
         r.info = Text(r, "", "GameFontDisableSmall")
         r.info:SetPoint("TOPLEFT", 40, -38)
@@ -282,9 +289,11 @@ local function BuildRoutes(p)
         for i = #routes + 1, #rows do rows[i]:Hide(); rows[i].route = nil end
         scroll:SetContent(PAGE_W - 16, math.max(1, #routes * ROW_H), true)
         if #routes == 0 then
-            empty:SetText(true
-                and "No routes in this zone yet. Click New route to make one."
-                or "GatherPath needs GatherMate2, where the herb and ore nodes come from. Install it from CurseForge, then /reload.")
+            -- HME always has nodes (its bundled spawns), so this is only ever "none yet".
+            empty:SetText("No routes in this zone yet.\n\n"
+                .. "|cfff2f0e6New route|r makes a loop through the herbs and ores you pick.\n"
+                .. "|cfff2f0e6Record my route|r saves the way you walk, to follow again.\n"
+                .. "|cfff2f0e6Start farming|r in the Farm Finder makes one for a farm, Skinning circuits included.")
         else
             empty:SetText("")
         end
@@ -561,14 +570,13 @@ local function BuildNew(p, page)
         for i = ns_ + 1, #switches do switches[i]:Hide(); switches[i].label:Hide(); switches[i].entry = nil end
         scroll:SetContent(PAGE_W - 30, math.max(1, -yy), true)
 
-        if not GP:HasGatherMate() then
-            note:SetText("GatherPath needs GatherMate2, where the herb and ore nodes come from. "
-                .. "Install it from CurseForge, then /reload.")
-        elseif not newZone then
+        -- HME always has nodes: its bundled spawn points, your own gathers, and
+        -- GatherMate2's when installed (0.4.0 still asked for GatherMate2 here).
+        if not newZone then
             note:SetText("Pick a zone above, or click My zone for the one you're in.")
         elseif #nodes == 0 then
-            note:SetText("GatherMate2 has no nodes in " .. GP:MapName(newZone) .. " yet. Gather there (or import "
-                .. "GatherMate2 data), then come back.")
+            note:SetText("No herb or ore spawn points are known in " .. GP:MapName(newZone) .. " (bundled data, your own "
+                .. "gathers" .. (GP:HasGatherMate() and ", GatherMate2" or "") .. "). Gather there, then come back.")
         else
             note:SetText("")
         end
@@ -861,6 +869,103 @@ local TABS = {
     { key = "display", label = "Map display", icon = "Interface\\Icons\\INV_Misc_Spyglass_03", build = BuildDisplay },
 }
 GP.CONFIG_TABS = TABS
+
+-- The Route Inspector: a panel over the Routes page.
+local inspector
+function GP:InspectRoute(route)
+    local info = HME.RouteEditor.Inspect(route)
+    if not info then return end
+    local win = HME.Window and HME.Window.frame
+    local page = win and win.pages and win.pages.routes
+    if not page then return end
+    local K = HME.Kit
+    if not inspector then
+        local W = 520
+        -- Its own floating frame over the window (closes with it, and with Escape).
+        local f = CreateFrame("Frame", "HarvestMateEnhancedRouteInspector", UIParent)
+        f:SetSize(W, 360)
+        f:SetPoint("TOP", page, "TOP", 0, -40)
+        f:SetFrameStrata("FULLSCREEN_DIALOG")
+        f:EnableMouse(true)
+        f:Hide()
+        table.insert(UISpecialFrames, "HarvestMateEnhancedRouteInspector")
+        if page.HookScript then page:HookScript("OnHide", function() f:Hide() end) end
+        f.shadow = T.Shadow(f, 14)
+        f.bg = T.Surface(f, C.raised)
+        T.Outline(f, C.edge)
+        f.topo = T.Topo(f, C.brass, 0.05)
+        f.title = T.Text(f, "", "title", C.text, 17)
+        f.title:SetPoint("TOPLEFT", 16, -14)
+        f.title:SetWidth(W - 80)
+        f.title:SetWordWrap(false)
+        f.sub = T.Text(f, "", "meta")
+        f.sub:SetPoint("TOPLEFT", 16, -38)
+        f.sub:SetWidth(W - 32)
+        f.sub:SetWordWrap(false)
+        f.close = T.FlatButton(f, "×", 28, 26, "ghost")
+        f.close:SetPoint("TOPRIGHT", -8, -8)
+        f.close:SetScript("OnClick", function() f:Hide() end)
+        local tileW = (W - 32 - 12) / 3
+        f.tiles = {}
+        for i, label in ipairs({ "Length", "A lap", "Follows terrain" }) do
+            local t = K.Stat(f, label, tileW, 70)
+            t:SetPoint("TOPLEFT", 16 + (i - 1) * (tileW + 6), -62)
+            t.bg:Paint(C.field)
+            t.size = 20
+            f.tiles[i] = t
+        end
+        f.text = T.Text(f, "", "small")
+        f.text:SetPoint("TOPLEFT", 16, -146)
+        f.text:SetWidth(W - 32)
+        f.text:SetWordWrap(true)
+        if f.text.SetSpacing then f.text:SetSpacing(3) end
+        f.follow = T.FlatButton(f, "Follow", 90, 28, "primary")
+        f.follow:SetPoint("BOTTOMRIGHT", -14, 12)
+        f.edit = T.FlatButton(f, "Waypoints", 100, 28)
+        f.edit:SetPoint("RIGHT", f.follow, "LEFT", -8, 0)
+        inspector = f
+    end
+    local f = inspector
+    local q = info.quality
+    f.title:SetText(info.name or "Route")
+    f.sub:SetText(("%s  ·  %s  ·  %d stops"):format(GP:MapName(info.mapID) or "?", q.label or "", info.stops))
+    f.tiles[1]:Set(GP.FormatYards(info.length), info.length ~= info.straight and ("straight %s"):format(GP.FormatYards(info.straight))
+        or "straight lines")
+    f.tiles[2]:Set(U.Duration(info.lapSecs), ("at %.1f yd/s"):format(info.speed))
+    local share = math.floor((info.terrainShare or 0) * 100 + 0.5)
+    f.tiles[3]:Set(share .. "%", (info.approxLegs or 0) > 0 and (info.approxLegs .. " approximate legs") or "every leg walked",
+        share >= 90 and C.accent or (share > 0 and C.warning or C.text3))
+    local lines = {}
+    lines[#lines + 1] = "|cff999b8fSource|r  " .. (q.source or "?") .. (info.laps > 0 and ("  ·  %d laps ridden"):format(info.laps) or "")
+    if (info.longLegs or 0) > 0 then
+        lines[#lines + 1] = ("|cfff5a345%d long leg%s to check|r: straight lines over 350 yards can hide a cliff or water.")
+            :format(info.longLegs, info.longLegs == 1 and "" or "s")
+    end
+    if (info.pendingLegs or 0) > 0 then
+        lines[#lines + 1] = ("|cff999b8fTerrain|r  %d legs still being walked in the background."):format(info.pendingLegs)
+    end
+    if #info.kinds > 0 then lines[#lines + 1] = "|cff999b8fFor|r  " .. table.concat(info.kinds, ", ") end
+    local s = info.sessions
+    if s.n == 0 then
+        lines[#lines + 1] = "|cff999b8fYour sessions|r  none yet on this route."
+    elseif s.perHour and s.enough then
+        lines[#lines + 1] = ("|cff999b8fYour sessions|r  %d, %.1f h: about %s gathers an hour (measured)."):format(s.n, s.hours,
+            U.Thousands(s.perHour))
+    else
+        lines[#lines + 1] = ("|cff999b8fYour sessions|r  %d, %.1f h: not enough yet for a rate (an hour over two sessions)."):format(
+            s.n, s.hours)
+    end
+    if info.start then
+        lines[#lines + 1] = ("|cff999b8fStart|r  stop %d is nearest you (%s)."):format(info.start.index, GP.FormatYards(info.start.yards))
+    end
+    lines[#lines + 1] = K.Paint("A recorded path proves the line you walked, not the ground around it.", T.HEX.text3)
+    f.text:SetText(table.concat(lines, "\n"))
+    f:SetHeight(146 + (f.text:GetStringHeight() or 80) + 62)
+    f.follow:SetScript("OnClick", function() HME.Guidance.Start(route) f:Hide() end)
+    f.edit:SetScript("OnClick", function() HME.RouteEditor.Start(route) f:Hide() end)
+    f:Show()
+    return info
+end
 GP.RESET_NEW = function() ResetNew() end
 
 -- The window is HME's; GatherPath's tab keys map onto its pages.

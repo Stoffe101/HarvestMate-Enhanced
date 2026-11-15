@@ -265,13 +265,86 @@ function E.Quality(route)
         q.observed = true
     end
     local parts = { q.label, q.source }
-    if q.label == "Approximate" then parts[#parts + 1] = "straight lines, terrain unknown" end
     local tt = T and T.Text(route)
-    if tt and not route.recorded then parts[#parts + 1] = tt end
+    -- One note about the terrain, not two ("straight lines" twice in 0.4.0).
+    if tt and not route.recorded then parts[#parts + 1] = tt
+    elseif q.label == "Approximate" then parts[#parts + 1] = "straight lines, terrain unknown" end
     if long > 0 and q.trust ~= "recorded" then parts[#parts + 1] = long .. " long leg" .. (long == 1 and "" or "s") .. " to check" end
     if q.laps > 0 then parts[#parts + 1] = q.laps .. " lap" .. (q.laps == 1 and "" or "s") .. " ridden" .. (q.observed and " (observed)" or "") end
     q.text = table.concat(parts, " · ")
     return q
+end
+
+-- The Route Inspector: everything known about a route, in one table.
+--   length (yards walked, or the straight loop), straight, lapSecs, stops,
+--   terrainShare (0-1 of legs walked on the grid), approxLegs, longLegs,
+--   quality (E.Quality), laps, kinds, sessions (your sessions on it, with
+--   farming hours and gathers an hour when there is enough), start (the
+--   stop nearest you, when you are in its zone).
+-- Recorded paths prove only the line walked, not the ground around it.
+function E.Inspect(route)
+    if type(route) ~= "table" then return nil end
+    local GP = HME.Routes
+    local q = E.Quality(route)
+    local t = q.terrain
+    local out = { name = route.name, mapID = route.mapID, quality = q, laps = route.laps or 0 }
+    local straight = route.length or (GP and GP.RouteLength and GP:RouteLength(route)) or 0
+    out.straight = straight
+    -- Walked length only when legs were walked; else the straight loop.
+    out.length = (t and (t.walked or 0) > 0 and (t.walk or 0) > 0) and t.walk or (route.recorded and route.walkLength) or straight
+    out.stops = math.floor(#(route.points or {}) / 2)
+    local speed = (GP and GP.Speed and GP:Speed()) or 7
+    out.speed = speed
+    out.lapSecs = out.length / math.max(1, speed)
+    if route.recorded then
+        out.terrainShare, out.approxLegs = 1, 0
+    elseif t and (t.legs or 0) > 0 then
+        out.terrainShare = (t.walked or 0) / t.legs
+        out.approxLegs = t.approx or 0
+        out.pendingLegs = t.missing or 0
+    else
+        out.terrainShare, out.approxLegs = 0, out.stops
+    end
+    out.longLegs = q.longLegs or 0
+    -- What the loop is for.
+    local kinds = {}
+    for kind, names in pairs(route.kinds or route.picked or {}) do
+        if type(names) == "table" then
+            for name in pairs(names) do kinds[#kinds + 1] = tostring(name) end
+        else
+            kinds[#kinds + 1] = tostring(kind)
+        end
+    end
+    table.sort(kinds)
+    out.kinds = kinds
+    -- Your sessions on it (sessions remember the route's name).
+    local n, secs, gathers, value = 0, 0, 0, 0
+    for _, s in ipairs((HME.db and HME.db.sessions) or {}) do
+        if s.route and s.route == route.name then
+            n = n + 1
+            secs = secs + (s.farmSecs or s.secs or 0)
+            local c = s.counts or {}
+            gathers = gathers + (c.herb or 0) + (c.mine or 0) + (c.skin or 0) + (c.fish or 0)
+            value = value + (s.value or 0)
+        end
+    end
+    out.sessions = { n = n, hours = secs / 3600, gathers = gathers, value = value,
+        perHour = (secs >= 1800 and n >= 1) and gathers / (secs / 3600) or nil,
+        enough = secs >= 3600 and n >= 2 }
+    -- Where to start: the stop nearest you, when you are in its zone.
+    local mapID, x, y = HME.Player.Position()
+    local zMap, zx, zy
+    if mapID then zMap, zx, zy = HME.Geo.ZoneOf(mapID, x, y) end
+    if zMap and zMap == route.mapID and zx and out.stops > 0 then
+        local best, bd = 1, math.huge
+        local p = route.points
+        for i = 1, out.stops do
+            local d = HME.Geo.Distance(route.mapID, zx, zy, p[2 * i - 1], p[2 * i])
+            if d and d < bd then best, bd = i, d end
+        end
+        out.start = { index = best, yards = bd }
+    end
+    return out
 end
 
 -- Laps ridden with HME's guidance count as verification.

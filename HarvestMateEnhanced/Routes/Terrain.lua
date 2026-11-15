@@ -48,7 +48,7 @@ end
 
 function T.Available(mapID)
     local api = API()
-    if not api then return false, "needs Forever-GPS with its API v2 (branch feature/public-api)" end
+    if not api then return false, "needs Forever-GPS 2.7 or later" end
     local ok, has = pcall(api.HasTerrain, mapID)
     if not (ok and has) then return false, "Forever-GPS has no walking grid for this map" end
     return true

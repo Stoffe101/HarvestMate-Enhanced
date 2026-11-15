@@ -343,3 +343,45 @@ Click(_G.HarvestMateEnhancedSkinLevels.close)
 check(not HME.SkinTracker.Shown(), "its x closes it")
 HME.OpenWindow("guides")
 check(#(ERRORS or {}) == 0, "no errors: " .. tostring(ERRORS and ERRORS[1]))
+
+STEP("without GatherMate2, the route pages never ask for it: HME has its own nodes")
+local savedGM = _G.GatherMate2
+_G.GatherMate2 = nil
+for _, key in ipairs({ "routes", "newroute" }) do
+    HME.OpenWindow(key)
+    local pg = HME.Window.frame.pages[key]
+    if pg and pg.Refresh then pg.Refresh() end
+    RunTimers(0.5)
+    local found
+    Walk(pg, 0, function(f)
+        local t = rawget(f, "__text")
+        if type(t) == "string" and t:find("GatherMate2, where the herb", 1, true) then found = t end
+    end)
+    check(not found, key .. ": no request to install GatherMate2: " .. tostring(found))
+end
+_G.GatherMate2 = savedGM
+
+STEP("Route Inspector: honest length, a rate only with enough sessions")
+do
+    local route = { name = "Inspect test loop", mapID = 1429, points = { 0.40, 0.40, 0.45, 0.42, 0.43, 0.48 }, length = 300 }
+    route.terrain = { state = "none", legs = 3, walked = 0, approx = 3, walk = 999, sig = "x" }
+    local info = HME.RouteEditor.Inspect(route)
+    eq(info.stops, 3, "three stops")
+    eq(info.length, 300, "nothing walked: the straight loop, not a guessed walk")
+    check(info.lapSecs > 0, "a lap time")
+    check(info.sessions.n == 0 and info.sessions.perHour == nil, "no sessions, no rate")
+    local saved = HME.db.sessions
+    HME.db.sessions = { { route = "Inspect test loop", farmSecs = 600, counts = { skin = 20 }, value = 0 } }
+    info = HME.RouteEditor.Inspect(route)
+    check(not info.sessions.enough, "10 minutes is not enough for a measured rate")
+    HME.db.sessions = { { route = "Inspect test loop", farmSecs = 2400, counts = { skin = 60 } },
+                        { route = "Inspect test loop", farmSecs = 2400, counts = { skin = 70 } } }
+    info = HME.RouteEditor.Inspect(route)
+    check(info.sessions.enough and math.abs(info.sessions.perHour - 97.5) < 0.1, "80 minutes over two sessions: 97.5 an hour")
+    HME.db.sessions = saved
+    HME.OpenWindow("routes")
+    local shown = HME.Routes:InspectRoute(route)
+    check(shown and _G.HarvestMateEnhancedRouteInspector:IsShown(), "the inspector opens over the Routes page")
+    HME.Window.frame:Hide()
+    check(not _G.HarvestMateEnhancedRouteInspector:IsShown() or not HME.Window.frame:IsShown(), "and goes with the window")
+end
