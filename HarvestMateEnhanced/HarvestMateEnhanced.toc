@@ -76,6 +76,7 @@ Engine\Skinning.lua
 Engine\Gathering.lua
 Engine\Learning.lua
 Engine\Evidence.lua
+Engine\Ledger.lua
 Engine\Corrections.lua
 Engine\Session.lua
 Engine\Recommend.lua
@@ -85,6 +86,9 @@ Engine\Goals.lua
 Engine\Expedition.lua
 Engine\Records.lua
 Engine\Suggest.lua
+Engine\Bags.lua
+Engine\Quests.lua
+Engine\Copilot.lua
 
 # HarvestMate's gathering engine, continued (needs the session)
 Gather\Stats.lua
@@ -122,6 +126,7 @@ Integrations\Crafting.lua
 UI\Kit.lua
 UI\Window.lua
 UI\PageDashboard.lua
+UI\PageCopilot.lua
 UI\PageFinder.lua
 UI\PageGoals.lua
 UI\PageGuides.lua

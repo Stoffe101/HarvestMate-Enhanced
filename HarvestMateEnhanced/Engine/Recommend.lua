@@ -681,6 +681,8 @@ function R.Find(query, done, profile)
                             table.insert(r.risk.reasons, 1, "you marked it dangerous")
                         end
                     end
+                    -- Your past sessions against their predictions (Engine/Ledger.lua).
+                    if HME.Ledger then HME.Ledger.Calibrate(r) end
                     HME.Evidence.Apply(r, query.goal)
                     r.tripShare = TimeShare(r.travel)
                     r.tripGph = r.metrics.range.mid * r.tripShare

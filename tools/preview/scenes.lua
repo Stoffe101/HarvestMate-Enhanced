@@ -98,6 +98,12 @@ for i = 1, 26 do
                     skillups = math.floor(skins * 0.4), value = skins * 2100, travel = 120, items = {} } },
         route = i % 3 == 0 and "Hillsbrad bears" or nil,
     }
+    -- The last eight followed a planned farm: what was predicted, for the ledger.
+    if i >= 19 then
+        local a = HME.db.sessions[i].areas[1]
+        local h = secs / 3600
+        a.predicted = { skins = skins / h * 1.25, beasts = skins / h * 1.25, skill = math.floor(skins * 0.4) / h * 1.2 }
+    end
 end
 
 -----------------------------------------------------------------------------
@@ -107,6 +113,52 @@ local win = HME.OpenWindow("dashboard")
 Settle()
 
 Page("dashboard", "dashboard-skinning", "Dashboard: Skinning only, not farming", "Dashboard")
+
+-- The Farming Copilot (0.6.0): its modes, a time budget, quests, training.
+local Co = HME.Copilot
+HME.Ledger.Forget()   -- the history above was written straight into the save
+local function Copilot(name, title, setup)
+    Page("copilot", name, title, "Copilot", function()
+        if setup then setup() end
+        Settle()
+        Co.Evaluate(true)
+        Settle()
+        HME.Window.frame.pages.copilot.Refresh()
+    end)
+end
+Copilot("copilot-level", "Copilot: level 41, Skinning 143, opens HME", function() Co.SetMode("level") Co.SetMinutes(0) end)
+Copilot("copilot-short", "Copilot: 25 minutes for Medium Leather", function() Co.SetMode("short") Co.SetMinutes(30) end)
+Copilot("copilot-profit", "Copilot: most gold", function() Co.SetMode("profit") Co.SetMinutes(60) end)
+Copilot("copilot-safe", "Copilot: lower risk on a PvP server", function() Co.SetMode("safe") Co.SetMinutes(0) end)
+Copilot("copilot-explore", "Copilot: explore unmeasured farms", function() Co.SetMode("explore") end)
+Copilot("copilot-proven", "Copilot: my proven farms (none measured yet)", function() Co.SetMode("proven") end)
+do
+    local quests = { { questID = 501, title = "Bloodwing Bat Bounty, a Very Long Quest Title for Testing",
+        objectives = { { text = "Bloodwing Bat slain: 3/12", type = "monster", finished = false } } } }
+    C_QuestLog = {
+        GetNumQuestLogEntries = function() return #quests end,
+        GetInfo = function(i) local q = quests[i] return q and { questID = q.questID, title = q.title } end,
+        GetQuestObjectives = function(id) return quests[1].objectives end,
+        IsComplete = function() return false end,
+    }
+    HME.QuestSynergy.Rebuild()
+    Copilot("copilot-quest", "Copilot: with my quests", function() Co.SetMode("quest") end)
+    Co.SetMode("level")
+    Copilot("copilot-quest-side", "Copilot: leveling, with a quest farm on the side", function() Co.SetMode("level") end)
+    C_QuestLog = nil
+    HME.QuestSynergy.Rebuild()
+end
+Profs({ Skinning = { 150, 150 } })
+HME.Player.Refresh()
+Copilot("copilot-capped", "Copilot: Skinning at its cap (train first)", function() Co.Invalidate("player") end)
+Profs({})
+HME.Player.Refresh()
+Copilot("copilot-no-professions", "Copilot: no gathering profession", function() Co.Invalidate("player") end)
+Profs({ Skinning = { 143, 225 } })
+HME.Player.Refresh()
+Co.SetMode("level")
+Co.SetMinutes(0)
+Co.Invalidate("player")
 
 -- The 43-minute session that counted no skins: in combat on and off, no skin seen.
 HME.Session.Start()

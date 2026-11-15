@@ -52,7 +52,8 @@ local function Describe(r, goal)
     -- What was predicted, to compare with the session later.
     local m = r.metrics or {}
     d.predicted = { skill = m.skillPerHour, gph = m.gph and m.gph.typical, nodes = m.nodesPerHour,
-        beasts = m.beastsPerHour, catches = m.catchesPerHour, skins = r.prof == "Skinning" and m.beastsPerHour or nil }
+        beasts = m.beastsPerHour, catches = m.catchesPerHour, skins = r.prof == "Skinning" and m.beastsPerHour or nil,
+        calib = r.calibrated and r.calibrated.factor, skillCalib = r.calibrated and r.calibrated.skill }
     -- Materials an hour, for "expected vs observed" while farming.
     if r.prof == "Skinning" and m.items and m.beastsPerHour then
         d.predicted.items = {}

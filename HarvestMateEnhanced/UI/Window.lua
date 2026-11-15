@@ -20,6 +20,8 @@ local function Tabs()
     local tabs = {
         { key = "dashboard", label = "Dashboard", icon = "Interface\\Icons\\INV_Misc_Book_09", build = P.dashboard,
           tip = "Your gathering professions, the farm you are following and this session." },
+        { key = "copilot", label = "Copilot", icon = "Interface\\Icons\\Ability_Hunter_Pathfinding", build = P.copilot,
+          tip = "What to farm now and why: one recommendation for your mode and time, with its evidence." },
         { key = "finder", label = "Farm Finder", icon = "Interface\\Icons\\INV_Misc_Spyglass_02", build = P.finder,
           tip = "Where to farm for skill, gold or a material, ranked for this character." },
         { key = "goals", label = "Goals & Plans", icon = "Interface\\Icons\\INV_Misc_Note_06", build = P.goals,

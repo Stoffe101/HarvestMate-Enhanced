@@ -23,6 +23,18 @@ local PROF_H = 142
 
 -- The one thing worth doing now: { icon, title, text, button, run }.
 local function NextStep(profile)
+    -- The Copilot's pick first (0.6.0): the same advice as its page.
+    local top = HME.Copilot and HME.Copilot.Top()
+    if top and top.action then
+        local parts = {}
+        if top.objective then parts[#parts + 1] = top.objective end
+        if top.benefit and top.benefit.text then parts[#parts + 1] = top.benefit.text end
+        if top.travel then parts[#parts + 1] = U.Duration(top.travel) .. " away" end
+        local text = table.concat(parts, "  ·  ")
+        return { icon = top.result and K.PROF_ICON[top.result.prof] or "Interface\\Icons\\Ability_Hunter_Pathfinding",
+            kicker = "Copilot suggests", title = top.title, text = text, button = top.action.label or "Do it",
+            run = function() HME.Copilot.Run(top.action) end, more = function() HME.OpenWindow("copilot") end }
+    end
     local s = HME.Suggest.Actionable()
     if s then
         return { icon = "Interface\\Icons\\INV_Misc_Note_02", kicker = "Suggested", title = s.title or "A suggestion", text = s.text,
@@ -147,6 +159,9 @@ HME.Pages.dashboard = function(body, page)
     hero.text:SetPoint("TOPLEFT", 90, -56)
     hero.go = K.Button(hero, "", 160, 32, function(self) if self.run then self.run() end end, nil, "primary")
     hero.go:SetPoint("RIGHT", -18, 0)
+    hero.why = K.Button(hero, "Why?", 60, 32, function(self) if self.run then self.run() end end,
+        "The Copilot page: its reasons, confidence, other options and what it learned from your sessions.", "ghost")
+    hero.why:SetPoint("RIGHT", hero.go, "LEFT", -6, 0)
     refs.hero = hero
 
     ---------------------------------------------------------------- farming now
@@ -392,6 +407,8 @@ HME.Pages.dashboard = function(body, page)
             hero.text:SetText(step.text or "")
             hero.go:SetText(step.button)
             hero.go.run = step.run
+            hero.why.run = step.more
+            hero.why:SetShown(step.more ~= nil)
             y = Stack({ hero }, y)
         end
 
