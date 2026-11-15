@@ -271,6 +271,10 @@ do
     FireEvent("PLAYER_TARGET_CHANGED")
     if box then Write("skinlevels-target-strong", "Skinning levels, an unknown creature far above you", "Skinning levels",
         { around = box, pad = 16 }) end
+    HME.settings.skinLevelsCompact = true
+    HME.SkinTracker.Update()
+    if box then Write("skinlevels-compact", "Skinning levels, compact, with a target", "Skinning levels", { around = box, pad = 16 }) end
+    HME.settings.skinLevelsCompact = false
     UnitExists, UNIT_LEVELS, UNIT_GUIDS = realExists, nil, nil
     FireEvent("PLAYER_TARGET_CHANGED")
 end

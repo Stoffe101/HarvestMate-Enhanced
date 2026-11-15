@@ -295,7 +295,10 @@ function H.Update()
             end
         end
         if g then
-            if size == "detailed" and g.phaseText then lines[#lines + 1] = g.phaseText end
+            -- The phase in words only when the title's "stop N/M" does not already say it.
+            if size == "detailed" and g.phaseText and (g.phase ~= "farm" or g.present or g.mode == "free" or g.holdID) then
+                lines[#lines + 1] = g.phaseText
+            end
             local owner = HME.Guidance.ArrowOwner()
             if owner then lines[#lines + 1] = K.Paint("Arrow: " .. owner, T.HEX.text3) end
         end
@@ -305,8 +308,15 @@ function H.Update()
         if live and live.verdict then lines[#lines + 1] = live.verdict.text end
         local cmp = HME.Records.Compare()
         if cmp then lines[#lines + 1] = cmp.text end
-        lines[#lines + 1] = K.Paint(("Trip with %s travel: %s/h · combat %s, gathering %s, idle %s"):format(U.Duration(r.travelSecs),
-            K.Money(r.tripGph, true), U.Duration(r.combatSecs), U.Duration(r.gatherSecs), U.Duration(r.idleSecs)), T.HEX.text3)
+        -- Only the parts that have something in them (no "0 s" and "0c/h").
+        local split = {}
+        if (r.combatSecs or 0) >= 1 then split[#split + 1] = "combat " .. U.Duration(r.combatSecs) end
+        if (r.gatherSecs or 0) >= 1 then split[#split + 1] = "gathering " .. U.Duration(r.gatherSecs) end
+        if (r.idleSecs or 0) >= 1 then split[#split + 1] = "idle " .. U.Duration(r.idleSecs) end
+        if (r.travelSecs or 0) >= 1 and (r.tripGph or 0) > 0 then
+            split[#split + 1] = ("with %s travel %s/h"):format(U.Duration(r.travelSecs), K.Money(r.tripGph, true))
+        end
+        if #split > 0 then lines[#lines + 1] = K.Paint(table.concat(split, " · "), T.HEX.text3) end
     end
     f.text:SetText(table.concat(lines, "\n"))
     f.text:SetShown(#lines > 0)

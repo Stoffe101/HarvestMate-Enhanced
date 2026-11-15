@@ -73,6 +73,22 @@ function D.Lines()
     end
     Add("Other addons loaded: %s", #others > 0 and table.concat(others, ", ") or "none of the known ones")
     Add("Prices: %s", #HME.Prices.Available() > 0 and table.concat(HME.Prices.Available(), ", ") or "vendor only")
+    -- The interface, for layout reports: what is shown, where, and in which font.
+    do
+        local st = HME.settings or {}
+        local hud = HME.HUD and HME.HUD.Frame and HME.HUD.Frame()
+        local T = ns.Theme
+        local inter = T and T.FontObject and T.FontObject("body") ~= nil
+        local win = HME.Window and HME.Window.frame
+        local hw = hud and hud.GetWidth and hud:GetWidth()
+        Add("Interface: font %s%s; corners %s; window scale %s (fitted %s); HUD %s, %s, %s%s; Skinning levels %s",
+            inter and "Inter" or "game font", st.uiFont == "game" and " (chosen)" or (inter and "" or " (Inter did not load)"),
+            st.uiRounded == false and "square" or "rounded", tostring(st.scale or 1),
+            win and win.fitScale and ("%.2f"):format(win.fitScale) or "-",
+            (hud and hud:IsShown()) and ("shown, %d wide"):format(hw or 0) or "hidden", tostring(st.hudSize or "normal"),
+            st.hudLocked and "locked" or "movable", (HME.char and HME.char.ui and HME.char.ui.hud) and ", moved by you" or "",
+            (HME.SkinTracker and HME.SkinTracker.Shown and HME.SkinTracker.Shown()) and "shown" or "hidden")
+    end
     -- Character (no name): level, faction, professions
     local profile = HME.Player.Profile()
     local profs = {}

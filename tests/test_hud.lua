@@ -163,3 +163,18 @@ eq(p[1], HME.HUD.DEFAULT[1], "back at the default point")
 SlashCmdList.HARVESTMATEENHANCED("hud reset")
 check(#(ERRORS or {}) == 0, "no errors: " .. tostring(ERRORS and ERRORS[1]))
 HME.Session.Stop("test")
+
+STEP("Skinning levels: compact keeps the essentials")
+HME.settings.skinLevels = true
+HME.settings.skinLevelsCompact = false
+HME.SkinTracker.Update()
+local box = _G.HarvestMateEnhancedSkinLevels
+local fullH = box:GetHeight()
+check(box.zone:IsShown(), "full: this zone's beasts")
+Click(box.size)
+check(HME.settings.skinLevelsCompact, "the chevron switches to compact")
+check(not box.zone:IsShown() and not box.places:IsShown() and not box.strip:IsShown(), "compact: no zone list, no strip")
+check(box.max:IsShown() and box.kill:IsShown(), "the highest level and the best levels stay")
+check(box:GetHeight() < fullH, ("smaller (%d < %d)"):format(box:GetHeight(), fullH))
+Click(box.size)
+check(not HME.settings.skinLevelsCompact and box.zone:IsShown(), "and back")

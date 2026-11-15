@@ -288,7 +288,17 @@ local function Build()
     T.Tooltip(f.close, "Hide", "Open it again from the Dashboard's Skinning card, the Skinning leveling guide, "
         .. "Shift-click on the minimap button, a key binding, or /hme sl.")
     f.skill = T.Text(f.head, "", "strong", nil, 11)
-    f.skill:SetPoint("RIGHT", f.close, "LEFT", -4, 0)
+    -- Compact or full: the chevron beside the close button (Settings too).
+    f.size = T.FlatButton(f.head, "", 22, 20, "ghost")
+    f.size:SetPoint("RIGHT", f.close, "LEFT", -2, 0)
+    f.size.arrow = T.MenuArrow(f.size, 5)
+    f.size:SetScript("OnClick", function()
+        HME.settings.skinLevelsCompact = not HME.settings.skinLevelsCompact
+        ST.Update()
+    end)
+    T.Tooltip(f.size, "Compact or full", "Compact keeps your skill, the highest level, the best levels, the next unlock "
+        .. "and your target; full adds the level strip and this zone's beasts.")
+    f.skill:SetPoint("RIGHT", f.size, "LEFT", -4, 0)
     f.skill:SetJustifyH("RIGHT")
 
     -- Two big numbers: the highest level you can skin, and the levels to kill.
@@ -417,14 +427,15 @@ function ST.Update()
     Place(f.maxSay, y)
     Place(f.killSay, y, col2)
     y = y - 18
-    f.alt:SetShown(second ~= nil)
-    if second then
+    local compact = HME.settings and HME.settings.skinLevelsCompact
+    f.alt:SetShown(second ~= nil and not compact)
+    if second and not compact then
         f.alt:SetText(("%s  %s"):format(Paint(second.color, "or " .. Range(second.range)), K_Paint(second.say, T.HEX.text2)))
         Place(f.alt, y)
         y = y - 16
     end
-    f.cap:SetShown(m.cap ~= nil)
-    if m.cap then
+    f.cap:SetShown(m.cap ~= nil and not compact)
+    if m.cap and not compact then
         f.cap:SetText(m.cap)
         Place(f.cap, y)
         y = y - (f.cap:GetStringHeight() or 12) - 4
@@ -438,6 +449,10 @@ function ST.Update()
     local n = hi - lo + 1
     local gap = 1
     local cw = ((W - 20) - (n - 1) * gap) / n
+    f.strip:SetShown(not compact)
+    f.stripLo:SetShown(not compact)
+    f.stripHi:SetShown(not compact)
+    if not compact then
     y = y - 6
     f.strip:ClearAllPoints()
     f.strip:SetPoint("TOPLEFT", 10, y)
@@ -462,6 +477,7 @@ function ST.Update()
     f.stripHi:ClearAllPoints()
     f.stripHi:SetPoint("TOPRIGHT", -10, y)
     y = y - 18
+    end
 
     -- The next unlock
     if m.next then
@@ -488,7 +504,11 @@ function ST.Update()
         f.nextBar:Hide()
     end
 
-    -- Where
+    -- Where (full only)
+    f.divider:SetShown(not compact)
+    f.zone:SetShown(not compact)
+    f.places:SetShown(not compact)
+    if not compact then
     y = y - 4
     f.divider:ClearAllPoints()
     f.divider:SetPoint("TOPLEFT", 10, y)
@@ -512,6 +532,7 @@ function ST.Update()
     f.places:SetText(table.concat(lines, "\n"))
     Place(f.places, y)
     y = y - (f.places:GetStringHeight() or (#lines * 13)) - 6
+    end
 
     -- Your target
     local t = m.target
