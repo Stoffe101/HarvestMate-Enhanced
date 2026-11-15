@@ -92,6 +92,11 @@ DB.SETTINGS = {
     controller = true,           -- controller-friendly focus inside HME's window
     notifications = true,
     tooltips = true,
+    -- 0.6.0
+    notify = {},                 -- [category] = "chat" | "quiet" | "off" (Engine/Notify.lua)
+    sessionReview = true,        -- open the session review when you stop a session yourself
+    calibrate = true,            -- scale unmeasured farms by your sessions' results (Engine/Ledger.lua)
+    copilot = {},                -- [card type] = false hides that kind of Copilot card
 }
 
 local CHAR_DEFAULTS = {

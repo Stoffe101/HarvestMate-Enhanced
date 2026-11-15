@@ -43,7 +43,18 @@ local function Enabled(kind)
 end
 S.Enabled = Enabled
 
--- Adds a suggestion; returns true if it was shown.
+-- One chat line, at most one a minute (shared with Engine/Notify.lua).
+function S.Chat(text)
+    local now = HME.Now()
+    if now - lastChat < S.CHAT_GAP then return false end
+    lastChat = now
+    HME.Print(text)
+    return true
+end
+
+-- Adds a suggestion; returns true if it was shown. It also lands in the
+-- notification list (0.6.0), whose category setting decides whether it is
+-- said in chat too.
 function S.Add(kind, key, text, action)
     if not Enabled(kind) then return false end
     local id = kind .. ":" .. tostring(key)
@@ -51,10 +62,11 @@ function S.Add(kind, key, text, action)
     if last[id] and now - last[id] < S.REPEAT then return false end
     last[id] = now
     U.Push(S.list, { kind = kind, key = key, text = text, action = action, t = now }, 20)
-    if HME.settings.notifications ~= false and now - lastChat >= S.CHAT_GAP then
-        lastChat = now
-        HME.Print(text)
-    end
+    local N = HME.Notify
+    local cat = N and N.FROM_SUGGEST[kind]
+    local chat = not cat or N.Pref(cat) == "chat"
+    if chat and HME.settings.notifications ~= false then S.Chat(text) end
+    if cat then N.Push(cat, id, text, action, { noChat = true, now = true }) end
     HME.Signal("SUGGESTIONS_CHANGED")
     return true
 end

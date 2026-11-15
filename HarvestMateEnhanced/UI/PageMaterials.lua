@@ -219,6 +219,16 @@ HME.Pages.materials = function(body, page)
         d.map:SetShown(e.prof == "Herbalism" or e.prof == "Mining")
     end
 
+    -- Search opens a material here (0.6.0).
+    HME.Pages.materialsShow = function(prof, name)
+        if prof then ui.matProf = prof end
+        ui.matFilter = "all"
+        box:SetText(name or "")
+        search = (name or ""):lower()
+        selected = nil
+        page.Refresh()
+    end
+
     function page.Refresh()
         profs:Refresh()
         filt:Refresh()

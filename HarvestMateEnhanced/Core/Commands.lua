@@ -14,7 +14,9 @@ local function Help()
     HME.Print("commands:")
     local lines = {
         "/hme  open or close the window",
-        "/hme finder | guides | materials | stats | trainers | routes | settings  open a page",
+        "/hme copilot | finder | beasts | guides | materials | stats | trainers | routes | settings  open a page",
+        "/hme find <text>  search everything (materials, creatures, zones, routes, trainers...)",
+        "/hme review  the last session's review   ·   /hme notices  the notification list in chat",
         "/hme farm skin|herb|mine|fish [level|profit]  open the Farm Finder on it",
         "/hme stop  stop following the farm   ·   /hme nav  navigate to it",
         "/hme here  guide the loop beside another Forever-GPS journey   ·   /hme giveback  hand the arrow back",
@@ -36,7 +38,7 @@ cmds.help = Help
 local PAGES = { finder = "finder", farm = "finder", guides = "guides", guide = "guides", materials = "materials",
     mats = "materials", stats = "stats", profit = "stats", trainers = "trainers", routes = "routes",
     settings = "settings", options = "settings", config = "settings", dashboard = "dashboard", setup = "setup",
-    goals = "goals" }
+    goals = "goals", copilot = "copilot", beasts = "beasts", explorer = "beasts", skinning = "beasts" }
 local PROF = { herb = "Herbalism", herbs = "Herbalism", herbalism = "Herbalism", mine = "Mining", mining = "Mining",
     ore = "Mining", skin = "Skinning", skinning = "Skinning", fish = "Fishing", fishing = "Fishing" }
 
@@ -158,6 +160,29 @@ function cmds.recipe(rest)
     end
 end
 function cmds.giveback() HME.Guidance.GiveBack() end
+
+-- 0.6.0: search, the last session's review, notifications in chat.
+function cmds.find(rest)
+    local list = HME.Find.Run(rest or "")
+    if #list == 0 then
+        HME.Print("nothing found for \"" .. tostring(rest or "") .. "\".")
+        return list
+    end
+    HME.Print(("%d found; the first opens (the search box in the window lists them all):"):format(#list))
+    for i, r in ipairs(list) do
+        if i <= 6 then print(("  %s: %s (%s)"):format(r.kind, r.label, r.sub or "")) end
+    end
+    HME.Find.Open(list[1])
+    return list
+end
+cmds.search = cmds.find
+function cmds.review() return HME.Review.Show() end
+function cmds.notices()
+    local list = HME.Notify.List()
+    if #list == 0 then HME.Print("no notifications.") return end
+    for i = #list, math.max(1, #list - 9), -1 do print(("  [%s] %s"):format(list[i].cat, list[i].text or "")) end
+    HME.Notify.MarkRead()
+end
 function cmds.hud(rest)
     if rest == "reset" then
         HME.HUD.ResetPosition()

@@ -281,6 +281,29 @@ HME.Pages.settings = function(body, page)
     EndRow()
 
     -------------------------------------------------------------------
+    Section("copilot", "Copilot and notifications", "The Copilot never acts on its own. Notifications collect in the bell at "
+        .. "the top of this window; each kind can also say itself in chat, or stay off.")
+    local NOTE = { chat = "List and chat", quiet = "List only", off = "Off" }
+    for _, c in ipairs(HME.Notify.CATS) do
+        Drop(c.label, "Where notices of this kind go: the bell's list and a chat line (at most one a minute), the list only, "
+            .. "or nowhere.", { "chat", "quiet", "off" }, NOTE, function() return HME.Notify.Pref(c.key) end,
+            function(k) HME.Notify.SetPref(c.key, k) end)
+    end
+    EndRow()
+    Switch("Session review", "When you stop a session yourself (10 minutes or longer), its review opens: what it gave, against "
+        .. "the prediction and your recent sessions. Otherwise it waits in the bell.",
+        function() return S().sessionReview ~= false end, function(v) S().sessionReview = v end)
+    Switch("Learn from my results", "Scale farms you have not measured by how your past sessions compared with their "
+        .. "predictions (two sessions or more). Off: the plain model.",
+        function() return S().calibrate ~= false end, function(v)
+            S().calibrate = v
+            if HME.Copilot then HME.Copilot.Invalidate("settings") end
+        end)
+    Button("Show dismissed Copilot advice", "Brings back every suggestion you put off or said you are not interested in.",
+        function() HME.Copilot.ResetFeedback() HME.Print("the Copilot shows everything again.") end)
+    EndRow()
+
+    -------------------------------------------------------------------
     Section("prices", "Prices",
         "HME reads prices other addons already have; it never scans, buys, sells or posts anything.")
     Drop("Price source", "Auto uses the first available: Forever-GPS, Auctionator, TSM, then vendor.",

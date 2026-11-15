@@ -204,6 +204,33 @@ end)
 Page("finder", "finder-unlearned", "Farm Finder: a profession you don't have (Herbalism)", "Farm Finder",
     function() HME.Pages.finderSet("Herbalism", "level") end)
 
+-- The header (0.6.0): search everything, the notification list, a session review.
+Page("dashboard", "header-search", "Search everything: \"leather\"", "Header", function()
+    HME.Header.box:SetText("leather")
+    HME.Header.ShowResults(HME.Window.frame, "leather")
+end)
+if _G.HarvestMateEnhancedSearch then _G.HarvestMateEnhancedSearch:Hide() end
+HME.Header.box:SetText("")
+do
+    local N = HME.Notify
+    N.Push("goal", "p1", "Goal reached: 60 Medium Leather. Stop farming or pick the next goal on the Goals page.")
+    N.Push("training", "p2", "Train Expert Skinning: Skinning is at its cap (150): no skill-ups until you train.",
+        { kind = "page", page = "trainers", label = "Trainers" })
+    N.Push("bags", "p3", "Bags full in about 12 minutes (8 to 17): 6 free slots; this session used about 30 an hour.")
+    N.Push("session", "p4", "Session review: 42 min, 31 skins, 12 skill-ups.", { kind = "review", label = "Review", summary = HME.db.sessions[#HME.db.sessions] })
+    N.Push("route", "p5", "Best lap on Hillsbrad Foothills - Skinning leveling: 9 min 40 s.")
+end
+Page("dashboard", "header-notifications", "The notification list (the bell)", "Header", function()
+    HME.Header.ShowBell(HME.Window.frame)
+end)
+if _G.HarvestMateEnhancedNotices then _G.HarvestMateEnhancedNotices:Hide() end
+Page("dashboard", "session-review", "Session review after Stop farming", "Header", function()
+    local s = HME.db.sessions[#HME.db.sessions]
+    s.areas[1].predicted = s.areas[1].predicted or { skins = 70, beasts = 70 }
+    HME.Review.Show(s)
+end)
+if _G.HarvestMateEnhancedReview then _G.HarvestMateEnhancedReview:Hide() end
+
 Page("goals", "goals-empty", "Goals & Plans: nothing yet", "Goals & Plans")
 pcall(function()
     for _, id in ipairs({ 2318, 2319, 4234, 783, 4232, 2934, 765, 2447, 785, 2450, 2770, 2771 }) do
