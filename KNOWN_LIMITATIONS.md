@@ -4,6 +4,7 @@
 Everything in HME has only run against the headless fake client. Layout, textures, the map overlay's place on the canvas, the arrow's heading on Forever, Glimmer inside HME, and the Forever-GPS hand-off are unverified in the real client. Work through [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md) before relying on it.
 
 ## Estimates and assumptions
+- **Practical pace** (0.4.0): Skinning estimates assume a real session keeps 78% of a perfect circuit's pace (finding targets, pathing, adds, bags). It is a round figure, not measured on Forever yet; your own sessions replace it per area.
 - **Respawn time** of beasts (5 min) and **node up-fraction** (⅓ of spawn points) and **node respawn** (10 min) are assumptions, flagged wherever they limit a result. Measured rates replace them per area as you farm.
 - **Leather yields** start from plain estimates (`Data/Leather.lua`) until you have skinned a beast (or beasts of that level) about 8 times. Forever-only materials (Pristine Leather...) are never assumed.
 - **Kill time** starts from a level-difference model (14 s at equal level); your fights teach it. Fights with more than one beast looted are not used.

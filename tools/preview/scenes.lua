@@ -7,6 +7,7 @@
 -- Skinning levels box, and the whole screen at several sizes and UI scales.
 -- Writes build/preview/<state>.html and manifest.json.
 local R = RENDER
+date = date or os.date   -- the game has date(); the test client does not
 local OUT = PREVIEW_OUT or "build/preview"
 local only = PREVIEW_ONLY
 
