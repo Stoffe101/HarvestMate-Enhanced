@@ -2,7 +2,7 @@
 ## Title: HarvestMate Enhanced
 ## Notes: All-in-one gathering for WoW Forever: where to level Herbalism, Mining, Skinning and Fishing, farms ranked for skill or gold, routes on the map, hunting circuits, one-key gathering and session stats.
 ## Author: HarvestMate Enhanced contributors (with HarvestMate by AndreiBerkut, Gatherpedia by Curs3d221, GatherPath Forever by severd8)
-## Version: 0.5.0
+## Version: 0.6.0
 ## IconTexture: Interface\AddOns\HarvestMateEnhanced\Media\Logo
 ## AllowLoadGameType: forever
 ## OptionalDeps: GatherMate2, Questie, ForeverGPS, Auctionator, TradeSkillMaster, TomTom, HarvestMate, Gatherpedia, GatherPathForever

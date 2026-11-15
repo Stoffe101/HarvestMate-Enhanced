@@ -75,6 +75,56 @@ end
 HME.settings.skinLevels = true
 Time("Skinning levels update", function() HME.SkinTracker.Update() end, 200)
 Time("Session live figures", function() HME.Session.Live() end, 200)
+HME.Session.Stop("perf")
+
+-- 0.6.0's paths (skipped on versions without them).
+-- A long history with predictions, for the ledger and the Copilot.
+HME.db.sessions = {}
+for i = 1, 120 do
+    HME.db.sessions[i] = { t = time() - i * 40000, char = CHAR.name, farmSecs = 1800, secs = 1800, value = 40000, skillups = 12,
+        counts = { skin = 40, kills = 42 }, items = { [2318] = 30 },
+        areas = { { key = "Skinning@1424:" .. (i % 7) .. ":3", secs = 1800, skins = 40, beasts = 42, skillups = 12,
+                    predicted = { skins = 90, beasts = 90, skill = 30 } } } }
+end
+Time("Prediction ledger: factor and report, 120 sessions", function()
+    HME.Ledger.Forget()
+    HME.Ledger.Factor("Skinning")
+    HME.Ledger.Report()
+end, 5)
+HME.FinishJobs()   -- (whatever earlier steps queued runs first, outside the measurement)
+Time("Copilot: first evaluation (searches in the background, run to the end)", function()
+    HME.Copilot.searches = {}
+    HME.Copilot.Evaluate(true)
+    HME.FinishJobs()
+end)
+Time("Copilot: evaluation, searches cached", function() HME.Copilot.Evaluate(true) end, 20)
+Time("Skinning Explorer: search by name", function() HME.Bestiary.Search({ text = "bear", filter = "all" }, profile) end, 10)
+Time("Skinning Explorer: search by material, best for you", function()
+    HME.Bestiary.Search({ text = "medium leather", filter = "canskin", sort = "forme" }, profile)
+end, 3)
+Time("Search everything: \"leather\"", function() HME.Find.Run("leather") end, 10)
+Time("Sell, process or keep: one material", function() HME.Economy.Options(2319) end, 50)
+Time("Notifications: 100 notices", function()
+    for i = 1, 100 do HME.Notify.Push("data", "perf" .. i .. ":" .. os.clock(), "Note " .. i) end
+end)
+Time("Quest log index (35 quests)", function()
+    local q = {}
+    for i = 1, 35 do q[i] = { questID = 1000 + i, title = "Quest " .. i, objectives = { { text = "Gray Bear slain: 1/8", type = "monster" } } } end
+    C_QuestLog = { GetNumQuestLogEntries = function() return #q end,
+        GetInfo = function(i) return { questID = q[i].questID, title = q[i].title } end,
+        GetQuestObjectives = function(id) return q[id - 1000].objectives end, IsComplete = function() return false end }
+    HME.QuestSynergy.Rebuild()
+    C_QuestLog = nil
+end, 5)
+Time("Timed loop on a 60-stop route", function()
+    local pts = {}
+    for i = 1, 60 do
+        local a = i / 60 * 2 * math.pi
+        pts[#pts + 1] = 0.5 + 0.2 * math.cos(a)
+        pts[#pts + 1] = 0.5 + 0.2 * math.sin(a)
+    end
+    HME.RouteDirector.Timed({ id = -1, mapID = 1424, name = "perf", points = pts, kinds = { Herb = {} } }, 10)
+end, 5)
 collectgarbage("collect")
 Put("Memory at the end", collectgarbage("count") - kbStart, "KB")
 

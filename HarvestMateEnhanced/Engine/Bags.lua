@@ -82,15 +82,22 @@ local function ItemMinutes(live, free)
         end
     end
     if #rows == 0 then return nil end
-    for m = 1, 600 do
+    local function Used(m)
         local used = 0
         for _, r in ipairs(rows) do
             local n = r.rate * m - r.room
             if n > 0 then used = used + math.ceil(n / r.stack) end
         end
-        if used > free then return m end
+        return used
     end
-    return nil
+    -- Slots used only grow with time: the first minute past `free`, by halving.
+    if Used(600) <= free then return nil end
+    local lo, hi = 0, 600
+    while hi - lo > 1 do
+        local mid = math.floor((lo + hi) / 2)
+        if Used(mid) > free then hi = mid else lo = mid end
+    end
+    return hi
 end
 
 -- { free, total, minutes, low, high, basis, text, conf } or nil.

@@ -593,7 +593,7 @@ HME.Pages.finder = function(body, page)
         else
             k2:SetLabel("Gold an hour")
             local priced = m.range and (m.range.mid or 0) > 0
-            k2:Set(priced and K.Money(m.range.mid) or "–", priced and "estimate, while farming" or "no prices yet", C.gold)
+            k2:Set(priced and K.Money(m.range.mid) or "–", priced and "an estimate" or "no prices yet", C.gold)
         end
         k3:SetLabel("Travel")
         k3:Set(r.travel and U.Duration(r.travel) or "?", r.travelQuality or (r.travel and "estimate" or "unknown"), C.text)

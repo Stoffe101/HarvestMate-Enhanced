@@ -113,8 +113,31 @@ function K.Stat(parent, label, w, h)
         T.FitText(self.value, (self:GetWidth() or 140) - 22, "display", self.size, 14)
         local c = color or C.text
         self.value:SetTextColor(c[1], c[2], c[3])
-        self.sub:SetText(sub or "")
+        -- The line under it: whole when it fits; else shortened at a word with
+        -- the full line on hover (0.6.0: a caption ran past its tile).
+        sub = sub or ""
+        self.sub:SetText(sub)
+        self.fullSub = nil
+        local avail = (self:GetWidth() or 140) - 22
+        if sub ~= "" and T.StringWidth(self.sub) > avail then
+            local words = {}
+            for w in sub:gmatch("%S+") do words[#words + 1] = w end
+            while #words > 1 do
+                table.remove(words)
+                self.sub:SetText(table.concat(words, " "):gsub("[,;:]$", "") .. "…")
+                if T.StringWidth(self.sub) <= avail then break end
+            end
+            self.fullSub = sub
+        end
     end
+    f:EnableMouse(true)
+    f:SetScript("OnEnter", function(self)
+        if not (self.fullSub and GameTooltip) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(self.fullSub, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    f:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     function f:SetLabel(text) self.label:SetText(text or "") end
     return f
 end

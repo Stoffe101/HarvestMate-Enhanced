@@ -140,6 +140,24 @@ function D.Lines()
             .. "skinning loots; %d skin casts failed or were interrupted; %d loot windows without a source", det.skins + det.backstop
             + (det.uncertain or 0), det.backstop, det.uncertain or 0, det.gatherSkins, det.failed or 0, det.unattributed or 0)
     end
+    -- 0.6.0: the Copilot, the prediction ledger, quests, notices (no names, no positions).
+    if HME.Copilot then
+        local ctx = HME.Copilot.ctx or {}
+        local top = HME.Copilot.cards and HME.Copilot.cards[1]
+        Add("Copilot: mode %s, %s min, profession %s (%s), %d cards, top: %s; searches cached %d",
+            HME.Copilot.Mode(), tostring(HME.Copilot.Minutes()), tostring(ctx.prof), tostring(ctx.profWhy),
+            #(HME.Copilot.cards or {}), top and top.type or "none", U.Count(HME.Copilot.searches or {}))
+    end
+    if HME.Ledger then
+        local rep = HME.Ledger.Report()
+        local parts = {}
+        for _, pf in ipairs(rep.profs) do
+            parts[#parts + 1] = ("%s x%.2f (%d sessions%s)"):format(pf.prof, pf.pace.factor, pf.pace.sessions, pf.pace.used and ", used" or "")
+        end
+        Add("Prediction ledger: %d entries; %s", rep.entries, #parts > 0 and table.concat(parts, "; ") or "no factor yet")
+    end
+    if HME.QuestSynergy then Add("Quests: %s", HME.QuestSynergy.Status()) end
+    if HME.Notify then Add("Notices: %d kept, %d unread", #HME.Notify.List(), HME.Notify.Unread()) end
     -- Loot decisions (creature IDs only)
     local recent = HME.Learning.recent or {}
     if #recent > 0 then

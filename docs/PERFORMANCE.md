@@ -2,6 +2,40 @@
 
 Measured with `tools/bench.lua` (`python tools/run_tests.py bench -v`) on the full bundled data, Lua 5.1 via lupa on the development PC, outside the game. In the game every search and route build runs as a background job of at most 8 ms per frame (4 ms in low-performance mode), and Forever-GPS's walking-grid batches run at its own planning share (4-12 ms per frame); these are total CPU times.
 
+## 0.4.0, 0.5.0 and 0.6.0 compared
+
+`python tools/perf_compare.py` (now 0.4.0, 0.5.0 and the working tree), three runs each, the middle value. Headless CPU time and Lua memory on the development PC, **not game frame times**.
+
+| What | 0.4.0 | 0.5.0 | 0.6.0 |
+|---|---|---|---|
+| Load the addon | 58 ms | 59 ms | 67 ms |
+| Memory after load | 3.37 MB | 3.42 MB | 3.78 MB |
+| Farm Finder, Skinning leveling (cold / warm) | 37 / 3.0 ms | 38 / 3.0 ms | 38 / 3.0 ms |
+| Farm Finder, Medium Leather | 22 ms | 23 ms | 22 ms |
+| Open the window and build every page | 16 ms | 14 ms | 27 ms |
+| Dashboard refresh | 0.1 ms | 0.1 ms | 0.1 ms |
+| 200 skin events (cast, loot, close) | 224 ms | 225 ms | 279 ms |
+| HUD update, detailed | 0.1 ms, 7.2 KB | 0.1 ms, 7.3 KB | 0.1 ms, 7.3 KB |
+| Memory at the end of the run | 9.06 MB | 9.12 MB | 10.64 MB |
+
+0.6.0's own paths:
+
+| What | Time | Garbage |
+|---|---|---|
+| Copilot: first evaluation, its search run to the end (area caches warm) | 3 ms | 0.7 MB |
+| Copilot: evaluation with searches cached | 0.1 ms | 19 KB |
+| Prediction ledger: factor and report over 120 sessions | 1.8 ms | 0.4 MB |
+| Skinning Explorer: search by name / by material, best for you | 3.2 / 4.7 ms | 0.7 / 1.1 MB |
+| Search everything ("leather") | 2.0 ms | 0.2 MB |
+| Sell, process or keep, one material | under 0.1 ms | |
+| 100 notifications | 1.0 ms | 70 KB |
+| Quest log index, 35 quests | 0.2 ms | 73 KB |
+| Timed loop on a 60-stop route | 0.8 ms | 22 KB |
+
+The Farm Finder and the HUD are unchanged. Loading costs 8 ms and 0.36 MB more (the new modules). Building every page costs 13 ms more: the Copilot and Skinning Explorer pages, built once when first opened. The 200 skin events take 54 ms more because the benchmark packs 20 minutes of farming into one run: the Copilot looks again at most every 30 seconds while you farm (about 40 times here, a millisecond each), and the creature journal and notices listen to skins. In the game that is about a millisecond every 30 seconds. Copilot searches are Farm Finder searches run as background jobs (8 ms a frame), never in a frame of their own, and a search for a context that changed is dropped before it runs.
+
+Found and fixed while measuring: a full Copilot search cache could evict the result it had just stored and search for it again forever (the benchmark hung; `test_copilot.lua` reproduces it), and stale Copilot searches queued under an earlier context used to run anyway (the test suite went from 25 to 17 seconds once they were dropped).
+
 ## 0.3.0, 0.4.0 and 0.5.0 compared
 
 `python tools/perf_compare.py` runs the same script (`tools/perf.lua`) against each version's addon folder, taken from git, in today's test client: three fresh runs each, the middle value kept. Headless CPU time and Lua memory on the development PC (an i7-class desktop), **not game frame times**: the game also draws, measures text and runs other addons.

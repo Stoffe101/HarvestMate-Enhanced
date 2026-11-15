@@ -77,6 +77,16 @@ No protected call in combat; override bindings and CVars change only with the pl
 
 Spawn sites are cached per profession and map and invalidated on new data; the Farm Finder runs as a job (8 ms a frame, 4 in low-performance mode); map pins are pooled and capped (600 / 250); pages are built when first opened. `/hme diag` prints timings.
 
+## 0.6.0 additions
+
+See docs/COPILOT.md for the algorithms.
+
+- `Engine/Ledger.lua` (after Evidence): predictions against results from the session journal; `Calibrate(r)` in `Recommend.Find` before `Evidence.Apply`.
+- `Engine/Bags.lua`, `Engine/Quests.lua`, `Engine/Copilot.lua`, `Engine/Bestiary.lua`, `Engine/Notify.lua`, `Engine/Review.lua`, `Engine/Search.lua` (`HME.Find`), `Engine/Economy.lua`: after Suggest; they listen to events and never run per frame.
+- `Routes/Director.lua` (after `Map/Caves.lua`, because it wraps `Guidance.Advance`): timed loops, laps, stop statistics.
+- `UI/PageCopilot.lua`, `UI/PageBeasts.lua`, `UI/Header.lua` (search box, bell, popovers, session review).
+- Copilot searches run as their own background jobs (`copilot:<context>`), never in the Farm Finder's slot; jobs for a context that is gone are dropped from the queue.
+
 ## 0.2.0 additions
 
 - `Engine/Evidence.lua`: evidence level per farm and gold/skill ranges (session percentiles weighted by hours and blended with the model by h/(h+1), else model bands: assumption x0.6-1.35, published data x0.7-1.25, known yield x0.8-1.15).

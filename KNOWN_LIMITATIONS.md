@@ -46,6 +46,15 @@ Everything in HME has only run against the headless fake client. Layout, texture
 ## Licensing
 - Personal-use project: nothing is published as a release. The QuestieDB-derived spawn data has a provenance caveat (THIRD_PARTY.md); the combined addon is offered under GPL-3.0 only. Keep this in mind if the repository is public: its contents are visible.
 
+## 0.6.0
+- The Copilot's numbers are the Farm Finder's: where those are estimates, so are its. The ledger needs two planned sessions of 10+ minutes on a profession before it adjusts anything, and it only sees sessions started from HME's farms (routes you started yourself have no prediction).
+- Skill-up predictions are compared but only adjust after 4 sessions and 3 hours: skill-ups fall as a farm turns grey and stop at the cap, so a short comparison says little.
+- Quest synergy only knows creature and item ids when Questie is loaded (through Forever-GPS 2.7's API or directly); otherwise it matches objective text to names, which can miss renamed or ambiguous creatures. It never knows quests you do not have.
+- The Explorer's "for you" rate is per creature and rough; the Farm Finder's circuits are the real plan. "Can be skinned" is unknown until the game says.
+- Timed loops are cut from an existing route's order; they do not re-plan the loop or pick nodes the route does not have. The time is estimated, not measured, until you ride it.
+- Bag forecasts count slots, not item kinds that cannot stack together, and another character's bags are as they were when you last played it.
+- Auction deposits use the classic 15%-of-vendor rule; Forever may differ. Sale chances are not modelled: a listing is not a sale.
+
 ## Not done yet
 - Localization: HarvestMate's strings are in 10 languages; HME's pages are English only (no Swedish yet).
 - Route sharing is by export text only; no in-game send.

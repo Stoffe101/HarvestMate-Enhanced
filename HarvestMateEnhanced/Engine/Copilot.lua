@@ -169,9 +169,27 @@ C.searches = {}        -- [sig] = { results, at, query }
 C.goalsVersion = 0
 local pending = {}
 
+-- Queued searches for a context that is gone are dropped before they run
+-- (one that already started finishes; its result is simply not used).
+C.MAX_CACHED = 8
+local function DropQueued()
+    local q = HME.Jobs and HME.Jobs.queue or {}
+    for i = #q, 1, -1 do
+        local key = q[i].key
+        if type(key) == "string" and key:sub(1, 8) == "copilot:" then
+            pending[key:sub(9)] = nil
+            table.remove(q, i)
+        end
+    end
+end
+C.DropQueued = DropQueued
+
 function C.Invalidate(why)
     if why == "goals" then C.goalsVersion = C.goalsVersion + 1 end
-    if why ~= "budget" then C.searches = {} end
+    if why ~= "budget" then
+        C.searches = {}
+        DropQueued()
+    end
     C.Evaluate(true)
 end
 
@@ -185,6 +203,15 @@ local function Search(sig, query, profile)
     HME.RunJob("copilot", function() return HME.Recommend.Find(query, nil, profile) end, function(results)
         pending[sig] = nil
         C.searches[sig] = { results = results or {}, at = HME.Now(), query = query }
+        -- Bounded: the oldest go past MAX_CACHED.
+        -- (Never the one just stored: equal times would make it look oldest,
+        -- and evicting it would search for it again, forever.)
+        local n, oldest, oldestAt = 0, nil, nil
+        for k, v in pairs(C.searches) do
+            n = n + 1
+            if k ~= sig and (not oldestAt or v.at < oldestAt) then oldest, oldestAt = k, v.at end
+        end
+        if n > C.MAX_CACHED and oldest then C.searches[oldest] = nil end
         C.Evaluate(true)
     end, { key = "copilot:" .. sig, fail = function() pending[sig] = nil end })
     return hit and hit.results, "searching"
@@ -839,7 +866,7 @@ end
 -- When to look again (events only; never per frame)
 ---------------------------------------------------------------------------
 local function Later(why, delay) HME.Soon("copilot-" .. why, delay or 3, function() C.Evaluate(true) end) end
-HME.Listen("PLAYER_CHANGED", function() C.searches = {} Later("player", 2) end)
+HME.Listen("PLAYER_CHANGED", function() C.searches = {} DropQueued() Later("player", 2) end)
 HME.Listen("GOALS_CHANGED", function() C.goalsVersion = C.goalsVersion + 1 Later("goals", 1) end)
 HME.Listen("GUIDANCE_CHANGED", function() Later("guidance", 2) end)
 HME.Listen("SESSION_ENDED", function() Later("session", 2) end)

@@ -68,6 +68,13 @@ Inter is bundled (`Media/Fonts`, SIL Open Font License 1.1, `Inter-LICENSE.txt`)
 - `T.Card` (sentence-case title, brass corner tick), `T.Dropdown`, `T.EditBox`, `T.Slider`, `T.ScrollArea`, `T.LabeledSwitch`.
 - The window, `T.Window`: a header with contour lines, a brass rule and the two-tone name; a sidebar with sentence-case sections; page titles with a brass diamond; a status line. `win:SetUIScale(s)` keeps it on the screen at any UI scale.
 
+## 0.6.0 pieces
+
+- **The Copilot page**: controls (mode dropdown, time segments, profession), a hero card (kicker and type badge, title fitted, objective, up to four lines of reasons measured to fit and the rest on hover, the number with its range on the right, confidence pips, risk, "Rests on", the primary action, a secondary, Not now and Not interested as ghost buttons), "Also worth knowing" rows with a badge, a button and ×, and "Learned from your sessions" fitted by measuring.
+- **The header**: "Search everything" box and the bell (a gold count when unread) left of ×; their lists are floating popovers under them (Escape closes them, so does the window).
+- **Popovers** (`UI/Header.lua`): raised surface, outline, shadow, FULLSCREEN_DIALOG strata, in UISpecialFrames.
+- Card types have one colour each: farm and stay moss, switch and bags warning, training and learned info, goal gold, quest and route brass.
+
 ## Looking at it without the game
 
 ```bash

@@ -440,3 +440,21 @@ C.Run(C.cards[1].action)
 check(started == C.cards[1].action.result, "starts that farm")
 HME.Guidance.StartResult = orig
 check(not C.Run({ kind = "nonsense" }), "unknown action does nothing")
+
+STEP("copilot: a full search cache never evicts the result it just stored (no endless re-search)")
+C.searches = {}
+-- (Their time is later than now, so the fresh result is the "oldest" one: what
+-- equal times did by chance in the benchmark that hung.)
+for i = 1, C.MAX_CACHED do C.searches["old" .. i] = { results = {}, at = HME.Now() + 1000 } end
+local before = HME.Recommend.Find
+local calls = 0
+HME.Recommend.Find = function(...) calls = calls + 1 return before(...) end
+C.Evaluate(true)
+local steps = HME.FinishJobs(2000)
+HME.Recommend.Find = before
+check(steps < 2000, "the job queue empties: " .. steps .. " steps")
+check(calls <= 3, "searched a few times, not forever: " .. calls)
+check(C.ctx.sig and C.searches[C.ctx.sig], "the fresh result stays cached")
+local n = 0
+for _ in pairs(C.searches) do n = n + 1 end
+check(n <= C.MAX_CACHED, "bounded: " .. n)

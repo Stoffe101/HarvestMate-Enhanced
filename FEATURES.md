@@ -75,11 +75,32 @@ Status key: **New** (HME), **Kept** (from upstream, unchanged in behaviour), **I
 - **Records** with minimum times; journal filter; **heatmap views**.
 - **Diagnostics** to copy; **first-run setup**.
 
+## Added in 0.6.0 (implemented; real-client validation pending)
+- Farming Copilot (page and Dashboard), nine planning modes and a time budget, cards with evidence, confidence, ranges and one action; dismiss and not-interested feedback.
+- Prediction ledger and calibration of unmeasured farms; predicted vs observed per farm.
+- Skinning Explorer: creature profiles, search by name/zone/level/material, drop journal, best for you, hunt one creature.
+- Quest synergy from the quest log (Forever-GPS API, Questie, objective text).
+- Route Director: timed loops as variants, lap records, weak stops and a trimmed variant.
+- Notification center, session review, search everything.
+- Bag forecast; characters' materials with their age; sell, process or keep.
+- Farm profiles restore the workspace.
+
 ## Partly implemented
 - Hunting styles: Guided, Adaptive and Free guidance plus the risk mode and material goal cover them; there is no separate "cluster" planner.
 - Heatmaps: density, your gathering and skill-up potential; no profitability heatmap.
 - Progression transitions: grey-farm, cap and tier suggestions (0.2.0) and the live "below prediction" suggestion; no automatic "next area" switch.
 - Combined tracking: reminders only (the game tracks one kind at a time; HME never switches it).
+
+## Asked for in the 0.6.0 brief, not done (proposals)
+- A dedicated farming atlas map with layer toggles and a legend; new heatmaps (profit, personal success).
+- Route editor dragging, snapping, undo/redo, revisions with restore, route sharing between players.
+- Session replay of the recorded path.
+- Fishing companion (lure reminders, pool discovery, catch journal), mining and herbalism specific improvements, profession gear advisor.
+- Alt-character planner beyond the existing "plan for another level or skill".
+- Personal danger map from deaths beyond the existing risk model; competition estimates.
+- Market trends from price history; inventory reservations beyond goals.
+- Copilot hint on the farming HUD (left out to keep 0.5.0's HUD fix untouched).
+- Localization.
 
 ## Proposals, not implemented
 - Localized HME pages (Swedish and others).

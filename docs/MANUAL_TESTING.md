@@ -119,3 +119,21 @@ Install Forever-GPS from the branch `feature/public-api` for 37-44 and 54-56 (RE
 86. [ ] **Profits & Stats**: the three totals and the trend bars match your sessions; hover the bars.
 87. [ ] `/hme diag` has an **Interface** line; "font Inter" means the bundled font loaded.
 88. [ ] Everything at the largest UI scale and at your usual one: nothing outside its panel, nothing cut.
+
+### 0.6.0
+89. [ ] **Copilot, first look.** Open HME: the Dashboard's top card says "Copilot suggests" with a farm, a number and its distance. Why? opens the Copilot page: reasons, a range, confidence, "Rests on". Screenshot the page for me.
+90. [ ] **Modes and time.** On the Copilot page try 15 min, 30 min and No limit, and the modes. A short time prefers a closer farm and says why; Lower risk says what it costs; Explore says it is a guess.
+91. [ ] **Start farming from the Copilot**: the route is planned and Forever-GPS (or the arrow) takes you there, as from the Farm Finder.
+92. [ ] **Not now** replaces the farm with the next one; **Not interested** removes farm cards; Settings, Copilot and notifications, brings them back.
+93. [ ] **At the cap**: with Skinning at its cap the first card is "Train ..." with Go to trainer.
+94. [ ] **Ledger.** After two sessions of 10+ minutes on farms started from HME, the Copilot page's right card shows predicted against what you got, and a "estimates run ...% high/low" line.
+95. [ ] **Skinning Explorer**: search "medium leather", "hillsbrad" and "35"; pick a creature you skinned: the journal counts match /hme diag; corpse loot is apart. Hunt it plans a circuit for that creature.
+96. [ ] **Quests**: with a kill quest for a skinnable beast in your log, the Farm Finder row says "quest" and the Copilot names the quest. With Questie and without.
+97. [ ] **Timed loop**: Route Inspector, Make a loop of 15 min: a new route "... · 15 min" appears; the original is unchanged. Ride it once: the lap time is written down.
+98. [ ] **Laps**: follow a route for two laps; the Inspector shows lap times. A stop that never gave anything after 4 laps is listed as weak.
+99. [ ] **The bell**: notices collect there; the count turns gold; opening it clears the count. Training and goals also say themselves in chat, farming hints do not (by default).
+100. [ ] **Session review**: Stop farming after 10+ minutes: the review opens with time, counts, skill-ups, value as an estimate, against the prediction. An idle ending only adds it to the bell.
+101. [ ] **Search everything**: type "leather", "bloodwing", "artisan skin", a route's name; Enter opens the first.
+102. [ ] **Materials** shows "Sell, process or keep" with the auction cut and deposit, and "Your characters" after logging in on a second character.
+103. [ ] **Bags**: farm with few free slots: a "Bags full in about N minutes" card or notice, with Nearest vendor through Forever-GPS (you press Go).
+104. [ ] `/hme diag` has Copilot, Prediction ledger, Quests and Notices lines; nothing in it names characters or places beyond zone ids.

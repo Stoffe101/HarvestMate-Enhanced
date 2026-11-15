@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.6.0 (development build, unreleased)
+
+Tested headless only (unit, integration against Forever-GPS's real API code, rendered previews, benchmarks). Nothing of 0.6.0 has been run in the game yet: docs/MANUAL_TESTING.md items 89-104.
+
+### New
+- **Farming Copilot** (its own page, and the Dashboard's next step): one recommendation for your mode (level fastest, most gold, a material, balanced, lower risk, short session, with my quests, my proven farms, explore) and the time you have, with why, how sure, what it rests on, a range, and its button; training at the cap, goal forecasts as ranges, quest farms, bags filling, a farm gone grey, empty route stops. Not now (6 hours) and Not interested (that kind); one "where to farm" card at a time, held for 15 minutes unless another is 15% better. Skill-ups are capped at your rank cap (a farm no longer promises 246 skill-ups when 82 are left before training). docs/COPILOT.md.
+- **Prediction ledger**: every planned session's prediction against what you got (counts, never gold), weighted by hours and recency, other characters at half weight, shrunk toward the model (1.5 hours of prior); after two sessions it scales farms you have not measured, and says so. Skill-ups adjust only after 4 sessions and 3 hours. The Copilot page lists predicted against observed per farm.
+- **Skinning Explorer**: every beast in the spawn data as a profile; search by name, zone, level or leather; can it be skinned (only what the game said, else "not confirmed"); per skin, yours apart from the estimate; your drop journal with skill-ups right after a skin, corpse loot apart; a rough rate for you; where it lives; your quests that want it; **Hunt it** plans circuits for that creature alone.
+- **Quest synergy**: the quest log (C_QuestLog) matched to farms: creature and item ids from Forever-GPS's new `QuestObjectiveTargets` or Questie, else the objective text. Farm Finder rows say "quest"; the Copilot has a "With my quests" mode. Read-only.
+- **Route Director**: "Make a loop of 10/15/20/30 min" from a route (a new variant, the original untouched, the time as a range, rough when the legs were not walked); laps recorded while following (time, gathers, skins, skill-ups); stops that never gave anything in 4+ visits, and a variant without them (Route Inspector, and offered by the Copilot).
+- **Notification center** (the bell in the window header): goals, training, bags, better farms, routes, session reviews, data; each to chat and the list, the list only, or off.
+- **Session review** when you stop a session yourself: time, counts, skill-ups, value as an estimate, against the prediction and your last 10 sessions, laps, goals, deaths. `/hme review`.
+- **Search everything** (the header, `/hme find`): pages, materials, creatures, zones, your routes, trainers, milestones, profiles, goals, your quests.
+- **Bags**: when they fill (measured from free slots, or estimated from what you gather), as a range; your characters' materials with how old the numbers are (Materials page).
+- **Sell, process or keep** on the Materials page: keep for a goal, auction after the cut with the deposit at risk, vendor, smelting or crafting from the client's recipes when every reagent has a price.
+- **Farm profiles** restore the whole workspace: Copilot mode and time, HUD size, map detail, risk and price modes, notifications.
+- `/hme diag`: Copilot, prediction ledger, quests and notices lines.
+
+### Fixed
+- **Laps were miscounted**: a lap counted when the stop number went down, which guided mode never does, while a re-entry at a nearer stop counted one that was not ridden. The Route Director counts them now.
+- A Farm Finder search started by the Copilot could have replaced the one you started on its page (they shared a job slot); each now has its own.
+
+### Saved data
+- Schema 4: new sections checked on load (characters' materials, notices, Copilot feedback); a 0.5.0 save keeps everything, its predictions included (the ledger reads them).
+
+### Forever-GPS (feature/public-api)
+- `API.QuestObjectiveTargets(questID)`, read-only: the ids a quest's objectives name, from Questie.
+
+
 ## 0.5.0 (development build, unreleased)
 
 ### Fixed (found in the real client or by new tests, each reproduced first)
