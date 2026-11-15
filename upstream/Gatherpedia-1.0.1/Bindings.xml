@@ -1,0 +1,6 @@
+<Bindings>
+  <!-- Auto-loaded from the addon folder. Start or stop the best farm route in the current zone. -->
+  <Binding name="GATHERPEDIA_TOGGLE_ROUTE" header="GATHERPEDIA" category="AddOns">
+    Gatherpedia_ToggleRoute();
+  </Binding>
+</Bindings>

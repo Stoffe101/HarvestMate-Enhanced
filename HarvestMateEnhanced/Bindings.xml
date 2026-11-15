@@ -1,0 +1,18 @@
+<Bindings>
+  <!-- HarvestMate Enhanced. These are unbound until you choose keys in the game's Key Bindings, AddOns. -->
+  <Binding name="HARVESTMATEENHANCED_TOGGLE" header="HARVESTMATEENHANCED" category="ADDONS">
+    HarvestMateEnhanced_ToggleWindow()
+  </Binding>
+  <Binding name="HARVESTMATEENHANCED_ROUTE" category="ADDONS">
+    HarvestMateEnhanced_ToggleRoute()
+  </Binding>
+  <Binding name="HARVESTMATEENHANCED_NEXTTAB" category="ADDONS">
+    HarvestMateEnhanced_CycleTab(1)
+  </Binding>
+  <Binding name="HARVESTMATEENHANCED_PREVTAB" category="ADDONS">
+    HarvestMateEnhanced_CycleTab(-1)
+  </Binding>
+  <Binding name="HARVESTMATEENHANCED_SKINLEVELS" category="ADDONS">
+    HarvestMateEnhanced_ToggleSkinLevels()
+  </Binding>
+</Bindings>

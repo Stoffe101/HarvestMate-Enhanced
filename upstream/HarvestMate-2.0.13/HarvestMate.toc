@@ -1,0 +1,57 @@
+## Interface: 16001
+## Title: HarvestMate
+## Title-ruRU: HarvestMate — сбор в одну клавишу
+## Notes: One-key gathering for WoW Forever: walk up to a herb, vein or chest and press one key. Tooltips show your skill vs. the one needed, skill-up ranges, drops and prices.
+## Notes-ruRU: Сбор в одну клавишу для WoW Forever: подошли к траве, жиле или сундуку и нажали клавишу. В подсказках ваш и нужный навык, рост навыка, добыча и цены.
+## Notes-deDE: Sammeln mit einer Taste für WoW Forever: zum Kraut, Erz oder zur Truhe laufen und eine Taste drücken. Im Tooltip: deine und die nötige Fertigkeit, Anstieg, Beute und Preise.
+## Notes-frFR: Récolte en une touche pour WoW Forever : approchez une herbe, un filon ou un coffre et appuyez. Infobulles : votre compétence et celle requise, progression, butin et prix.
+## Notes-esES: Recolección con una tecla para WoW Forever: acércate a una hierba, un filón o un cofre y pulsa. En la descripción: tu habilidad y la necesaria, subida, botín y precios.
+## Notes-esMX: Recolección con una tecla para WoW Forever: acércate a una hierba, un filón o un cofre y pulsa. En la descripción: tu habilidad y la necesaria, subida, botín y precios.
+## Notes-itIT: Raccolta con un tasto per WoW Forever: avvicinati a un'erba, un filone o un forziere e premi. Nel tooltip: la tua abilità e quella richiesta, crescita, bottino e prezzi.
+## Notes-ptBR: Coleta com uma tecla para o WoW Forever: chegue perto de uma erva, veio ou baú e aperte. Na dica: sua perícia e a necessária, ganho, saque e preços.
+## Notes-koKR: WoW Forever용 한 키 채집: 약초, 광맥, 상자 앞에서 키 하나만 누르세요. 툴팁에 내 숙련도와 필요 숙련도, 상승 구간, 획득품과 가격을 보여 줘요.
+## Notes-zhCN: WoW Forever 一键采集：走到草药、矿脉或箱子跟前按一个键就行。鼠标提示显示你的技能和所需技能、提升区间、产出和价格。
+## Notes-zhTW: WoW Forever 一鍵採集：走到草藥、礦脈或箱子前面按一個鍵就好。滑鼠提示顯示你的技能和所需技能、提升區間、產出和價格。
+## Category: Professions
+## Category-ruRU: Профессии
+## Author: AndreiBerkut
+## Version: 2.0.13
+## IconTexture: Interface\Icons\INV_Misc_Herb_01
+## SavedVariables: HarvestMateDB, HarvestGaugeDB
+## AllowLoadGameType: forever
+## AddonCompartmentFunc: HarvestMate_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: HarvestMate_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: HarvestMate_OnCompartmentLeave
+## X-License: MIT
+
+Core.lua
+Locale\enUS.lua
+Locale\ruRU.lua
+Locale\deDE.lua
+Locale\frFR.lua
+Locale\esES.lua
+Locale\itIT.lua
+Locale\ptBR.lua
+Locale\koKR.lua
+Locale\zhCN.lua
+Locale\zhTW.lua
+Data.lua
+Skill.lua
+Resolve.lua
+Prices.lua
+Profit.lua
+Extras.lua
+Banner.lua
+Tooltip.lua
+Learn.lua
+Announce.lua
+Session.lua
+Stats.lua
+Toast.lua
+Hub.lua
+Gear.lua
+Tracking.lua
+Bind.lua
+Nearby.lua
+Settings.lua
+Minimap.lua

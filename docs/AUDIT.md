@@ -1,0 +1,81 @@
+# Audit (2026-11-14)
+
+Sources inspected: GatherPath Forever 1.12.1 (all code, tests, dev notes), HarvestMate 2.0.13 (all modules), Gatherpedia 1.0.1 (all modules and data), Forever-GPS 2.7.0 (`Bridge`, `Commands`, `Journey`, `Market`, `Pad`, docs on taint and controllers).
+
+## Feature matrix and decisions
+
+| Subsystem | GatherPath | HarvestMate | Gatherpedia | HME choice |
+|---|---|---|---|---|
+| Routes, solver | strong (2-opt/Or-opt, walls, jobs) | — | recorded routes, overlay, 3D arrow | GatherPath's solver and route store; Gatherpedia's recorded routes become saved routes |
+| Node data | GatherMate2 only | names/requirements table | QuestieDB spawns (herb, ore, pool, beast) | merged spawn layer with provenance |
+| Map pins | — | — | canvas pins, legend | HME overlay (same canvas approach) |
+| Key binding | — | temporary override at nodes (on by default) | route toggle binding | HarvestMate's mechanism, off by default + consent |
+| Soft target / nameplate | — | banner + marker, CVar changes with popup | Glimmer, CVar changes restored | both kept; marker defaults off so they don't stack |
+| Skill detection | — | primary professions | all incl. Fishing | HME Player (all) feeds both |
+| Loot/gather tracking | — | spell + loot learning | loot tracker per zone | HarvestMate's learning + HME's (skins, kills, deaths) |
+| Session | — | session box, gold/h | session box, rates | one HME session engine |
+| Prices | — | Auctionator/TSM | — | unified layer (+ Forever-GPS) |
+| Guides | — | next-skill report | 1-300 guides | Gatherpedia's + adaptive status |
+| Trainers | — | rank reminders | trainer list | both |
+| Windows/buttons | 1 + button | hub + button | window + button | one window, one button |
+| Saved data | GatherPathForeverDB | HarvestMateDB | GatherpediaDB(+Char) | one account + one character DB, migration |
+
+## Problems found upstream (and what HME does)
+- HarvestMate turns on a key override, click-to-move and auto-loot by default → off, consent first, released on combat/binding change/logout.
+- HarvestMate announces gathers to group chat and emotes by default → off by default.
+- HarvestMate and Gatherpedia both drive the soft-target nameplate CVar → marker off by default; Glimmer restores its CVars.
+- Three addons, three minimap buttons, three sets of event frames, duplicated loot tracking → one of each.
+- GatherPath requires GatherMate2 → optional.
+- GatherPath's tests relied on the C runtime's `rand()` (differ on Windows) → portable generator in the fake client.
+- Plain Lua 5.1 `xpcall` drops arguments (HME's first event bus did) → fixed and tested on real 5.1.
+- Forever-GPS documents that `EnableKeyboard` and override bindings are protected in combat → HME's window never takes the keyboard; capture only hides.
+
+## API notes (Forever, verified from working upstream code, not yet by HME in game)
+`C_Map.GetMapWorldSize`, `GetWorldPosFromMapPos`, `GetMapRectOnMap`, `GetPlayerMapPosition`; `WorldMapFrame:AddDataProvider` / `AcquirePin` with an XML template; map canvas children; `C_NamePlate.GetNamePlateForUnit("softinteract")`; `PLAYER_SOFT_INTERACT_CHANGED`; `issecretvalue`/`canaccessvalue`; `GetUnitSpeed` may be secret; `SetOverrideBinding` (not in combat); `C_CVar`; `GetLootSourceInfo`; `IsFishingLoot`. Minimap tooltips are unreadable since 12 Nov 2026 (not attempted).
+
+## Second pass (0.2.0)
+
+Confirmed by reproduction tests and fixed: arrival without a destination check; two arrows when walking in with HME's own panel journey; travel counted as farming; session lost on reload; duplicate loot counting; single-backslash tab icons; empty profit rankings with no price data; a duplicate-event bug in the new Forever-GPS API (caught by its real-engine test).
+
+Investigated, not reproduced:
+- Elites recommended aggressively: already excluded unless 8+ levels below (5 in fastest mode).
+- Kill time from multi-mob fights: 0.1.0 already used only single-loot fights; 0.2.0 adds unclear-fight counting and recency/level weighting.
+- Spawn points treated as live: already scaled by an up-fraction and alive share; now shown as ranges with evidence labels.
+- New code in combat: no protected calls; editor, Glimmer, map preview and bindings refuse in combat (tests).
+
+Still unverified (needs the real client): all UI layouts, map canvas drawing and lines, nameplate and soft-target behaviour, secret values in combat, the live Forever-GPS 2.7 hand-off.
+
+## Third pass (0.3.0)
+
+Baseline first: 14 of 14 HME test files and Forever-GPS's suite passed before any change.
+
+Confirmed by reproduction and fixed:
+- Two arrows on "Guide me here" beside another Forever-GPS journey (the 0.2.0 test asserted it); and beside a journey started during the farm. Fixed with one presentation decision and Forever-GPS's arrow hold (docs/NAVIGATION.md).
+- The hint for it pointed at `/hme guide` (the Guides page); no button existed.
+- `Geo.TravelTime` gave Forever-GPS's from-here estimate for any starting point.
+- A corpse looted right after a skin counted as a skin; a repeated window of a skinned corpse could count as loot.
+- One right-click marked a beast species wrong everywhere, permanently.
+- Overlay error on a plan without a centre (found by the new rule that any caught Lua error fails a test).
+- Upgrade hazard: account-wide measured areas would have dropped to other-character weight.
+- Prices had no bounds; the session duplicate set had no bound.
+
+Investigated, no change needed:
+- Forever-GPS's `Market.Price` is copper per unit (buy, typical), as are Auctionator API v1 and TSM custom prices: no unit mismatch.
+- The walking grid's searches outside Forever-GPS's planner use their own scratch (`scratchMain`), so read-only walks between planner slices are safe; batches inside a coroutine use the planner's scratch only while no plan runs and restart if one ran across them.
+- The grid's settings (roads, danger, drop limit) are global; `LocalPath` never changes them (changing them resets the active route's drawn walks).
+- Forever-GPS's arrow modes (HUD, character, TomTom, beacon) all follow `Journey.ArrowMode()`, so one "held" mode covers them.
+- Kill time already excluded multi-mob fights; pet-assisted kills count as the character's pace.
+- `PLAYER_ENTERING_WORLD` fires on every loading screen: a held arrow is kept unless Forever-GPS dropped it.
+
+Still unverified in the real client: everything listed in docs/MANUAL_TESTING.md 37-56.
+
+## Follow-up review (after the first 0.3.0 push)
+
+- **Forever-GPS Luacheck (CI) failed** on `CreateVector2D` in `Core/Bridge.lua` (W113). It is a client function: EasyFind and EasyFind GPS call it, and so do WoW Forever-only addons (interface 16001) installed on the test PC, with no error about it in the saved BugGrabber log. Declared in `.luacheckrc`; the guarded coordinate code was left as it was. `/fgps diag` now probes it and `C_Map.GetMapPosFromWorldPos`. Luacheck was then run locally exactly as CI runs it: 0 warnings.
+- **HME linted once with Luacheck** (no CI job): its global writes are all intended (bindings, slash commands, a pin mixin). Its global reads showed `GetItemInfo` in `Engine/Goals.lua` and `Engine/Session.lua` without the `C_Item` fallback the rest of HME uses. Forever-GPS's real-client report (its docs/REALCLIENT.md) found that this client has no global `GetItemInfo`: names of items outside the field guide would have shown as "item 12345". Fixed through one helper (`ns.ItemNameByID`); the test client no longer has the global, and a test fails on the old code.
+- **Terrain with long loops** (about 100 stops): building a route ran the corridor search for every leg against every recorded point in one frame (~0.3 s with 10 recordings); the reorder pass changed the live route over several frames and could not be cancelled; deleting a route left its walk running; the walks used Forever-GPS's planner share of the frame (4-12 ms) and kept starting batches in combat. All fixed and tested (docs/TERRAIN.md, "Stopping, combat and changes"; docs/PERFORMANCE.md).
+- **Best beasts** now has its Farm Finder panel.
+
+## First real-client report (2026-11-14, client 1.60.1.70938)
+
+Loading only. HME 0.3.0 and Forever-GPS 2.7.0 with API v2 loaded together; `/fgps diag`: `Game API: all 28 present` (so `CreateVector2D` and `C_Map.GetMapPosFromWorldPos` exist); `/hme diag`: API v2, walking grid and arrow hold found, no errors. The report said "Map: 1417 (Arathi Highlands) at no position" while Forever-GPS had the position: `local zm, zx, zy = mapID and HME.Geo.ZoneOf(...)` keeps one value. Scanning HME for that pattern (Forever-GPS's static test, now ported) found `Player.Class()` always "UNKNOWN" for the same reason, which kept the class out of the Skinning kill-time model. The tests had passed because they build profiles by hand; a test that expected the class-less figure was corrected.

@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in GatherPath Forever isn't working
+description: Something in HarvestMate Enhanced isn't working
 title: "[Bug] "
 labels: ["bug"]
 assignees: ["severd8"]
@@ -33,7 +33,7 @@ body:
     id: where
     attributes:
       label: Where does it go wrong?
-      options: ["World map", "Minimap", "The GatherPath window", "Making a route", "Somewhere else"]
+      options: ["World map", "Minimap", "The HarvestMate Enhanced window", "Farm Finder", "One-key gathering or tooltips", "Glimmer", "Making a route", "Somewhere else"]
   - type: input
     id: version
     attributes:

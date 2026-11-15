@@ -1,95 +1,77 @@
-<p align="center"><img src="https://raw.githubusercontent.com/severd8/gatherpathforever/main/art/logo.png" width="160" alt="GatherPath Forever logo"></p>
+# HarvestMate Enhanced
 
-# GatherPath Forever
+An all-in-one gathering companion for **World of Warcraft: Forever** (1.60.1, interface 16001): where to level Herbalism, Mining, Skinning and Fishing, which farms pay best for *your* character, routes drawn on the world map and minimap, Skinning treated as real hunting (beast clusters, kill time, respawns), goals and staged leveling plans, one-key gathering, and session statistics that teach the recommendations what you actually achieve — with every estimate saying what it rests on.
 
-**Gathering routes for World of Warcraft: Forever.**
+Version 0.7.3 (development build). What has been seen in the real game client: 0.3.0 and 0.4.0 load, `/hme diag` and `/fgps diag` work, and two screenshots of 0.4.0 (Farm Finder, Dashboard, the farming HUD) led to the fixes in 0.4.0 and 0.5.0. The 0.5.0 to 0.7.3 changes are tested headless only so far: see [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). A personal-use project: no public releases.
 
-GatherPath Forever takes the herb and ore nodes GatherMate2 has recorded, works out the shortest loop through them, and draws it on your world map and minimap. Pick Peacebloom and Silverleaf in Elwynn Forest, or every vein in a zone, and follow the line.
+**New in 0.7.0**: route **versions** you can put back, **redo**, moving and **snapping** waypoints, **sharing** one route without your history, your own **danger map** (enemy players you met, deaths with an enemy in sight) on the map and in risk, **price trends**, a **ready to go?** check (bags, repairs, rank cap), **your characters** with their professions, the **session path** on the map, and an optional Copilot line on the HUD.
 
-Needs **GatherMate2** (on CurseForge), which records where you find nodes.
+**New in 0.6.0**: the **Farming Copilot** (what to farm now and why, for your mode and the time you have, with its evidence and one click), a **prediction ledger** that compares every planned session with what you got and adjusts estimates for farms you have not measured, the **Skinning Explorer** (every beast as a profile with your own drop journal), **quest synergy** (farms that also progress quests in your log), the **Route Director** (loops sized to your time, laps, empty stops), a **notification center**, **session reviews**, **search everything**, and sell/process/keep advice. How it all works: [docs/COPILOT.md](docs/COPILOT.md).
 
-Recommended: **[GatherMate2 Data (Wowhead Classic)](https://www.curseforge.com/wow/addons/gathermate2-data-wowhead-classic)**. It lets you import Wowhead's herb and ore nodes into GatherMate2, so you can make a full route through a zone before you've gathered it yourself. After installing it, open GatherMate2's options, go to **Import Data** and import the nodes you want.
+It brings three addons together into one coherent addon, one window, one minimap button and one saved database:
 
----
+| From | What it contributes |
+|---|---|
+| [GatherPath Forever](https://github.com/severd8/gatherpathforever) 1.12.1 (MIT) | Route solver, saved routes, world map and minimap lines, direction arrows, avoid ("taboo") areas, skip list, display options |
+| [HarvestMate](https://www.curseforge.com/wow/addons/harvestmate-herbalism-mining-skinning-helper) 2.0.13 (MIT) | One-key gathering, nearby-resource banner, tooltips with skill and drops, learning, achievements and records, reminders, profit comparisons |
+| [Gatherpedia](https://www.curseforge.com/wow/addons/gatherpedia) 1.0.1 (GPL-3.0+) | Field guide data, 1-300 guides with recorded routes, trainers, QuestieDB-derived spawn points, Glimmer |
 
-## Features
+[Forever-GPS](https://github.com/Stoffe101/Forever-GPS) stays a separate, optional addon: HME hands long journeys to it and takes over at the farm.
 
-- **Routes from your GatherMate2 nodes.** Pick a zone and the kinds of node you gather (herbs, ore, fishing pools, treasure), and GatherPath finds the shortest loop through all of them.
-- **On the world map**, on the zone's map and thinner on the continent's, and **on the minimap**, round you, turning with it if your minimap turns.
-- **As many routes as you like**, several per zone, each with its own color. Show or hide each one, rename it, edit it, or delete it.
-- **Skip list** for nodes you never want, like Poor Copper Ore or Wilted Peacebloom: right-click one on the New route tab and no route uses it, in any zone.
-- **Taboo areas**: draw an area on the world map, like the mountains in Eastern Plaguelands, and your routes stay out of it. Nodes inside it are left out, and the line goes round it instead of over it.
-- **Routes that grow.** When GatherMate2 records a node you just found, it joins the routes in that zone that have its kind, where it adds the least walking. **Rebuild** reads every node again and finds the loop again.
-- **Route passes within** a distance of each node instead of right up to it (185 yards to start, up to 200): with Find Herbs or Find Minerals on you see nodes on the minimap from there, so the route cuts corners and is shorter, and nodes close together become one stop.
-- **Direction arrows** along the lines on both maps show which way round to ride each loop. Reverse them or turn them off on the Display tab.
-- **Line to the route** on the minimap: when you are off your route, a dashed line points from you to its nearest point, so you know where to join it.
-- **Time for a lap**: each route shows about how long one lap takes at your mount's speed (remembered from the last time you rode).
-- **Range circle** on the minimap (off to start): a ring round you, 100 yards to start, as far as Find Herbs and Find Minerals show nodes. Pick its color, opacity and size.
-- **Your look**: line width, opacity and color, set apart for the world map and the minimap. Lines use each route's own color, or one color you pick for every route.
-- The same look as TauntMaster Forever, ToppedOff Forever, BattleText Forever, AuctionHouse Forever, Outfitter Forever and ARS Forever.
+## Install
 
-## Installation
+1. Download `HarvestMateEnhanced-<version>.zip` (or build it: `python tools/package.py`).
+2. Close the game. Unzip so you have `World of Warcraft/_forever_/Interface/AddOns/HarvestMateEnhanced/HarvestMateEnhanced.toc` (not nested twice).
+3. Start the game; in the AddOns list make sure **HarvestMate Enhanced** is ticked (tick "Load out of date AddOns" if it says out of date).
+4. Type `/hme` or click the leaf button on the minimap.
 
-1. Download the latest release.
-2. Unzip it into your WoW: Forever `Interface\AddOns` folder so you end up with an `AddOns\GatherPathForever\` folder.
-3. Install **GatherMate2** too.
-4. Restart the game, or type `/reload` if it's already running.
+**Coming from HarvestMate, Gatherpedia or GatherPath Forever?** Keep them enabled for one login: HME copies their saved data in (their own data is not changed) and pauses its own copy of their features while they run. Then press **Import and turn off** on the Dashboard and `/reload`. Details: [docs/MIGRATION.md](docs/MIGRATION.md).
+
+Optional addons HME uses when present: Forever-GPS (navigation, prices, and with its API v2 also terrain-aware loops, one-arrow hand-over, the nearest vendor or mailbox, and recipes), GatherMate2 (extra recorded nodes), Auctionator or TradeSkillMaster (prices), TomTom (waypoint arrow). HME works without any of them.
+
+**Forever-GPS API v2 is not in a Forever-GPS release.** It is on the branch `feature/public-api` of github.com/Stoffe101/Forever-GPS (draft pull request 3). With the released Forever-GPS 2.7, HME works as before: journey panel, straight-line loops, and Guide me here on the map only. To use API v2:
+
+1. In your Forever-GPS checkout: `git fetch origin`, then `git checkout feature/public-api`.
+2. There, `python tools/package.py`: it writes and checks `dist/ForeverGPS-2.7.0-forever.zip`.
+3. Close the game and install that ZIP as Forever-GPS's own `docs/INSTALL.md` describes ("The API branch, for HarvestMate Enhanced"). It replaces the released Forever-GPS folders; keep a copy of the old ones.
+4. In the game, `/hme diag` should say `Forever-GPS: 2.7.0 (API v2)`, `walking grid API yes` and `arrow hold yes`, and `/fgps diag` should say `Game API: all 28 present`.
+
+HME detects the API at login and uses each part it finds. Going back to the released Forever-GPS needs nothing in HME.
+
+**Before trusting it in the game**, run the checklist in [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md) (items 37-62 came with 0.3.0, 63-76 with 0.4.0, 77-88 with 0.5.0, 89-104 with 0.6.0, 105-118 with 0.7.0, 119-127 with 0.7.1). Everything so far is tested only headless; see [TESTING.md](TESTING.md#verified-where).
 
 ## Using it
 
-1. **Open GatherPath**: type `/gpf`, or left-click the minimap button.
-2. **New route**: click **New route** on the **Routes** tab to start in the zone shown there, or pick the zone (or click **My zone**). Switch on the nodes you want, or click **Select all** beside a kind (herbs, ore, treasure). The number beside each is how many GatherMate2 knows there.
-3. The name starts with the zone ("The Barrens - "). Type the rest, or leave it to have it made from what you picked. Click **Make route**.
-4. The route shows on the **Routes** tab and on your maps. Follow the line.
+- **Farm Finder:** pick Herbs, Ore, Herbs + Ore, Skinning or Fishing, a goal (fastest leveling, best gold, one or more materials, balanced, safest, current zone, least travel), a risk mode and how long you can play. Each farm comes with a plain sentence on why, skill-ups and gold per hour as a range, farming vs whole-trip gold, travel, risk, and what the numbers rest on (measured, partly measured, known yield, published data or assumption). Mark farms to compare them side by side; save a search as a profile. **Start farming** plans the loop and guides you; far farms go through Forever-GPS and HME takes over on arrival.
+- **Goals & Plans:** goals like "100 Heavy Leather", "Skinning 225" or "50 gold of materials" with progress (in bags and gathered, apart), the best farm for each with time and loops to go; staged leveling plans (e.g. Skinning 175 → 300) with training points; saved profiles.
+- **Leveling Guides:** Gatherpedia's 1-300 guides with your status on top: cap, next milestone, whether you can train, and advice when your farm goes grey.
+- **Materials:** the field guide, with known zones, your own counts, prices and "Farm this".
+- **Profits & Stats:** sessions (predicted vs actual; filter by zone, material, route or character), measured rates per area, records (with minimum farming times) and achievements.
+- **Skinning levels** (`/hme sl`): a small box that says which beast levels to kill for Skinning points right now, and keeps up as you skin.
+- **Expeditions** (Goals page): a shopping list across professions and zones becomes staged farms with travel.
+- **Record My Route** (Routes page): ride your own loop; it becomes a route to follow, edit and share.
+- **Setup** (`/hme setup`) and **diagnostics** (`/hme diag`: a report to copy after a test).
+- **Routes and maps:** GatherPath's route pages: your routes, New route, Avoid areas, Map display.
+- **Settings:** everything, explained; anything that changes your controls or game settings asks first.
 
-- **Edit** a route to change its zone, nodes, name or pass distance; it finds the loop again when you save.
-- **Skip a node everywhere**: right-click it on the **New route** tab (Poor Copper Ore, Wilted Peacebloom...). It stays off, **Select all** leaves it out, new ones don't join your routes, and routes that had it drop it when you **Rebuild** them. Right-click it again (or click it) to stop skipping it. `/gpf skipped` lists them.
-- **Keep routes out of an area**: on the **Taboo areas** tab, pick the zone and click **Draw a taboo area**. The world map opens on that zone: left-click for each corner, right-click to take the last one back (scroll to zoom, drag to move the map), then click **Finish** at the top of the map. The routes in that zone are worked out again to go round it. Delete an area from the same tab.
-- **Rebuild** a route after gathering more of a zone, so it takes in every node GatherMate2 knows now.
-- **Hide every line for a while**: right-click the minimap button, or type `/gpf hide` (and `/gpf show`).
+Commands: `/hme help`. Old commands `/hm`, `/gp` and `/gpf` still work while those addons are not installed.
 
-### Window
+## Develop
 
-| Tab | What's there |
-|---|---|
-| **Routes** | The routes in a zone: color, name (click to rename), Edit, Rebuild, Delete, nodes, length in yards, time for a lap, show |
-| **New route** | Zone, the nodes GatherMate2 knows there (with Select all for each kind; right-click one to skip it), name, route passes within, Make route. Starts blank each time; Edit fills it in from a route |
-| **Taboo areas** | Zone, Draw a taboo area, show them on the world map (red, hatched), and each area in the zone with its size, Show and Delete |
-| **Display** | Lines on the world map and the minimap: width, opacity, and each route's own color or one you pick, for each map; direction arrows (on or off, reversed), line to the route; the range circle (on or off, color, radius, opacity); add new nodes to routes, minimap button; Restore defaults puts them all back |
+```bash
+pip install lupa
+```
 
-### Commands
+```bash
+python tools/run_tests.py
+```
 
-| Command | Does |
-|---|---|
-| `/gpf` | Open or close the window |
-| `/gpf new` | Open the New route tab |
-| `/gpf hide`, `/gpf show` | Hide or show every line |
-| `/gpf skipped` | List the nodes on your skip list |
+```bash
+python tools/package.py --check
+```
 
-## Good to know
-
-- A route goes where your nodes are. The more of a zone you've gathered (or imported into GatherMate2), the better the route.
-- The loop is as short as GatherPath can find quickly. A big route (hundreds of nodes) takes a few seconds to work out; the game keeps running meanwhile.
-- Lengths are in yards, round the whole loop.
-
-## All addons by me
-
-- **TauntMaster Forever**: one-click taunts off your healers and DPS, for tanks.
-- **ToppedOff Forever**: reminds you when buffs, food, reagents, ammo or gear need topping off.
-- **Outfitter Forever**: save your gear as outfits and switch between them with one click, or let them change by themselves.
-- **BattleText Forever**: scrolling combat text for your hits, heals and the damage you take.
-- **AuctionHouse Forever**: a bigger Auction House window, so long item names stop getting cut off.
-- **GatherPath Forever**: the shortest gathering route through your GatherMate2 herb and ore nodes, on the world map and minimap.
-- **ARS Forever** (Azeroth Revenue Service): see how much gold a player has made and the most they've ever held, for you and anyone you inspect.
-
-## Feedback
-
-Found a bug or have an idea? [Open an issue](https://github.com/severd8/gatherpathforever/issues/new/choose).
-
-## Support
-
-GatherPath Forever is free and always will be. If it saves you time, you can leave a tip on [Ko-fi](https://ko-fi.com/tauntmasterforever).
+Read [docs/NAVIGATION.md](docs/NAVIGATION.md), [docs/TERRAIN.md](docs/TERRAIN.md), [docs/RECORDING.md](docs/RECORDING.md), [docs/INTELLIGENCE.md](docs/INTELLIGENCE.md), [docs/DIAGNOSTICS.md](docs/DIAGNOSTICS.md), [ARCHITECTURE.md](ARCHITECTURE.md), [FEATURES.md](FEATURES.md), [TESTING.md](TESTING.md), [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md), [UPSTREAM.md](UPSTREAM.md) and [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+The combined addon is GPL-3.0 (version 3: the QuestieDB-derived data carries no "or later" grant); HME's own code is also available under GPL-3.0-or-later. Parts from MIT-licensed projects keep their MIT notices in `HarvestMateEnhanced/Licenses/`. See [THIRD_PARTY.md](THIRD_PARTY.md), including a provenance caveat about the QuestieDB data.
