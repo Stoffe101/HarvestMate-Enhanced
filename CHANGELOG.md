@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.2 (development build, unreleased)
+
+Two problems you found in 0.7.1's automatic flights. Tested headless only.
+
+### Fixed
+- **A planned flight from another flight master was taken anyway.** Forever-GPS's planned flight was used whenever its destination was on the map, without checking that the journey flies from the master you are talking to. It is now used only at that master (the game marks where you are on the flight map). At any other master, or when the game does not say where you are, HME's own choice decides: the master that lands closest to where it leads you.
+- **"Flying to ..." was said before the game answered.** HME announced the flight as it asked for it. It now says "flying to ..." only once the game has you on the flight (checked for 1.5 seconds). If the game refuses, it says so and offers the "Fly to ..." button. If the flight map was closed, it says the flight did not start. `/hme flights` and `/hme diag` report what happened, not what was asked for.
+
 ## 0.7.1 (development build, unreleased)
 
 From your reports after installing 0.7.0. Tested headless only; nothing of it has been run in the game yet (docs/MANUAL_TESTING.md items 119-127).

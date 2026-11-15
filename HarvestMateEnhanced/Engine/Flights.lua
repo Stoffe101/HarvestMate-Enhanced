@@ -4,7 +4,9 @@
 -- HME picks the flight and takes it:
 --
 --   1. the flight Forever-GPS's journey plans next (API.PlannedFlight, by the
---      game's taxi node ids): exactly the way it planned;
+--      game's taxi node ids): exactly the way it planned, but only at the
+--      master it plans to fly from (0.7.2: checked against the master whose map
+--      is open; anywhere else the plan does not apply and 2. decides);
 --   2. otherwise the flight master you can fly to that lands closest to where
 --      HME is leading you (the farm's first stop, a guide's place), when it
 --      lands at least 400 yards closer and a third nearer than you are now.
@@ -12,8 +14,9 @@
 -- You still walk to the flight master and talk to it (HME never moves you);
 -- hold Shift while you talk to it to choose yourself. Nothing is taken in
 -- combat. If the game refuses an addon taking the flight, a "Fly to ..."
--- button on the flight map does it with your click. Every flight taken is
--- said in chat.
+-- button on the flight map does it with your click. Chat says "flying to"
+-- only once the game has you on the flight (0.7.2: before, it said so as it
+-- asked); otherwise it says the flight did not start.
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
 
 local _, ns = ...
@@ -26,7 +29,8 @@ HME.Flights = F
 F.MIN_SAVE_YARDS = 400
 F.SHARE = 0.67
 F.DELAY = 0.3
-F.CHECK = 1.5
+F.CHECK = 1.5           -- how long the game has to put you on the flight
+F.POLL = 0.25
 
 local function Call(fn, ...)
     if type(fn) ~= "function" then return nil end
@@ -89,6 +93,7 @@ end
 
 -- The flight to take: node, why (or nil, why not).
 function F.Choose()
+    F.planSkipped = nil
     local nodes, here = F.Nodes()
     if #nodes == 0 then return nil, "no flight you can take from here" end
     -- 1. Forever-GPS's planned flight.
@@ -96,8 +101,14 @@ function F.Choose()
     if api and type(api.PlannedFlight) == "function" then
         local ok, plan = pcall(api.PlannedFlight)
         if ok and type(plan) == "table" and plan.toID then
-            for _, n in ipairs(nodes) do
-                if n.nodeID == plan.toID then return n, "Forever-GPS's journey flies there" end
+            -- Only from the master the journey flies from: at another one the plan does not apply.
+            local fromHere = plan.fromID == nil or (here and here.nodeID ~= nil and here.nodeID == plan.fromID)
+            if fromHere then
+                for _, n in ipairs(nodes) do
+                    if n.nodeID == plan.toID then return n, "Forever-GPS's journey flies there" end
+                end
+            else
+                F.planSkipped = "Forever-GPS planned this flight from another flight master"
             end
         end
     end
@@ -163,21 +174,41 @@ function F.Opened(shift)
         return nil
     end
     local node, why = F.Choose()
-    F.last = { node = node, why = why }
+    F.last = { node = node, why = why, planSkipped = F.planSkipped, result = node and "asked" or nil }
     if not node then
         HME.Debug("auto flight:", why)
         return nil
     end
-    HME.Print(("flying to |cffffd100%s|r (%s). Hold Shift at a flight master to choose yourself; Settings turns this off.")
-        :format(node.name, why))
+    HME.Debug("auto flight: asking for", node.name, why)
     Call(_G.TakeTaxiNode, node.slot)
-    -- Refused (the game can block an addon from taking flights): one click does it.
-    HME.After(F.CHECK, function()
-        if not OnTaxi() and (_G.TaxiFrame and _G.TaxiFrame:IsShown() or _G.FlightMapFrame and _G.FlightMapFrame:IsShown()) then
-            Button(node)
-            F.last.button = true
+    -- Said only once the game has you on the flight. Refused (the game can block
+    -- an addon from taking flights): one click on the button does it.
+    local last, waited = F.last, 0
+    local function Check()
+        if F.last ~= last then return end   -- (the flight map was opened again meanwhile)
+        if OnTaxi() then
+            last.result = "flying"
+            HME.Print(("flying to |cffffd100%s|r (%s). Hold Shift at a flight master to choose yourself; Settings turns "
+                .. "this off."):format(node.name, why))
+            return
         end
-    end)
+        waited = waited + F.POLL
+        if waited < F.CHECK then
+            HME.After(F.POLL, Check)
+            return
+        end
+        local open = (_G.TaxiFrame and _G.TaxiFrame:IsShown()) or (_G.FlightMapFrame and _G.FlightMapFrame:IsShown())
+        if open then
+            last.result, last.button = "refused", true
+            Button(node)
+            HME.Print(("the game did not let HME take the flight to |cffffd100%s|r: press \"Fly to %s\" on the flight map.")
+                :format(node.name, node.name))
+        else
+            last.result = "not started"
+            HME.Print(("the flight to |cffffd100%s|r did not start."):format(node.name))
+        end
+    end
+    HME.After(F.POLL, Check)
     return node
 end
 

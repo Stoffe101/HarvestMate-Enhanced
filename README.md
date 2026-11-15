@@ -2,7 +2,7 @@
 
 An all-in-one gathering companion for **World of Warcraft: Forever** (1.60.1, interface 16001): where to level Herbalism, Mining, Skinning and Fishing, which farms pay best for *your* character, routes drawn on the world map and minimap, Skinning treated as real hunting (beast clusters, kill time, respawns), goals and staged leveling plans, one-key gathering, and session statistics that teach the recommendations what you actually achieve — with every estimate saying what it rests on.
 
-Version 0.7.1 (development build). What has been seen in the real game client: 0.3.0 and 0.4.0 load, `/hme diag` and `/fgps diag` work, and two screenshots of 0.4.0 (Farm Finder, Dashboard, the farming HUD) led to the fixes in 0.4.0 and 0.5.0. The 0.5.0 to 0.7.1 changes are tested headless only so far: see [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). A personal-use project: no public releases.
+Version 0.7.2 (development build). What has been seen in the real game client: 0.3.0 and 0.4.0 load, `/hme diag` and `/fgps diag` work, and two screenshots of 0.4.0 (Farm Finder, Dashboard, the farming HUD) led to the fixes in 0.4.0 and 0.5.0. The 0.5.0 to 0.7.2 changes are tested headless only so far: see [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). A personal-use project: no public releases.
 
 **New in 0.7.0**: route **versions** you can put back, **redo**, moving and **snapping** waypoints, **sharing** one route without your history, your own **danger map** (enemy players you met, deaths with an enemy in sight) on the map and in risk, **price trends**, a **ready to go?** check (bags, repairs, rank cap), **your characters** with their professions, the **session path** on the map, and an optional Copilot line on the HUD.
 

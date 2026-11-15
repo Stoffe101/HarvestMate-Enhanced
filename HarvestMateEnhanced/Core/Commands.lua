@@ -198,8 +198,12 @@ function cmds.flights(rest)
             or "/hme flights on turns it on."))
     local last = HME.Flights.last
     if last and (last.node or last.why) then
-        print(("  last flight map: %s"):format(last.node and ("flew to " .. last.node.name .. " (" .. (last.why or "") .. ")")
-            or ("did not fly: " .. tostring(last.skipped or last.why))))
+        -- (what the game did, not what HME asked for: "flying", "refused", "not started")
+        local RESULT = { flying = "flew to %s", refused = "the game refused the flight to %s (the button was offered)",
+            ["not started"] = "the flight to %s did not start", asked = "asked for %s, no answer yet" }
+        print(("  last flight map: %s%s"):format(last.node and (RESULT[last.result] or "asked for %s"):format(last.node.name)
+            or ("did not fly: " .. tostring(last.skipped or last.why)),
+            last.planSkipped and (" (" .. last.planSkipped .. ")") or ""))
     end
     return HME.settings.autoFlight
 end

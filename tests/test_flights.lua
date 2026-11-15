@@ -31,12 +31,14 @@ C_TaxiMap = { GetAllTaxiNodes = function() return NODES end }
 function GetTaxiMapID() return 1415 end
 local TAKEN = {}
 local REFUSE = false
-function TakeTaxiNode(slot) if not REFUSE then TAKEN[#TAKEN + 1] = slot end end
 local ON_TAXI = false
+-- The stand-in game puts you on the flight only when it accepts the request.
+function TakeTaxiNode(slot) if not REFUSE then TAKEN[#TAKEN + 1] = slot ON_TAXI = true end end
 function UnitOnTaxi() return ON_TAXI end
 TaxiFrame = CreateFrame("Frame", "TaxiFrame", UIParent)
 
 local function Open(shift)
+    ON_TAXI = false
     TaxiFrame:Show()
     return F.Opened(shift or false)
 end
@@ -61,8 +63,11 @@ HME.settings.autoFlight = true
 ClearLog()
 local node = Open()
 check(node and node.name == "Darkshire, Duskwood", "Darkshire: " .. tostring(node and node.name))
-eq(TAKEN[#TAKEN], 2, "its slot taken")
-check(Said("flying to"), "said in chat")
+eq(TAKEN[#TAKEN], 2, "its slot asked for")
+check(not Said("flying to"), "nothing said before the game answers")
+RunTimers(F.POLL)
+check(Said("flying to"), "said once you are on the flight")
+eq(F.last.result, "flying")
 
 STEP("never an unlearned master, never with Shift, never in combat")
 for _, n in ipairs(NODES) do check(not (TAKEN[#TAKEN] == 4), "not the unreachable one") end
@@ -78,7 +83,20 @@ STEP("Forever-GPS's planned flight comes first")
 local realAPI = HME.FGPS.APIv2
 HME.FGPS.APIv2 = function() return { PlannedFlight = function() return { fromID = 2, toID = 4 } end } end
 node = Open()
-eq(node.name, "Sentinel Hill, Westfall", "the journey's flight, not HME's guess")
+eq(node.name, "Sentinel Hill, Westfall", "the journey's flight, not HME's guess (planned from Stormwind, where you are)")
+check(F.last.planSkipped == nil, "the plan applied")
+
+STEP("a plan from another flight master does not apply here")
+HME.FGPS.APIv2 = function() return { PlannedFlight = function() return { fromID = 12, toID = 4 } end } end
+node = Open()   -- you are at Stormwind (node 2); the journey flies from Darkshire (12)
+check(node and node.name == "Darkshire, Duskwood", "HME's own choice instead: " .. tostring(node and node.name))
+check(F.last.planSkipped and F.last.planSkipped:find("another flight master"), tostring(F.last.planSkipped))
+local currentState = NODES[1].state
+NODES[1].state = 1   -- the game says nothing about where you are
+HME.FGPS.APIv2 = function() return { PlannedFlight = function() return { fromID = 2, toID = 4 } end } end
+node = Open()
+check(node and node.name ~= "Sentinel Hill, Westfall", "where you are is unknown: the plan is not trusted")
+NODES[1].state = currentState
 HME.FGPS.APIv2 = realAPI
 
 STEP("not when flying lands no nearer")
@@ -98,11 +116,15 @@ NODES[1].state, NODES[2].state = 0, 1
 PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
 HME.Player.Refresh()
 
-STEP("when the game refuses, a Fly to button does it with your click")
+STEP("when the game refuses, it says so, and a Fly to button does it with your click")
 REFUSE = true
+ClearLog()
 Open()
-RunTimers(F.CHECK + 0.1)
+for _ = 1, 10 do RunTimers(F.POLL) end
 check(F.last.button, "a button")
+eq(F.last.result, "refused")
+check(not Said("flying to"), "never said it was flying")
+check(Said("did not let HME take the flight"), "said it was refused")
 REFUSE = false
 local b
 for _, f in ipairs(ALL_FRAMES) do if f.__text == "Fly to Darkshire, Duskwood" then b = f end end
@@ -116,6 +138,20 @@ count = #TAKEN
 check(Open() == nil, "no destination")
 check(F.last.why:find("not taking you anywhere"), F.last.why)
 eq(#TAKEN, count)
+
+STEP("the flight map closed without a flight: said so, no button")
+HME.Guidance.Start(route)
+REFUSE = true
+ClearLog()
+check(Open(), "asked for one")
+TaxiFrame:Hide()
+for _ = 1, 10 do RunTimers(F.POLL) end
+eq(F.last.result, "not started")
+check(Said("did not start") and not Said("flying to"), "honest about it")
+check(not F.last.button, "no button on a closed map")
+REFUSE = false
+HME.Guidance.Stop()
+route.shown = false
 
 STEP("/hme flights")
 SlashCmdList.HARVESTMATEENHANCED("flights off")

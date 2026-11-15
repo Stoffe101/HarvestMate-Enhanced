@@ -170,7 +170,7 @@ function D.Lines()
         -- 0.7.1
         local last = HME.Flights and HME.Flights.last
         Add("Flights: automatic %s; last flight map: %s; node tooltips %s, %s", HME.settings.autoFlight and "on" or "off",
-            last and (last.node and "took one" or tostring(last.skipped or last.why)) or "not opened",
+            last and (last.node and tostring(last.result) or tostring(last.skipped or last.why)) or "not opened",
             tostring(HME.settings.worldTooltipPlace), tostring(HME.settings.worldTooltipDetail))
     end
     -- Loot decisions (creature IDs only)

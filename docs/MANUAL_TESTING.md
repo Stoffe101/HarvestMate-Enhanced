@@ -157,7 +157,7 @@ Install Forever-GPS from the branch `feature/public-api` for 37-44 and 54-56 (RE
 ### 0.7.1
 119. [ ] **The corpse tooltip.** Kill and skin a beast with Soft Target Interact on: the tooltip over the corpse is short (name with your numbers, "N more to the next color") and in the bottom right corner, not the middle. Try Settings, Node and corpse tooltips: "Where the game puts it" and "Off".
 120. [ ] **Start farming → Forever-GPS.** Start a farm from the Copilot or the Farm Finder: Forever-GPS starts the journey within a second or two (before: several seconds).
-121. [ ] **Flights.** Settings, Take flights automatically, on. Start a farm in another zone with a flight on the way, walk to the flight master and talk to it: HME says "flying to ..." and you take off. If you get "Interface action failed because of an AddOn" instead, press the "Fly to ..." button on the flight map, and tell me.
+121. [ ] **Flights.** Settings, Take flights automatically, on. Start a farm in another zone with a flight on the way, walk to the flight master and talk to it: you take off, and only then HME says "flying to ...". If the game refuses, HME says so and a "Fly to ..." button appears on the flight map: press it, and tell me. (0.7.2: at a different flight master than Forever-GPS planned, HME picks its own flight instead.)
 122. [ ] **Shift at the flight master**: nothing is taken; you choose.
 123. [ ] **Stopped routes leave the map**: follow a farm, Stop farming, follow another: only the new one is drawn on the world map and minimap.
 124. [ ] **The bell**: open the notifications, close them with ×, and with the bell again.
