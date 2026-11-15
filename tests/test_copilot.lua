@@ -314,6 +314,21 @@ check(#m == 1 and m[1].questID == 503 and m[1].source == "questie", "drops lead 
 m = Q.ForCreature(2351, nil)
 check(#m == 1 and m[1].questID == 501, "creature id from Questie")
 
+STEP("quests: Questie's runtime ObjectiveData (kill credit lists too)")
+QuestieLoader = { ImportModule = function(_, name)
+    if name ~= "QuestieDB" then return nil end
+    return {
+        QueryQuestSingle = function() return nil end,
+        QueryItemSingle = function() return nil end,
+        GetQuest = function(id)
+            if id == 501 then return { ObjectiveData = { { Type = "killcredit", IdList = { 7001, 7002 }, Text = "Bears" } } } end
+        end,
+    }
+end }
+Q.Forget()
+Q.Rebuild()
+check(#Q.ForCreature(7002) == 1, "kill credit ids count")
+
 STEP("quests: Forever-GPS's API wins when it has the answer")
 ForeverGPS = { API = { QuestObjectiveTargets = function(id)
     if id == 501 then return { { kind = "monster", ids = { 9999 } } } end

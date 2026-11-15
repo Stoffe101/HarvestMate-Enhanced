@@ -2,7 +2,8 @@
 -- Quest-farming synergy: which farms also progress a quest in your log.
 --
 -- Read-only, from three sources, best first:
---   1. Forever-GPS's API (QuestObjectiveTargets, Forever-GPS 2.8+): the
+--   1. Forever-GPS's API (QuestObjectiveTargets, Forever-GPS 2.7 on its
+--      feature/public-api branch): the
 --      creature and item ids of each objective and which creatures drop the
 --      item, from Questie when it is loaded.
 --   2. Questie itself, through a small adapter that checks every function it
@@ -130,9 +131,38 @@ local function IdsOf(list, pickFirst)
     return out
 end
 
+local function FromObjectiveData(db, questID)
+    if type(db.GetQuest) ~= "function" then return nil end
+    local ok, quest = pcall(db.GetQuest, questID)
+    local data = ok and type(quest) == "table" and quest.ObjectiveData
+    if type(data) ~= "table" then return nil end
+    local out, npcs = {}, {}
+    for _, o in ipairs(data) do
+        if type(o) == "table" then
+            if o.Type == "monster" or o.Type == "killcredit" then
+                if type(o.Id) == "number" then npcs[#npcs + 1] = o.Id end
+                for _, id in ipairs(type(o.IdList) == "table" and o.IdList or {}) do
+                    if type(id) == "number" then npcs[#npcs + 1] = id end
+                end
+            elseif o.Type == "item" and type(o.Id) == "number" then
+                local okD, drops = pcall(db.QueryItemSingle, o.Id, "npcDrops")
+                out[#out + 1] = { kind = "item", ids = { o.Id }, drops = okD and type(drops) == "table" and drops or {} }
+            elseif o.Type == "object" and type(o.Id) == "number" then
+                out[#out + 1] = { kind = "object", ids = { o.Id } }
+            end
+        end
+    end
+    if #npcs > 0 then table.insert(out, 1, { kind = "monster", ids = npcs }) end
+    return out
+end
+
 local function FromQuestie(questID)
     local db = Questie()
     if not db then return nil end
+    -- Questie's runtime quest object first (what its own tracker reads)...
+    local viaData = FromObjectiveData(db, questID)
+    if viaData and #viaData > 0 then return viaData, "questie" end
+    -- ...else its database row: { creatures, objects, items, rep, killCredit }.
     local ok, obj = pcall(db.QueryQuestSingle, questID, "objectives")
     if not ok or type(obj) ~= "table" then return nil end
     local out = {}

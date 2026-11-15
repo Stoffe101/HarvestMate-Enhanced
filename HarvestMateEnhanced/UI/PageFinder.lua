@@ -410,7 +410,8 @@ HME.Pages.finder = function(body, page)
         local risk = r.risk and K.Paint(r.risk.label or "?", r.risk.hex) or "?"
         local travel = r.travel and U.Duration(r.travel) or "travel ?"
         local measured = r.evidence and r.evidence.level == "measured" and ("  ·  " .. K.Paint("measured", T.HEX.accent)) or ""
-        return risk .. "  ·  " .. travel .. measured
+        local quest = r.quests and ("  ·  " .. K.Paint("quest", T.HEX.brass)) or ""
+        return risk .. "  ·  " .. travel .. measured .. quest
     end
 
     function page.ConfLevel(r)

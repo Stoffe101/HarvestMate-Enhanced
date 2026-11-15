@@ -406,6 +406,8 @@ function R.Summary(r, query, profile, all)
     local goal = query.goal
     if r.noPrice then warn[1] = "no prices known yet, so this is ranked by how much it yields" end
     if r.forGoal then good[#good + 1] = ("you need it for your goal %s"):format(r.forGoal.name or "") end
+    -- Quests in your log its creatures or nodes progress (0.6.0, Engine/Quests.lua).
+    if r.quests and r.quests[1] then good[#good + 1] = ("it also progresses your quest %s"):format(r.quests[1].title or "") end
     -- Your own sessions here, compared with the estimate.
     local model = m.range and m.range.mid
     local ratio, sure = HME.Learning.Verdict(r.key, "value", model)
@@ -715,7 +717,9 @@ function R.Find(query, done, profile)
             r.dims = HME.Evidence.Dimensions(r, query.goal)
             r.reputation = HME.Learning.Reputation(r.key, { value = r.metrics.range and r.metrics.range.mid,
                 gph = r.metrics.range and r.metrics.range.mid })
+            r.quests = HME.QuestSynergy and HME.QuestSynergy.ForResult(r) or nil
             r.why = R.Explain(r, query)
+            if r.quests then r.why[#r.why + 1] = "also progresses: " .. HME.QuestSynergy.Text(r.quests) end
             r.summary = R.Summary(r, query, profile, kept)
         end
         return kept, skipped

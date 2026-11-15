@@ -181,3 +181,35 @@ eq(G.Active().phase, "farm", "farming")
 eq(stopped, before + 1, "its own journey stopped through API.Release")
 eq(FG.API.Status(HME.char.fgpsRequest.apiToken), "released", "Forever-GPS agrees: released")
 G.Stop()
+
+if FG.API.QuestObjectiveTargets then
+STEP("quest synergy through the real API: Questie's ids reach HME's quest matching")
+FG.QuestDB = {
+    Ready = function() return true end,
+    Exists = function(id) return id == 801 end,
+    Quest = function(id)
+        if id == 801 then
+            return { ObjectiveData = { { Type = "monster", Id = 1199, Text = "Juvenile Snow Leopard" },
+                { Type = "item", Id = 2886, Text = "Crag Boar Rib" } } }
+        end
+    end,
+    ItemSources = function(id) return { npcs = id == 2886 and { 1125, 1126 } or {}, objects = {} } end,
+}
+local t = FG.API.QuestObjectiveTargets(801)
+eq(t[1].kind, "monster")
+eq(t[1].ids[1], 1199)
+eq(t[2].drops[2], 1126, "who drops the item")
+eq(FG.API.QuestObjectiveTargets(802), nil, "a quest Questie does not know")
+C_QuestLog = {
+    GetNumQuestLogEntries = function() return 1 end,
+    GetInfo = function() return { questID = 801, title = "Hunting Rations" } end,
+    GetQuestObjectives = function() return { { text = "Crag Boar Rib: 2/6", type = "item", finished = false } } end,
+    IsComplete = function() return false end,
+}
+HME.QuestSynergy.Rebuild()
+eq(#HME.QuestSynergy.ForCreature(1126), 1, "a creature that drops the quest item")
+eq(HME.QuestSynergy.ForCreature(1126)[1].source, "forevergps", "named by Forever-GPS")
+C_QuestLog = nil
+FG.QuestDB = nil
+HME.QuestSynergy.Rebuild()
+end
