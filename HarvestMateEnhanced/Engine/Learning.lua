@@ -247,7 +247,7 @@ end
 function L.IsSkinSpell(spellID) return SKIN_SPELLS[spellID] or SameName(SKIN_SPELLS, spellID) end
 function L.IsFishSpell(spellID) return FISH_SPELLS[spellID] or SameName(FISH_SPELLS, spellID) end
 
-L.detect = { skins = 0, backstop = 0, gatherSkins = 0 }   -- for /hme diag
+L.detect = { skins = 0, backstop = 0, gatherSkins = 0, uncertain = 0, failed = 0, unattributed = 0 }   -- for /hme diag
 
 HME.On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
     if unit ~= "player" then return end
@@ -258,10 +258,22 @@ HME.On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
 end, "player")
 
 -- HarvestMate's cast tracker knows a skinning cast by its own rules (and
--- learns new spell IDs). Its start counts as a skin cast too.
+-- learns new spell IDs). Its start counts as a skin cast too...
 HME.Listen("GATHER_START", function(prof)
     if prof == "skin" then skinCastAt = HME.Now() end
 end)
+-- ...until the cast fails or is interrupted: then the next loot window is a
+-- corpse's ordinary loot, not a skin (0.4.0 counted it as one).
+local function CastEnded(_, unit, _, spellID)
+    if unit ~= "player" then return end
+    spellID = Num(spellID)
+    if skinCastAt > 0 and (not spellID or L.IsSkinSpell(spellID) or HME.Now() - skinCastAt < 4) then
+        skinCastAt = -100
+        L.detect.failed = L.detect.failed + 1
+    end
+end
+HME.On("UNIT_SPELLCAST_FAILED", CastEnded, "player")
+HME.On("UNIT_SPELLCAST_INTERRUPTED", CastEnded, "player")
 
 local moneyAtOpen
 local lootSource
@@ -298,8 +310,21 @@ local function OnLoot()
         return
     end
     if not npcID then
+        if now - skinCastAt < 4 and next(items) then
+            -- Right after a skinning cast, but the game named no creature: one
+            -- skin, counted as uncertain (no yield record: we don't know whose).
+            skinCastAt = -100
+            L.detect.uncertain = L.detect.uncertain + 1
+            L.lastSkinAt = now
+            Note("skin", nil, items, "after a skinning cast, no creature named (uncertain)")
+            HME.Signal("BEAST_SKINNED", nil, items, nil)
+            return
+        end
         -- A node, a chest, or a source the game did not name: not attributed here.
-        if next(items) then Note("unattributed", nil, items, "no creature source") end
+        if next(items) then
+            L.detect.unattributed = L.detect.unattributed + 1
+            Note("unattributed", nil, items, "no creature source")
+        end
         return
     end
     local g = Str(guid)

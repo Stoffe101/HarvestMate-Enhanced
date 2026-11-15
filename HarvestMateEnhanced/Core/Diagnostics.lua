@@ -120,8 +120,9 @@ function D.Lines()
     -- Skin detection: HME's own count against HarvestMate's skinning loot.
     local det = HME.Learning.detect
     if det then
-        Add("Skin detection: %d skins counted (%d by the backstop), HarvestMate saw %d skinning loots", det.skins + det.backstop,
-            det.backstop, det.gatherSkins)
+        Add("Skin detection: %d skins counted (%d by the backstop, %d uncertain: no creature named), HarvestMate saw %d "
+            .. "skinning loots; %d skin casts failed or were interrupted; %d loot windows without a source", det.skins + det.backstop
+            + (det.uncertain or 0), det.backstop, det.uncertain or 0, det.gatherSkins, det.failed or 0, det.unattributed or 0)
     end
     -- Loot decisions (creature IDs only)
     local recent = HME.Learning.recent or {}

@@ -145,6 +145,9 @@ end
 -- source and time) suppresses duplicates of the same event.
 local function Activity(profShort, what, n, value, items, id)
     if not HME.db then return false end
+    -- Paused by you: nothing goes into the session (the beast's yield record
+    -- still learns from the skin, in Engine/Learning.lua).
+    if cur and cur.paused == "manual" then return false end
     if not cur then S.Start() end
     if id then
         if cur.seen[id] then return false end
