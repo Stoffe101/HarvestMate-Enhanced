@@ -923,6 +923,24 @@ function GP:InspectRoute(route)
         f.follow:SetPoint("BOTTOMRIGHT", -14, 12)
         f.edit = T.FlatButton(f, "Waypoints", 100, 28)
         f.edit:SetPoint("RIGHT", f.follow, "LEFT", -8, 0)
+        -- The Route Director (0.6.0): a loop sized to your time, or without empty stops.
+        f.timedLabel = T.Text(f, "Make a loop of", "label")
+        f.timedLabel:SetPoint("BOTTOMLEFT", 16, 56)
+        f.timed = {}
+        local prev
+        for i, m in ipairs(HME.RouteDirector.MINUTES) do
+            local b = T.FlatButton(f, ("%d min"):format(m), 62, 24, "secondary")
+            if prev then b:SetPoint("LEFT", prev, "RIGHT", 6, 0) else b:SetPoint("LEFT", f.timedLabel, "RIGHT", 10, 0) end
+            b.minutes = m
+            T.Tooltip(b, ("A %d-minute loop"):format(m), "A new route next to this one: the longest run of its stops that "
+                .. "fits, in the same order. This route is not changed. The time is an estimate with a range.")
+            f.timed[i] = b
+            prev = b
+        end
+        f.trim = T.FlatButton(f, "Without empty stops", 150, 24, "ghost")
+        f.trim:SetPoint("BOTTOMLEFT", 12, 14)
+        T.Tooltip(f.trim, "Without empty stops", "A new route without the stops that never gave anything in 4 or more visits. "
+            .. "This route is not changed.")
         inspector = f
     end
     local f = inspector
@@ -958,9 +976,41 @@ function GP:InspectRoute(route)
     if info.start then
         lines[#lines + 1] = ("|cff999b8fStart|r  stop %d is nearest you (%s)."):format(info.start.index, GP.FormatYards(info.start.yards))
     end
+    local lapLines, laps = HME.RouteDirector.LapLines(route)
+    for _, l in ipairs(lapLines) do lines[#lines + 1] = l end
+    local shortest = HME.RouteDirector.Timed(route, HME.RouteDirector.MINUTES[1])
+    if shortest and shortest.whole then
+        lines[#lines + 1] = ("|cff999b8fTimed loops|r  the whole loop is %s already, under %d minutes."):format(
+            U.Duration(shortest.secs), HME.RouteDirector.MINUTES[1])
+    end
     lines[#lines + 1] = K.Paint("A recorded path proves the line you walked, not the ground around it.", T.HEX.text3)
     f.text:SetText(table.concat(lines, "\n"))
-    f:SetHeight(146 + (f.text:GetStringHeight() or 80) + 62)
+    f:SetHeight(146 + (f.text:GetStringHeight() or 80) + 100)
+    for _, b in ipairs(f.timed) do
+        local plan = HME.RouteDirector.Timed(route, b.minutes)
+        b.disabled = plan == nil or plan.whole
+        if b.SetAlpha then b:SetAlpha(b.disabled and 0.45 or 1) end
+        b:SetScript("OnClick", function(self)
+            if self.disabled then return end
+            local v, text = HME.RouteDirector.MakeTimed(route, self.minutes)
+            if v and v ~= route then
+                HME.Print(("made |cffffd100%s|r: %s"):format(v.name, text or ""))
+                GP:InspectRoute(v)
+            else
+                HME.Print(text or "no shorter loop could be made.")
+            end
+        end)
+    end
+    f.trim:SetShown(#laps.weak > 0)
+    f.trim:SetScript("OnClick", function()
+        local v, why = HME.RouteDirector.WithoutWeak(route)
+        if v then
+            HME.Print(("made |cffffd100%s|r without %d empty stop%s."):format(v.name, #laps.weak, #laps.weak == 1 and "" or "s"))
+            GP:InspectRoute(v)
+        else
+            HME.Print(why or "nothing to trim.")
+        end
+    end)
     f.follow:SetScript("OnClick", function() HME.Guidance.Start(route) f:Hide() end)
     f.edit:SetScript("OnClick", function() HME.RouteEditor.Start(route) f:Hide() end)
     f:Show()

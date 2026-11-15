@@ -117,6 +117,7 @@ Map\Overlay.lua
 Map\Arrow.lua
 Map\Guidance.lua
 Map\Caves.lua
+Routes\Director.lua
 
 # Integrations
 Integrations\ForeverGPS.lua

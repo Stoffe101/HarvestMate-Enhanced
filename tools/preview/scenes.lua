@@ -313,6 +313,21 @@ do
     if first and HME.Routes.InspectRoute then
         HME.Routes:InspectRoute(first)
         Write("routes-inspector", "Route Inspector", "Routes and maps", { around = HME.Window.frame, pad = 16 })
+        -- After twelve laps on it (0.6.0): lap times, two stops that never gave
+        -- anything, and a 15-minute variant made from it.
+        first.lapLog = {}
+        for i = 1, 12 do
+            first.lapLog[i] = { t = time() - i * 900, secs = 600 + (i * 37) % 180, gathers = 9 + i % 4, skins = 14 + i % 5, skillups = 4 }
+        end
+        first.laps = 12
+        first.stopStats = {}
+        for i = 1, HME.Routes:NodeCount(first) do first.stopStats[i] = { visits = 12, yields = (i == 3 or i == 9) and 0 or 5 } end
+        first.kinds = first.kinds or {}
+        if not next(first.kinds) then first.kinds = { Herb = { Peacebloom = true } } end
+        HME.RouteDirector.MakeTimed(first, 15)
+        HME.Routes:InspectRoute(first)
+        Write("routes-inspector-laps", "Route Inspector: laps, weak stops and a 15-minute variant", "Routes and maps",
+            { around = HME.Window.frame, pad = 16 })
         if _G.HarvestMateEnhancedRouteInspector then _G.HarvestMateEnhancedRouteInspector:Hide() end
     end
     HME.Window.frame:Hide()

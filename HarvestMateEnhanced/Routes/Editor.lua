@@ -347,13 +347,7 @@ function E.Inspect(route)
     return out
 end
 
--- Laps ridden with HME's guidance count as verification.
-HME.Listen("GUIDANCE_CHANGED", function()
-    local g = HME.Guidance.Active()
-    if not (g and g.phase == "farm") then return end
-    if g.lastStop and g.stop and g.stop < g.lastStop then
-        local r = HME.Guidance.Route(g.routeID)
-        if r then r.laps = (r.laps or 0) + 1 end
-    end
-    g.lastStop = g.stop
-end)
+-- Laps ridden with HME's guidance count as verification. Counted by the
+-- Route Director since 0.6.0 (Routes/Director.lua): before, a lap was counted
+-- when the stop number went DOWN, which guided mode never does (it counts on)
+-- and which a re-entry at a nearer stop did without a lap being ridden.

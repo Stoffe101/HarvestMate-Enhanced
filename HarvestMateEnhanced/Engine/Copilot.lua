@@ -554,6 +554,24 @@ C.Rule({ id = "bags", run = function(ctx, add)
     end
 end })
 
+-- The route you follow has stops that keep coming up empty (Route Director).
+C.Rule({ id = "route", run = function(ctx, add)
+    local g = ctx.guidance
+    local route = g and g.routeID and HME.Guidance.Route(g.routeID)
+    if not (route and HME.RouteDirector) then return end
+    local laps = HME.RouteDirector.Laps(route)
+    if #laps.weak >= 2 then
+        add({ id = "trim:" .. route.id .. ":" .. #laps.weak, type = "route", priority = 55,
+            title = ("%d stops keep coming up empty"):format(#laps.weak),
+            objective = ("On %s, %d stops gave nothing in %d or more visits each."):format(route.name, #laps.weak,
+                HME.RouteDirector.WEAK_VISITS),
+            why = { "A copy of the route without them is made next to it; this route stays as it is.",
+                "Someone else may be gathering there, or the spawn data is wrong for Forever: either way they cost you time." },
+            conf = 0.6, evidence = "Your laps on this route (Route Director).",
+            action = { kind = "trim", label = "Make it without them", routeID = route.id } })
+    end
+end })
+
 -- The farm you follow has gone grey.
 C.Rule({ id = "grey", run = function(ctx, add)
     if not (ctx.guidance and ctx.guidance.prof) then return end
@@ -799,6 +817,16 @@ function C.Run(action)
         return HME.FGPS.GoToPlace(action.mapID, action.x, action.y, action.name)
     elseif k == "service" then
         return HME.FGPS.GoToService(action.what, action.profession)
+    elseif k == "trim" and HME.RouteDirector then
+        local route = HME.Guidance.Route(action.routeID)
+        local v, why
+        if route then v, why = HME.RouteDirector.WithoutWeak(route) end
+        if v then
+            HME.Print(("made |cffffd100%s|r. Follow it from the Routes page when you like."):format(v.name))
+            return true
+        end
+        HME.Print(why or "no route to trim.")
+        return false
     elseif k == "page" then
         HME.OpenWindow(action.page)
         if action.page == "trainers" and action.prof and HME.Pages.trainersSet then HME.Pages.trainersSet(action.prof) end
