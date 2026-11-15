@@ -79,7 +79,7 @@ local function EnsureHolder()
         end)
         if _G.WorldMapFrame.HookScript then
             _G.WorldMapFrame:HookScript("OnHide", function()
-                if shown.kind == "preview" then shown = {} end
+                if shown.kind == "preview" or shown.kind == "replay" then shown = {} end
                 O.Hide()
             end)
         end
@@ -349,9 +349,40 @@ local function Collect(mapID)
         if stops[1] then out.labels[#out.labels + 1] = { stops[1][1], stops[1][2] - 0.012, "Start", true } end
     end
     if O.LayersOn() then AddLayers(out, mapID) end
+    -- Session replay (Engine/Trail.lua): the path, a mark every 10 minutes, a dot per event.
+    if shown.kind == "replay" and shown.data then
+        local t = HME.Trail.MapData(shown.data, mapID)
+        if #t.line >= 4 then out.outlines[#out.outlines + 1] = { t.line, O.TRAIL_COLOR, true } end
+        for _, mk in ipairs(t.marks) do out.labels[#out.labels + 1] = { mk[1], mk[2] - 0.012, mk[3] } end
+        for _, d in ipairs(t.dots) do
+            local c = O.EVENT_COLOR[d[1]] or { 1, 1, 1 }
+            out.pins[#out.pins + 1] = { d[2], d[3], c, c, true, { O.EVENT_NAME[d[1]] or d[1], ("at %s of farming"):format(U.Duration(d[4])) }, true }
+        end
+        out.labels[#out.labels + 1] = { 0.5, 0.03, shown.title or "Session path" }
+    end
     return out
 end
 O.Collect = Collect
+
+O.TRAIL_COLOR = { 0.45, 0.85, 1 }
+O.EVENT_COLOR = { skin = { 0.85, 0.6, 0.35 }, herb = { 0.4, 0.85, 0.35 }, mine = { 0.95, 0.65, 0.3 }, fish = { 0.4, 0.7, 1 },
+    skillup = { 1, 0.85, 0.3 }, death = { 0.93, 0.25, 0.22 } }
+O.EVENT_NAME = { skin = "Skinned", herb = "Herb gathered", mine = "Ore mined", fish = "Catch", skillup = "Skill-up", death = "You died" }
+
+-- Shows a session's path (Engine/Trail.lua) on the world map, on `mapID`.
+function O.Replay(summary, data, mapID)
+    local when = summary and summary.t and _G.date and _G.date("%d %b %H:%M", summary.t) or ""
+    shown = { kind = "replay", data = data, mapID = mapID, title = ("Session path%s: where you went, not why"):format(
+        when ~= "" and (" " .. when) or "") }
+    if HME.InCombat() then
+        HME.Print("the path shows on the map after the fight.")
+        return
+    end
+    if _G.OpenWorldMap then pcall(_G.OpenWorldMap, mapID) end
+    if _G.WorldMapFrame and _G.WorldMapFrame.SetMapID then pcall(_G.WorldMapFrame.SetMapID, _G.WorldMapFrame, mapID) end
+    O.Draw()
+end
+function O.Shown() return shown end
 
 -- Heatmap: spawn points counted on a grid; confirmed points weigh full,
 -- predicted ones half (lighter where the data is unconfirmed).
@@ -406,11 +437,12 @@ function O.Draw()
     if not (map and map:IsShown()) then return end
     local mapID = map.GetMapID and map:GetMapID()
     local layers = O.LayersOn()
-    if not mapID or (not shown.result and not HME.Guidance.Active() and not (HME.settings and HME.settings.nodePinsAlways) and not layers) then
+    if not mapID or (not shown.result and shown.kind ~= "replay" and not HME.Guidance.Active()
+        and not (HME.settings and HME.settings.nodePinsAlways) and not layers) then
         O.Hide()
         return
     end
-    if HME.settings and HME.settings.nodePins == false and shown.kind ~= "preview" and not layers then
+    if HME.settings and HME.settings.nodePins == false and shown.kind ~= "preview" and shown.kind ~= "replay" and not layers then
         O.Hide()
         return
     end
@@ -453,7 +485,8 @@ function O.Draw()
     for _, o in ipairs(data.outlines) do
         local poly, c = o[1], o[2]
         local n = #poly / 2
-        for i = 1, n do
+        -- (o[3]: an open path, as a session's trail: no closing leg)
+        for i = 1, o[3] and n - 1 or n do
             local j = i % n + 1
             nl = nl + 1
             local l = Line(nl)

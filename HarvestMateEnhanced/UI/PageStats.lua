@@ -8,6 +8,9 @@
 --               against the week before
 --   Areas       measured rates per farming area (what rankings learn from)
 --   Records / Achievements   HarvestMate's
+--   Characters  your characters as each last showed HME (0.7.0): level,
+--               gathering professions, HME materials held, and what is next
+--               for each (Engine/Alts.lua)
 -- Filters: profession and period. Quantities are observed; gold is an
 -- estimate from prices (marked "est.").
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
@@ -21,8 +24,9 @@ local U = HME.U
 
 local PAGE_W = 738
 
-local VIEWS = { "journal", "overview", "areas", "records", "achievements" }
-local VIEW_LABELS = { journal = "Journal", overview = "Overview", areas = "Measured areas", records = "Records", achievements = "Achievements" }
+local VIEWS = { "journal", "overview", "areas", "records", "achievements", "characters" }
+local VIEW_LABELS = { journal = "Journal", overview = "Overview", areas = "Areas", records = "Records", achievements = "Achievements",
+    characters = "Characters" }
 
 local function AreaLabel(key)
     local prof, mapID = tostring(key):match("^(%a+)@(%d+)")
@@ -40,7 +44,8 @@ end
 HME.Pages.stats = function(body, page)
     local view = "journal"
     local profFilter, period = "All", "all"
-    local seg = K.Segments(body, VIEWS, VIEW_LABELS, function() return view end, function(k) view = k; page.Refresh() end, 112)
+    local seg = K.Segments(body, VIEWS, VIEW_LABELS, function() return view end, function(k) view = k; page.Refresh() end, 106)
+    HME.Pages.statsView = function(k) view = k; page.Refresh() end
     seg:SetPoint("TOPLEFT", 0, 0)
     local pf = T.Dropdown(body, 120, { "All", "Herbalism", "Mining", "Skinning", "Fishing" }, {},
         function() return profFilter end, function(k) profFilter = k; page.Refresh() end)
@@ -360,6 +365,24 @@ HME.Pages.stats = function(body, page)
         return items
     end
 
+    -- Your characters (0.7.0).
+    local function Characters()
+        local items = {}
+        for _, c in ipairs(HME.Alts.List()) do
+            local seen = c.me and "playing now" or (c.seen and (HME.Bags.Age(c.seen) .. " ago") or "when last seen")
+            items[#items + 1] = {
+                ("%s%s|r  |cff999b8flevel %s %s%s|r"):format(c.me and "|cff8fcc5c" or "|cfff2f0e6", c.short, tostring(c.level or "?"),
+                    c.class or "", c.faction and (" · " .. c.faction) or ""),
+                HME.Alts.ProfText(c.profs, c.level),
+                c.materials > 0 and ("%d materials"):format(c.materials) or "no materials seen",
+                seen,
+            }
+        end
+        if #items == 0 then items[1] = { "No characters yet", "Each character shows here after you log in with HME once." } end
+        table.insert(items, 1, { "As each character last showed HME", "Level, professions, and HME materials in bags and bank." })
+        return items
+    end
+
     function page.Refresh()
         seg:Refresh()
         pf:Refresh()
@@ -369,6 +392,7 @@ HME.Pages.stats = function(body, page)
         elseif view == "overview" then items = Overview()
         elseif view == "areas" then items = Areas()
         elseif view == "records" then items = Records()
+        elseif view == "characters" then items = Characters()
         else items = Achievements() end
         list:SetItems(items, true)
         local shown = Sessions()

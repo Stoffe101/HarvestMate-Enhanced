@@ -125,6 +125,31 @@ Time("Timed loop on a 60-stop route", function()
     end
     HME.RouteDirector.Timed({ id = -1, mapID = 1424, name = "perf", points = pts, kinds = { Herb = {} } }, 10)
 end, 5)
+-- 0.7.0's paths.
+Time("Danger: 500 sightings over 40 zones", function()
+    for i = 1, 500 do HME.Danger.Note(1400 + i % 40, (i % 25) / 25, (i % 17) / 17, i % 3 == 0, "perf-" .. i .. "-" .. os.clock()) end
+end)
+Time("Danger: a zone's summary and risk", function()
+    HME.Danger.Zone(1424)
+    HME.Risk.Assess({ mapID = 1424, x = 0.5, y = 0.5, radius = 150, beasts = {} }, profile)
+end, 20)
+Time("Price trend: log and read one material", function()
+    HME.Trends.Note(2318, { typical = 1000, low = 900 })
+    HME.Trends.Of(2318)
+end, 50)
+Time("Ready check for the Copilot's farm", function()
+    local pick = HME.Copilot.pick
+    if pick then HME.Ready.Check(pick.r, 3600, profile) end
+end, 20)
+Time("Session path: 480 points packed and unpacked", function()
+    local parts = {}
+    for i = 1, 480 do parts[i] = ("1424:%d:%d:%d"):format(4000 + i, 5000 + i, i * 15) end
+    HME.Trail.MapData(HME.Trail.Unpack({ p = table.concat(parts, ";"), e = "" }), 1424)
+end, 5)
+Time("Share one route", function()
+    local route = HME.Routes.db.routes[1] or { mapID = 1424, name = "x", points = { 0.1, 0.1, 0.2, 0.2, 0.3, 0.1 }, kinds = {} }
+    HME.DBM.ReadImport(HME.DBM.ShareRoute(route))
+end, 20)
 collectgarbage("collect")
 Put("Memory at the end", collectgarbage("count") - kbStart, "KB")
 

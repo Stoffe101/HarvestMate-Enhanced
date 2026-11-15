@@ -379,6 +379,8 @@ C.Rule({ id = "farm", run = function(ctx, add)
     end
     ctx.state.where = { key = best.key, t = (hold and hold.key == best.key and hold.t) or HME.Now(), sig = ctx.sig }
     ctx.ranked = ranked
+    ctx.pick = { r = best, trip = bestTrip }
+    C.pick = ctx.pick
     local why = {}
     if best.summary then why[#why + 1] = best.summary end
     if ctx.mode == "short" or ctx.limited then
@@ -625,6 +627,26 @@ C.Rule({ id = "prices", run = function(ctx, add)
     end
 end })
 
+-- 0.7.0: what could cut the suggested trip short (Engine/Ready.lua).
+C.Rule({ id = "ready", run = function(ctx, add)
+    if ctx.farming or not (ctx.pick and HME.Ready) then return end
+    local res = HME.Ready.Check(ctx.pick.r, ctx.budget, ctx.profile)
+    if res.worst == "ok" then return end
+    local why, first = {}, nil
+    for _, c in ipairs(res.checks) do
+        if c.state ~= "ok" then
+            first = first or c
+            why[#why + 1] = c.title .. (c.text ~= "" and (": " .. c.text) or "")
+        end
+    end
+    add({ id = ("ready:%s:%s:%s"):format(ctx.pick.r.key, first.key, res.worst), type = "ready", priority = res.worst == "stop" and 70 or 50,
+        title = res.summary, objective = ("Before %s in %s: %s."):format(ctx.pick.r.prof or "farming", ctx.pick.r.zone or "?", first.title),
+        why = why, conf = 0.8, evidence = "Your bags, gear and skill as the game reports them now.",
+        action = first.key == "repair" and HME.FGPS and HME.FGPS.Available() and { kind = "service", label = "Nearest repair", what = "repair" }
+            or (first.key == "bags" and HME.FGPS and HME.FGPS.Available() and { kind = "service", label = "Nearest vendor", what = "vendor" })
+            or nil })
+end })
+
 -- 0.7.0: you keep meeting enemy players in this zone (Engine/Danger.lua).
 C.Rule({ id = "danger", run = function(ctx, add)
     if not (HME.Danger and ctx.profile.mapID) then return end
@@ -634,11 +656,11 @@ C.Rule({ id = "danger", run = function(ctx, add)
     local why = { z.text, "Counted from enemy players' nameplates and the players you targeted, where you stood; "
         .. "it says nothing about who is here now." }
     add({ id = ("danger:%d:%d"):format(zm, math.floor(z.enemiesPerHour / 4)), type = "danger", priority = ctx.mode == "safe" and 30 or 52,
-        title = "Enemy players are common here", objective = ("About %s an hour in %s, from your own time here."):format(
+        title = "Enemies common here", objective = ("About %s an hour in %s, from your own time here."):format(
             z.enemiesPerHour >= 10 and tostring(math.floor(z.enemiesPerHour + 0.5)) or ("%.1f"):format(z.enemiesPerHour),
             HME.ZoneData.Name(zm) or "this zone"),
         why = why, conf = math.min(0.85, 0.4 + z.hours / 6), evidence = ("%.1f h of your time in the zone"):format(z.hours),
-        action = ctx.mode ~= "safe" and { kind = "mode", label = "Show lower-risk farms", mode = "safe" } or nil })
+        action = ctx.mode ~= "safe" and { kind = "mode", label = "Lower-risk farms", mode = "safe" } or nil })
 end })
 
 -- 0.7.0: a material in your bags whose price moved a lot (Engine/Trends.lua).
@@ -655,9 +677,9 @@ C.Rule({ id = "market", run = function(ctx, add)
     local up = m.t.trend == "up"
     add({ id = ("market:%d:%s:%d"):format(m.id, m.t.trend, m.t.days), type = "market", priority = ctx.mode == "profit" and 40 or 20,
         title = up and (name .. " is selling high") or (name .. " is selling low"),
-        objective = m.t.text, why = { HME.Trends.Advice(m.t) or "", "HME never lists, buys or sells: the auction house is your move." },
+        objective = m.t.short, why = { m.t.text, HME.Trends.Advice(m.t) or "", "HME never lists, buys or sells: the auction house is your move." },
         conf = math.min(0.75, 0.35 + m.t.days * 0.05), evidence = ("%d days of %s"):format(m.t.days, m.t.source),
-        action = { kind = "material", label = "Open " .. name, itemID = m.id, name = name } })
+        action = { kind = "material", label = "See it", itemID = m.id, name = name } })
 end })
 
 -- What the ledger learned from your sessions.

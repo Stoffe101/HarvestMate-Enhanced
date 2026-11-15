@@ -295,6 +295,8 @@ HME.Pages.settings = function(body, page)
             function(k) HME.Notify.SetPref(c.key, k) end)
     end
     EndRow()
+    Switch("Copilot on the HUD", "One line on the farming HUD with the Copilot's top suggestion (not \"keep going\"). Off by default.",
+        function() return S().hudCopilot == true end, function(v) S().hudCopilot = v; if HME.HUD then HME.HUD.Update() end end)
     Switch("Session review", "When you stop a session yourself (10 minutes or longer), its review opens: what it gave, against "
         .. "the prediction and your recent sessions. Otherwise it waits in the bell.",
         function() return S().sessionReview ~= false end, function(v) S().sessionReview = v end)

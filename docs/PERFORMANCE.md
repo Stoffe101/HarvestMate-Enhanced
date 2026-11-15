@@ -2,6 +2,34 @@
 
 Measured with `tools/bench.lua` (`python tools/run_tests.py bench -v`) on the full bundled data, Lua 5.1 via lupa on the development PC, outside the game. In the game every search and route build runs as a background job of at most 8 ms per frame (4 ms in low-performance mode), and Forever-GPS's walking-grid batches run at its own planning share (4-12 ms per frame); these are total CPU times.
 
+## 0.6.0 and 0.7.0 compared
+
+`python tools/perf_compare.py` (now 0.5.0, 0.6.0 and the working tree); 0.6.0 against 0.7.0 three runs in one sitting, the middle value (Medium Leather: one run). Headless CPU time and Lua memory on the development PC, **not game frame times**. These runs were slower across the board than the 0.6.0 table below (the same 0.6.0 code loaded in 75-82 ms here, 67 ms then): compare within a table, not across.
+
+| What | 0.6.0 | 0.7.0 |
+|---|---|---|
+| Load the addon | 76 ms | 83 ms |
+| Memory after load | 3.78 MB | 3.93 MB |
+| Farm Finder, Skinning leveling (cold / warm) | 43 / 3.3 ms | 45 / 3.3 ms |
+| Farm Finder, Medium Leather (one run) | 26 ms | 29 ms |
+| Open the window and build every page | 33 ms | 31 ms |
+| 200 skin events (cast, loot, close) | 316 ms | 323 ms |
+| HUD update, detailed | 0.1 ms, 7.3 KB | 0.1 ms, 7.3 KB |
+| Memory at the end of the run | 10.65 MB | 11.09 MB |
+
+0.7.0's own paths:
+
+| What | Time | Garbage |
+|---|---|---|
+| 500 players seen over 40 zones | 2.0 ms | 0.3 MB |
+| A zone's danger summary and its risk | under 0.1 ms | 4 KB |
+| Price log: note and read one material | under 0.1 ms | 1 KB |
+| Ready check for the Copilot's farm | under 0.1 ms | 2 KB |
+| A 480-point session path packed, unpacked and prepared for the map | 1.0 ms | 114 KB |
+| Share one route (and read it back) | 0.1 ms | 3 KB |
+
+Found and fixed while measuring: recording a sighting first rebuilt the whole sightings table to keep it bounded (15 ms and 3.5 MB of garbage for 500); it now only counts, and sorts only when a limit is passed. The price log counted every logged item on each price read; it now returns early when today's point already has those figures and counts only when an item joins. The 200 skin events take about 2% longer: each skin now also notes where it happened for the session path.
+
 ## 0.4.0, 0.5.0 and 0.6.0 compared
 
 `python tools/perf_compare.py` (now 0.4.0, 0.5.0 and the working tree), three runs each, the middle value. Headless CPU time and Lua memory on the development PC, **not game frame times**.

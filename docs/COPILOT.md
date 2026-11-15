@@ -43,6 +43,9 @@ Per farm, `Ledger.Area` gives predicted and observed over all your sessions ther
 | route | the route you follow has 2+ stops that never gave anything | 55 |
 | grey | the farm you follow has gone grey | 75 |
 | prices | gold mode with auction prices over a week old | 25 |
+| ready | 0.7.0: the farm card's trip has something to check (Engine/Ready.lua) | 50 / 70 |
+| danger | 0.7.0: you met 4+ enemy players an hour in this zone (30 in Lower risk mode) | 52 |
+| market | 0.7.0: a material in your bags moved 20%+ against its median (40 in gold mode) | 20 |
 | learned | the ledger adjusts this profession's estimates | 15 |
 
 **Arbiter.** Drops cards you put off ("Not now": 6 hours for that card; the farm rule then offers the next farm) or said you are not interested in (that type, until Settings brings them back); keeps the highest-priority card of each group, so "keep going" and "switch" never show together; holds the suggested farm for 15 minutes unless another becomes 15% better or the context changes.
@@ -88,6 +91,32 @@ Measured: free slots against farming time this session, once a slot was used and
 - `Engine/Search.lua`: prefix (3), word start (2), anywhere (1); 5 a kind, 14 in all.
 - `Engine/Economy.lua`: keep (goal or reserved) first; auction after the 5% cut with the deposit at risk (15% of the vendor price, a classic rule) and the price's age; vendor; processing from the client's recipes only when every other reagent has a price.
 
+## Danger map (`Engine/Danger.lua`, 0.7.0)
+
+| | |
+|---|---|
+| Seen | `NAME_PLATE_UNIT_ADDED`, `PLAYER_TARGET_CHANGED`, `UPDATE_MOUSEOVER_UNIT`: a player (not you, not your party), enemy by `UnitIsEnemy`; outside instances; once per GUID per 10 minutes; where you stood (zone map, a 4% spot) and the hour |
+| Time | your time per zone outside instances, in 30-second steps (at most 60 s counted per step) |
+| Deaths | Engine/Risk.lua's record, `pvp = true` when an enemy was seen in the 30 seconds before |
+| Risk | `enemies` part = enemies an hour in the zone / 8, clamped to 1, only after half an hour there; weight 0.15; the total stays at most 1 |
+| Kept | 60 zones × 150 spots, least recent first out; per account; Forget learned data clears it |
+
+## Price trends (`Engine/Trends.lua`, 0.7.0)
+
+One point a day per HME gathering material: the day's lowest listing and the latest typical figure (copper a unit, before the cut), when the provider's price is under a day old (or of unknown age) and not an outlier. 21 days, 300 materials. Forever-GPS's `PriceHistory.Of` comes first when it has three points. Trend: the newest typical against the median of the days before; ±10% is up or down. Advice is a sentence, never an action.
+
+## Ready to go? (`Engine/Ready.lua`, 0.7.0)
+
+For the Copilot's farm and your time: bags (skinning: the farm's materials an hour, stack sizes, your partial stacks; minutes until full by halving; 2 free slots or fewer stops), repairs (the lowest worn durability; under 25% warns, broken stops), the rank cap (at the cap stops; reached within the trip warns), risk (0.6 or more warns), unknown travel (warns). Farming minutes are the trip less travel (20 minutes when unknown).
+
+## Session path (`Engine/Trail.lua`, 0.7.0)
+
+Every 15 seconds while a session runs, a point when you moved 15 yards (zone map, x, y, the farming clock); each skin, herb, ore, catch, skill-up and death with its place. 480 points and 400 events at most; packed as text into the session summary when it ends; the 5 newest sessions keep theirs. The map draws the zone with most of the path: an open line, a label every 10 farming minutes, a dot per event.
+
+## Sharing (`Core/DB.lua`, 0.7.0)
+
+`CleanRoute` keeps `name, mapID, points, kinds, sight, color, recorded, loop, backforth, trimmed` and a planned route's description without its prediction, time, goal or key (so the Farm Finder never re-plans someone else's route). Everything else stays home. `Export({ gathers = true })` adds the recorded gathers (what and where). An import drops laps, lap log, stop stats, versions, recording times and predictions that an older export carried.
+
 ## Saved data (schema 4)
 
 | Where | What |
@@ -98,4 +127,9 @@ Measured: free slots against farming time this session, once a slot was used and
 | `HarvestMateEnhancedCharDB.copilot` | `mode`, `minutes`, `prof`, `dismissed[id]`, `notInterested[type]`, `where` (the held farm) |
 | `HarvestMateEnhancedCharDB.notices` | text, category, time, read; 40 |
 | routes (`gp`) | `lapLog` (30), `stopStats[i] = { visits, yields }`, `variantOf`, `variant` |
-| settings | `notify`, `sessionReview`, `calibrate`, `copilot` |
+| settings | `notify`, `sessionReview`, `calibrate`, `copilot`; 0.7.0: `mapLayers`, `hudCopilot`, `editorSnap` |
+| `HarvestMateEnhancedDB.obs.players[mapID][spot]`, `obs.presence[mapID]` | 0.7.0: players seen (`e`, `f`, `t`, `h` by hour), seconds in the zone |
+| `HarvestMateEnhancedDB.priceLog[itemID]` | 0.7.0: `"day:low:typical;..."` |
+| routes | 0.7.0: `revisions = { { t, why, points, length } }` (6) |
+| `chars[name-realm].profs` | 0.7.0: `{ [prof] = { rank, max } }` |
+| `sessions[].trail` | 0.7.0: `{ p = "m:x:y:f;...", e = "km:x:y:f;..." }` (5 newest) |

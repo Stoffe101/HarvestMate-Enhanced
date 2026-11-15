@@ -120,3 +120,20 @@ Duplicate events are no-ops; with ForeverGPS.API the token decides instead of th
 - **Optional data from Forever-GPS**: walking grid and recipe tables are read through its API at run time, never copied.
 - **Diagnostics** (docs/DIAGNOSTICS.md): `Core/Diagnostics.lua` keeps the last errors and builds a scrubbed report.
 - **Saved data**: schema 3; new sections `terrain` (legs, bounded), `corrections` (bounded), `caves`, per-character `stats`, `recording`, `expedition`. Every collection that can grow has a bound.
+
+## 0.7.0 additions
+
+| File | What |
+|---|---|
+| `Engine/Danger.lua` | players seen (nameplate, target, mouse-over; not in instances) per 4% map spot, time per zone, `EnemyInSight` for deaths; `Zone`, `Near`, `Pressure` (read by `Engine/Risk.lua`), `MapData` |
+| `Engine/Trends.lua` | a daily price point per material (`priceLog`), Forever-GPS's `PriceHistory.Of` first; `Of`, `Advice`, `Movers` |
+| `Engine/Ready.lua` | the readiness checks for a Farm Finder result and a trip length |
+| `Engine/Alts.lua` | professions stored with each character's snapshot; `List`, `Hints`, `ProfText` |
+| `Engine/Trail.lua` | a session's path and events, packed into the session summary (5 newest keep one) |
+| `Routes/Editor.lua` | redo, move (`E.Click` with shift), `Snap`, `Revise` / `Restore` / `Versions` |
+| `Core/DB.lua` | `CleanRoute` (what a shared or exported route carries), `ShareRoute` |
+| `Map/Overlay.lua` | layers (`danger`, `quests`) with a button and legend on the world map; `Replay` draws a session path (open polylines) |
+| `Engine/Copilot.lua` | rules `ready`, `danger`, `market`; actions `mode`, `material`; `C.pick` (the farm card's result) |
+
+Nothing new runs per frame: sightings are events, the presence and path samplers run every 30 and 15 seconds, prices are logged when Engine/Prices.lua reads one (at most once a day per value).
+

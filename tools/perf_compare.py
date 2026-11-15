@@ -21,7 +21,7 @@ import run_tests  # noqa: E402
 
 ROOT = run_tests.ROOT
 OUT = os.path.join(ROOT, "build", "perf")
-DEFAULT = [("0.4.0", "2d15762"), ("0.5.0", "5e43566"), ("now", ".")]
+DEFAULT = [("0.5.0", "5e43566"), ("0.6.0", "81bc09e"), ("now", ".")]
 
 
 def extract(ref):

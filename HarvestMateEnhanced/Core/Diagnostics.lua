@@ -158,6 +158,16 @@ function D.Lines()
     end
     if HME.QuestSynergy then Add("Quests: %s", HME.QuestSynergy.Status()) end
     if HME.Notify then Add("Notices: %d kept, %d unread", #HME.Notify.List(), HME.Notify.Unread()) end
+    -- 0.7.0: counts only (no names, no positions).
+    if HME.Danger then Add("Danger map: %s", HME.Danger.Status()) end
+    if HME.Trends then Add("Price history: %s", HME.Trends.Status()) end
+    if HME.Alts then Add("Characters: %d remembered", #HME.Alts.List()) end
+    if HME.MapOverlay and HME.MapOverlay.LayersOn then
+        local on = {}
+        for _, k in ipairs(HME.MapOverlay.LAYERS) do if HME.MapOverlay.Layer(k) then on[#on + 1] = k end end
+        Add("Map layers: %s; HUD Copilot line %s", #on > 0 and table.concat(on, ", ") or "none",
+            HME.settings.hudCopilot and "on" or "off")
+    end
     -- Loot decisions (creature IDs only)
     local recent = HME.Learning.recent or {}
     if #recent > 0 then

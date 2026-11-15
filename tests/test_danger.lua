@@ -200,6 +200,6 @@ HME.Copilot.Evaluate(true)
 local m
 for _, c in ipairs(HME.Copilot.cards) do if c.type == "market" then m = c end end
 check(m and m.title:find("selling high"), "a market card: " .. tostring(m and m.title))
-check(m.why[2]:find("never lists"), "HME never trades")
+check(m.why[3]:find("never lists"), "HME never trades")
 HME.Copilot.Run(m.action)
 REAL_TIME = day0

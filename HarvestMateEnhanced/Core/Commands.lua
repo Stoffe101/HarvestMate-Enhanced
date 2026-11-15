@@ -17,6 +17,7 @@ local function Help()
         "/hme copilot | finder | beasts | guides | materials | stats | trainers | routes | settings  open a page",
         "/hme find <text>  search everything (materials, creatures, zones, routes, trainers...)",
         "/hme review  the last session's review   ·   /hme notices  the notification list in chat",
+        "/hme ready  check bags, repairs, rank cap and risk for the Copilot's farm   ·   /hme danger  this zone's record",
         "/hme farm skin|herb|mine|fish [level|profit]  open the Farm Finder on it",
         "/hme stop  stop following the farm   ·   /hme nav  navigate to it",
         "/hme here  guide the loop beside another Forever-GPS journey   ·   /hme giveback  hand the arrow back",
@@ -177,6 +178,25 @@ function cmds.find(rest)
 end
 cmds.search = cmds.find
 function cmds.review() return HME.Review.Show() end
+-- 0.7.0: the readiness check for the Copilot's farm, and this zone's danger.
+function cmds.ready()
+    local pick = HME.Copilot.pick
+    if not pick then
+        HME.Print("no farm to check yet: open the Copilot (/hme copilot) and let it find one.")
+        return nil
+    end
+    local res = HME.Ready.Check(pick.r, HME.Copilot.Budget(), HME.Player.Profile())
+    HME.Print(("%s in %s:"):format(pick.r.prof or "?", pick.r.zone or "?"))
+    for _, l in ipairs(HME.Ready.Lines(res)) do print("  " .. l) end
+    return res
+end
+function cmds.danger()
+    local mapID, x, y = HME.Player.Position()
+    local zm = mapID and (HME.Geo.ZoneOf(mapID, x, y) or mapID)
+    local z = HME.Danger.Zone(zm)
+    HME.Print((HME.ZoneData.Name(zm) or "this zone") .. ": " .. (z.text ~= "" and z.text or "nothing recorded here yet."))
+    return z
+end
 function cmds.notices()
     local list = HME.Notify.List()
     if #list == 0 then HME.Print("no notifications.") return end

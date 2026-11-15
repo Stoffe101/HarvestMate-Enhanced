@@ -280,6 +280,9 @@ function H.Update()
         f.goal:Hide()
     end
     if warn then lines[#lines + 1] = warn end
+    -- 0.7.0, off unless chosen in Settings: the Copilot's top card in one line.
+    local tip = H.CopilotLine()
+    if tip then lines[#lines + 1] = tip end
     if size ~= "compact" then
         local live = r and HME.Session.Live()
         if live then
@@ -327,6 +330,15 @@ function H.Update()
     f:SetHeight(h)
     f:Show()
 end
+
+-- The Copilot line, or nil (setting off, nothing worth saying, or just "keep going").
+function H.CopilotLine()
+    if not (HME.settings and HME.settings.hudCopilot and HME.Copilot) then return nil end
+    local top = HME.Copilot.Top()
+    if not top or top.type == "stay" or top.type == "status" then return nil end
+    return K.Paint("Copilot: ", T.HEX.brass) .. (top.title or "")
+end
+HME.Listen("COPILOT_CHANGED", function() if HME.settings and HME.settings.hudCopilot then H.Update() end end)
 
 function H.Toggle()
     hidden = not hidden

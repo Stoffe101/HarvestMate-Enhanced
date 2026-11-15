@@ -137,3 +137,19 @@ Install Forever-GPS from the branch `feature/public-api` for 37-44 and 54-56 (RE
 102. [ ] **Materials** shows "Sell, process or keep" with the auction cut and deposit, and "Your characters" after logging in on a second character.
 103. [ ] **Bags**: farm with few free slots: a "Bags full in about N minutes" card or notice, with Nearest vendor through Forever-GPS (you press Go).
 104. [ ] `/hme diag` has Copilot, Prediction ledger, Quests and Notices lines; nothing in it names characters or places beyond zone ids.
+
+### 0.7.0
+105. [ ] **Editor: move and redo.** Routes, Waypoints on a route: shift-click a waypoint, then click elsewhere: it moves there. Undo, then Redo. Right-click while one is picked up keeps it where it was.
+106. [ ] **Snap.** On a herb or ore route, click near a known node: the bar says "Snapped to ...". Snap: off on the bar stops it (and stays off next time).
+107. [ ] **Versions.** Change a route and press Done; Inspect it: "Versions 1 kept"; the Versions menu puts the old waypoints back after asking; Versions now lists the edited ones.
+108. [ ] **Share.** Inspector, Share: the box says what it leaves out; Ctrl+C, then paste in Settings, Your data, Import on another character: the route arrives as "imported", without laps.
+109. [ ] **Map layers.** Open the world map: an "HME layers" button at the top left of the map. Is it clear of other addons' buttons (Questie, Forever-GPS)? Turn on "Your deaths and enemy players seen": the legend appears; your deaths show as red pins.
+110. [ ] **Players seen.** With enemy player nameplates on, ride where Horde players are: `/hme danger` counts them after a while; your party is not counted. Inside a dungeon nothing changes.
+111. [ ] **Enemy in sight.** If you die with a Horde player nearby, the death pin's tooltip says "an enemy player was in sight just before".
+112. [ ] **Risk and the Copilot.** After half an hour in a zone where you met 4+ enemies an hour, the Copilot shows "Enemies common here" with Lower-risk farms.
+113. [ ] **Price trends.** With Auctionator or Forever-GPS prices, open Materials on three different days: the Trend line appears from the third day, saying listings, not sales.
+114. [ ] **Ready?** Fill your bags to 2 free slots: the Copilot shows "Ready?" with Nearest vendor. `/hme ready` lists bags, repairs, rank cap, risk.
+115. [ ] **Characters.** Log in on a second character, then back: Profits & Stats, Characters lists both with professions and "playing now" for yours.
+116. [ ] **Session path.** Farm 10+ minutes, Stop farming: the review has Show the path; the map shows your path with "10 min" marks and a dot per skin.
+117. [ ] **HUD Copilot line.** Settings, Copilot on the HUD: one "Copilot: ..." line on the HUD; off again: the HUD is as before (0.5.0's layout).
+118. [ ] `/hme diag` has Danger map, Price history, Characters and Map layers lines with counts only.

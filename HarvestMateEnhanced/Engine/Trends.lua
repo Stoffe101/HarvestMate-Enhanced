@@ -52,7 +52,13 @@ function Tr.Note(itemID, raw)
     if not (ns.itemIndex and ns.itemIndex[itemID]) then return false end
     if raw.age and raw.age > 86400 then return false end
     local today = Day()
-    local pts = Parse(log[itemID])
+    local isNew = log[itemID] == nil
+    local text = log[itemID]
+    -- Already logged today with the same figures: nothing to do (the common case).
+    if text and text:find(("%d:%d:%d$"):format(today, math.floor((raw.low or raw.typical) + 0.5), math.floor(raw.typical + 0.5))) then
+        return true
+    end
+    local pts = Parse(text)
     local last = pts[#pts]
     if last and last.day == today then
         last.low = math.min(last.low, raw.low or raw.typical)
@@ -62,9 +68,9 @@ function Tr.Note(itemID, raw)
     end
     while #pts > 0 and today - pts[1].day >= Tr.DAYS do table.remove(pts, 1) end
     log[itemID] = Pack(pts)
-    -- Bounded: the items priced longest ago go first.
+    -- Bounded: the items priced longest ago go first (counted only when one joins).
     local n = 0
-    for _ in pairs(log) do n = n + 1 end
+    if isNew then for _ in pairs(log) do n = n + 1 end end
     if n > Tr.MAX_ITEMS then
         local list = {}
         for id, text in pairs(log) do list[#list + 1] = { id = id, last = tonumber(text:match("(%d+):%d+:%d+$")) or 0 } end
@@ -112,6 +118,9 @@ function Tr.Of(itemID)
     out.change = median > 0 and (now - median) / median or 0
     out.trend = out.change >= Tr.MOVE and "up" or (out.change <= -Tr.MOVE and "down" or "steady")
     local money = HME.Kit and HME.Kit.Money or function(c) return tostring(c) end
+    out.short = out.trend == "steady" and ("Steady: %s, usually %s (listings, not sales)."):format(money(now), money(median))
+        or ("%s %d%%: %s, usually %s (listings, not sales)."):format(out.trend == "up" and "Up" or "Down",
+            math.floor(math.abs(out.change) * 100 + 0.5), money(now), money(median))
     if out.trend == "steady" then
         out.text = ("Steady: %s against a median of %s over the %d days before (%s; listings, not sales)."):format(
             money(now), money(median), #pts - 1, source)

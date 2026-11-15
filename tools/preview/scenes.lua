@@ -131,6 +131,31 @@ Copilot("copilot-short", "Copilot: 25 minutes for Medium Leather", function() Co
 Copilot("copilot-profit", "Copilot: most gold", function() Co.SetMode("profit") Co.SetMinutes(60) end)
 Copilot("copilot-safe", "Copilot: lower risk on a PvP server", function() Co.SetMode("safe") Co.SetMinutes(0) end)
 Copilot("copilot-explore", "Copilot: explore unmeasured farms", function() Co.SetMode("explore") end)
+-- 0.7.0: where you keep meeting enemies, a material that moved, and bags too full for the trip.
+do
+    local mapID, x, y = HME.Player.Position()
+    local zm = HME.Geo.ZoneOf(mapID, x, y) or mapID
+    HME.db.obs.presence[zm] = 2.5 * 3600
+    for i = 1, 14 do HME.Danger.Note(zm, 0.45 + (i % 4) * 0.03, 0.5 + (i % 3) * 0.04, true, "preview-" .. i) end
+    local realTime = REAL_TIME
+    for d = 0, 6 do
+        REAL_TIME = realTime - (6 - d) * 86400
+        HME.Trends.Note(2318, { typical = d == 6 and 1450 or 1000 + d * 10, low = 950 })
+    end
+    REAL_TIME = realTime
+    local me = HME.Bags.Me()
+    HME.db.chars = HME.db.chars or {}
+    HME.db.chars[me] = HME.db.chars[me] or {}
+    HME.db.chars[me].bags = { [2318] = 46, [2319] = 12 }
+    local realFree = C_Container.GetContainerNumFreeSlots
+    C_Container.GetContainerNumFreeSlots = function() return 1, 0 end
+    Copilot("copilot-danger-market", "Copilot: enemy players common here, leather selling high, bags nearly full", function()
+        Co.SetMode("level") Co.SetMinutes(60) end)
+    C_Container.GetContainerNumFreeSlots = realFree
+    HME.Danger.Forget()
+    HME.Trends.Forget()
+    Co.SetMinutes(0)
+end
 Copilot("copilot-proven", "Copilot: my proven farms (none measured yet)", function() Co.SetMode("proven") end)
 do
     local quests = { { questID = 501, title = "Bloodwing Bat Bounty, a Very Long Quest Title for Testing",
@@ -227,6 +252,7 @@ if _G.HarvestMateEnhancedNotices then _G.HarvestMateEnhancedNotices:Hide() end
 Page("dashboard", "session-review", "Session review after Stop farming", "Header", function()
     local s = HME.db.sessions[#HME.db.sessions]
     s.areas[1].predicted = s.areas[1].predicted or { skins = 70, beasts = 70 }
+    s.trail = { p = "1424:4500:5000:0;1424:4700:5100:600;1424:4900:5300:1200", e = "s1424:4600:5050:300" }
     HME.Review.Show(s)
 end)
 if _G.HarvestMateEnhancedReview then _G.HarvestMateEnhancedReview:Hide() end
@@ -271,6 +297,16 @@ Page("beasts", "explorer-nothing", "Skinning Explorer: a search that finds nothi
 HME.char.ui.bxFilter = "canskin"
 HME.Pages.beastsShow("")
 Page("stats", "stats-history", "Profits & Stats: three weeks of history", "Profits & Stats")
+do
+    HME.Alts.Remember()
+    HME.db.chars["Ironvein-Realm"] = { level = 32, faction = "Alliance", class = "Warrior", t = time() - 3 * 86400,
+        profs = { Mining = { rank = 150, max = 150 }, Herbalism = { rank = 45, max = 225 } }, bags = { [2770] = 40 }, bank = { [2771] = 18 } }
+    HME.db.chars["Leafwhisper-Realm"] = { level = 12, faction = "Alliance", class = "Druid", t = time() - 9 * 86400,
+        profs = { Herbalism = { rank = 75, max = 75 } } }
+    Page("stats", "stats-characters", "Profits & Stats: your characters", "Profits & Stats", function()
+        HME.Pages.statsView("characters") end)
+    HME.Pages.statsView("journal")
+end
 local keep = HME.db.sessions
 HME.db.sessions = {}
 Page("stats", "stats-empty", "Profits & Stats: no sessions yet", "Profits & Stats")
@@ -355,6 +391,19 @@ do
         HME.Routes:InspectRoute(first)
         Write("routes-inspector-laps", "Route Inspector: laps, weak stops and a 15-minute variant", "Routes and maps",
             { around = HME.Window.frame, pad = 16 })
+        -- 0.7.0: versions kept by edits and a rebuild, and sharing.
+        local pts = {}
+        for i, v in ipairs(first.points) do pts[i] = v end
+        HME.RouteEditor.Revise(first, "before Rebuild", pts)
+        pts[1] = pts[1] + 0.01
+        HME.RouteEditor.Revise(first, "before your edit", pts)
+        HME.Routes:InspectRoute(first)
+        Write("routes-inspector-versions", "Route Inspector: versions to put back, and Share", "Routes and maps",
+            { around = HME.Window.frame, pad = 16 })
+        HME.Routes:ShowShare(first)
+        local sb = _G.HarvestMateEnhancedShare
+        if sb then Write("route-share", "Share a route: what it carries and what it leaves out", "Routes and maps", { around = sb, pad = 16 }) end
+        if sb then sb:Hide() end
         if _G.HarvestMateEnhancedRouteInspector then _G.HarvestMateEnhancedRouteInspector:Hide() end
     end
     HME.Window.frame:Hide()
@@ -373,6 +422,12 @@ for _, size in ipairs({ "compact", "detailed" }) do
     Hud("hud-session-" .. size, "HUD, session only (" .. size .. ")")
 end
 HME.settings.hudSize = "normal"
+HME.settings.hudCopilot = true
+Co.Evaluate(true)
+Settle()
+Co.Evaluate(true)
+Hud("hud-copilot", "HUD with the Copilot line (Settings; off by default)")
+HME.settings.hudCopilot = false
 cur.paused = "manual"
 Hud("hud-paused", "HUD, paused")
 cur.paused = false

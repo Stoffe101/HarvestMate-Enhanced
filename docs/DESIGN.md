@@ -88,3 +88,12 @@ This draws 40 states into `build/preview/` and screenshots them with Chrome or E
 - **Checks**: overlapping text (within one top-level frame), text outside its panel (0.5.0: a top-level frame that draws a surface; scroll clipping respected), text cut short, text within 8% of its box ("tight": may be cut by the game's own text measure), cramped buttons, text under 10.5 px on screen, dim text, missing addon art, frames off the screen. `--strict` fails on overlap, cut or cramped.
 
 They are renders, not game screenshots: text sizes are estimates (deliberately a little wide), game textures are placeholders, spell icons come from a public icon CDN when the browser can reach it. The game is the final word: `docs/MANUAL_TESTING.md` items 63-76 cover the 0.4.0 look in the client. When a real screenshot shows something the previews missed, the previews get a check or a state for it (0.4.0 added real prices and money, which is how gold an hour got cut in game but not in the previews).
+
+## 0.7.0 pieces
+
+- **Route Inspector** is 620 wide: Versions (a menu, shown when there are some) and Drop empty stops at the bottom left, Share, Waypoints and Follow at the right.
+- **Share box**: what the text carries, then in the text's own colour what it leaves out, the text field, and a one-line hint; Close is the primary button.
+- **Copilot rows** for the new cards keep titles to about 30 characters ("Enemies common here", "Light Leather is selling high") and buttons to one or two words ("Lower-risk farms", "See it"), found by looking at the previews: the first titles ran under their buttons.
+- **Characters** (Profits & Stats): a sixth view; one row per character, its professions on the second line with what a capped one needs in brackets.
+- **Map layers**: red for danger (your deaths as pins, enemy spots as shading darker for more), gold for quest creatures; a legend under the button says what each colour is and that nothing is live.
+

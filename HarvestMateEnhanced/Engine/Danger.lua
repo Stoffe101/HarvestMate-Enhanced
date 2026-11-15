@@ -66,26 +66,30 @@ local function Hour()
     return type(d) == "table" and type(d.hour) == "number" and d.hour or nil
 end
 
--- Bounded: the least recently seen spots and zones go first.
-local function Trim(players)
-    local zones = {}
-    for mapID, spots in pairs(players) do
-        local last, n = 0, 0
-        for _, s in pairs(spots) do
-            n = n + 1
-            if (s.t or 0) > last then last = s.t or 0 end
-        end
-        zones[#zones + 1] = { id = mapID, last = last }
-        if n > D.MAX_SPOTS then
-            local list = {}
-            for k, s in pairs(spots) do list[#list + 1] = { k = k, t = s.t or 0 } end
-            table.sort(list, function(a, b) return a.t > b.t end)
-            for i = D.MAX_SPOTS + 1, #list do spots[list[i].k] = nil end
-        end
+-- Bounded: the least recently seen spots and zones go first. Counting is
+-- cheap; lists are built only when a limit is passed (0.7.0's benchmark:
+-- building them on every sighting made 7 KB of garbage each).
+local function Trim(players, mapID)
+    local spots = players[mapID]
+    local n = 0
+    for _ in pairs(spots or {}) do n = n + 1 end
+    if n > D.MAX_SPOTS then
+        local list = {}
+        for k, s in pairs(spots) do list[#list + 1] = { k = k, t = s.t or 0 } end
+        table.sort(list, function(a, b) return a.t > b.t end)
+        for i = D.MAX_SPOTS + 1, #list do spots[list[i].k] = nil end
     end
-    if #zones > D.MAX_ZONES then
-        table.sort(zones, function(a, b) return a.last > b.last end)
-        for i = D.MAX_ZONES + 1, #zones do players[zones[i].id] = nil end
+    local zones = 0
+    for _ in pairs(players) do zones = zones + 1 end
+    if zones > D.MAX_ZONES then
+        local list = {}
+        for id, sp in pairs(players) do
+            local last = 0
+            for _, s in pairs(sp) do if (s.t or 0) > last then last = s.t or 0 end end
+            list[#list + 1] = { id = id, last = last }
+        end
+        table.sort(list, function(a, b) return a.last > b.last end)
+        for i = D.MAX_ZONES + 1, #list do players[list[i].id] = nil end
     end
 end
 
@@ -112,7 +116,7 @@ function D.Note(mapID, x, y, enemy, guid)
         s.h = s.h or {}
         s.h[h + 1] = (s.h[h + 1] or 0) + 1
     end
-    Trim(obs.players)
+    Trim(obs.players, mapID)
     HME.Soon("danger-changed", 5, function() HME.Signal("DANGER_CHANGED") end)
     return true
 end

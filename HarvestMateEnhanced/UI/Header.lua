@@ -202,9 +202,17 @@ function HME.Review.Show(summary)
         f.stats:SetPoint("BOTTOMRIGHT", -14, 12)
         f.ok = K.Button(f, "Close", 80, 28, function() f:Hide() end, nil, "ghost")
         f.ok:SetPoint("RIGHT", f.stats, "LEFT", -8, 0)
+        -- 0.7.0: the session's path on the map (Engine/Trail.lua).
+        f.path = K.Button(f, "Show the path", 120, 28, function()
+            f:Hide()
+            HME.Trail.Show(f.summary)
+        end, "Where you went during this session and what happened where, on the world map.", "secondary")
+        f.path:SetPoint("BOTTOMLEFT", 14, 12)
         review = f
     end
     local f = review
+    f.summary = summary
+    f.path:SetShown(type(summary) == "table" and summary.trail ~= nil)
     f.title:SetText(data.title)
     T.FitText(f.title, 440, "title", 18, 14)
     for i, t in ipairs(f.tiles) do

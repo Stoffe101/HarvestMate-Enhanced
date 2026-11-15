@@ -921,7 +921,7 @@ function GP:ShowShare(route)
         .. "when and how long you recorded it, gathers seen on the way, and the prediction (rates, gold). Nothing is sent: "
         .. "you copy the text and give it to whoever you like.")
     f.box:SetText(text)
-    f:SetHeight(42 + (f.note:GetStringHeight() or 60) + 100)
+    f:SetHeight(42 + (f.note:GetStringHeight() or 60) + 88)
     f:Show()
     f.box:SetFocus()
     f.box:HighlightText()

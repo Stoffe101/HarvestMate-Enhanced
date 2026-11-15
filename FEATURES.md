@@ -85,25 +85,33 @@ Status key: **New** (HME), **Kept** (from upstream, unchanged in behaviour), **I
 - Bag forecast; characters' materials with their age; sell, process or keep.
 - Farm profiles restore the workspace.
 
+## Added in 0.7.0 (implemented; real-client validation pending)
+- Route editor: redo, move a waypoint (shift-click), snap to known nodes; versions with restore; share one route without personal data.
+- Your danger map (players seen, time per zone, deaths with an enemy in sight) feeding risk, a Copilot card and a map layer.
+- Price trends from a daily log (or Forever-GPS's history), on Materials and as a Copilot card.
+- Map layers with a legend: danger, quest creatures.
+- Ready to go? check (bags, repairs, rank cap, risk, travel); `/hme ready`.
+- Your characters with professions, next steps and materials.
+- Session path on the map from the session review.
+- Optional Copilot line on the HUD.
+
 ## Partly implemented
 - Hunting styles: Guided, Adaptive and Free guidance plus the risk mode and material goal cover them; there is no separate "cluster" planner.
 - Heatmaps: density, your gathering and skill-up potential; no profitability heatmap.
 - Progression transitions: grey-farm, cap and tier suggestions (0.2.0) and the live "below prediction" suggestion; no automatic "next area" switch.
 - Combined tracking: reminders only (the game tracks one kind at a time; HME never switches it).
 
-## Asked for in the 0.6.0 brief, not done (proposals)
-- A dedicated farming atlas map with layer toggles and a legend; new heatmaps (profit, personal success).
-- Route editor dragging, snapping, undo/redo, revisions with restore, route sharing between players.
-- Session replay of the recorded path.
-- Fishing companion (lure reminders, pool discovery, catch journal), mining and herbalism specific improvements, profession gear advisor.
-- Alt-character planner beyond the existing "plan for another level or skill".
-- Personal danger map from deaths beyond the existing risk model; competition estimates.
-- Market trends from price history; inventory reservations beyond goals.
-- Copilot hint on the farming HUD (left out to keep 0.5.0's HUD fix untouched).
+## Asked for in the 0.6.0 brief, still not done (proposals)
+- A separate atlas window; heatmaps of profit or personal success (0.7.0 added layers on the world map instead).
+- Dragging waypoints with the mouse held down (0.7.0 moves one by shift-click, then click), and sharing routes in game (text only).
+- An animated session replay (0.7.0 draws the whole path with time marks).
+- Fishing companion (lure reminders, pool discovery, catch journal), mining and herbalism specific improvements, a profession gear advisor (the readiness check covers bags, repairs and rank cap only).
+- Planning another character's farms (0.7.0 lists your characters and what each needs next; the Farm Finder plans for the one you play).
+- A measured competition figure: the players-seen counts are shown, the Farm Finder still uses the competition setting.
+- Inventory reservations beyond goals.
 - Localization.
 
 ## Proposals, not implemented
 - Localized HME pages (Swedish and others).
-- Sharing routes with other players in game (export text only today).
 - A full terrain-optimal tour (today: straight-distance tour, then terrain refinement).
 - Crafting profit comparisons in HME (Forever-GPS has its own).

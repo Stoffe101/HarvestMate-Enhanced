@@ -98,6 +98,9 @@ DB.SETTINGS = {
     sessionReview = true,        -- open the session review when you stop a session yourself
     calibrate = true,            -- scale unmeasured farms by your sessions' results (Engine/Ledger.lua)
     copilot = {},                -- [card type] = false hides that kind of Copilot card
+    -- 0.7.0
+    hudCopilot = false,          -- the Copilot's top card as one line on the farming HUD (off: the HUD stays as in 0.5.0)
+    editorSnap = true,           -- the route editor snaps new and moved waypoints to known nodes
 }
 
 local CHAR_DEFAULTS = {

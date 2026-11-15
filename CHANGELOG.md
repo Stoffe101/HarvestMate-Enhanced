@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.7.0 (development build, unreleased)
+
+What 0.6.0 left from its brief. Tested headless only (unit and integration tests, rendered previews, benchmarks); nothing of 0.7.0 has been run in the game yet: docs/MANUAL_TESTING.md items 105-118.
+
+### New
+- **Route editor**: Redo next to Undo; **shift-click** picks up a waypoint and the next click puts it down (moving one; right-click keeps it where it was); **Snap** (on by default) puts new and moved waypoints on a known node of the route's kinds within 20 yards (herb, ore and fishing routes; beasts wander, so skinning loops never snap).
+- **Route versions**: Done, Rebuild and trimming a recording keep the waypoints they replaced (6 per route). The Route Inspector's **Versions** menu puts one back; the waypoints it replaces are kept as a version too.
+- **Share a route** (Route Inspector): one route as text with its waypoints, zone and purpose. It leaves out your laps and lap times, stop visits and yields, versions, when and how long you recorded it, the gathers you saw on the way and the prediction (rates, gold). Nothing is sent; you copy the text.
+- **Your danger map** (`Engine/Danger.lua`): the players you see (a nameplate, a target, a mouse-over) outside instances, enemy or not, where you stood and at what hour, once per player per 10 minutes; your time in each zone; deaths marked "enemy in sight" when one was seen in the 30 seconds before (not "killed by": the client does not say). A zone where you met many enemies an hour (half an hour there or more) scores riskier; the Copilot says "Enemies common here" with a button for lower-risk farms; `/hme danger`.
+- **Price trends** (`Engine/Trends.lua`): one point a day per gathering material HME prices (the day's lowest listing and the latest typical figure, from whichever addon it reads), 21 days; Forever-GPS's own daily history first when it has one. From 3 days: up, down or steady against the median, on the Materials page with a word of advice, and a Copilot "selling high/low" card for a material in your bags. Listings, not sales, and it says so.
+- **Map layers**: an "HME layers" button on the world map (and Settings) with a legend: your deaths and the spots where you met enemy players; the spawn points of creatures your open quest objectives name.
+- **Ready to go?** (`Engine/Ready.lua`): before the Copilot's farm, bags against what the farm fills them with in your time, the lowest durability you wear, the rank cap against the farm's rate, risk, unknown travel. A "Ready?" card when something needs a look (Nearest vendor or repair through Forever-GPS); `/hme ready`.
+- **Your characters** (Profits & Stats, Characters): each character as it last showed HME, with its gathering professions and ranks, what a capped one needs next (training, or a level), and its HME materials with their age.
+- **Session path** (`Engine/Trail.lua`): where you went during a session (a point every 15 seconds when you moved) and each skin, gather, skill-up and death, kept with the 5 newest sessions. The session review's **Show the path** draws it on the map with a mark every 10 minutes.
+- **Copilot on the HUD** (Settings, off by default): the Copilot's top suggestion as one line on the farming HUD. With it off the HUD is exactly 0.5.0's.
+- `/hme diag`: danger map, price history, characters, map layers lines (counts only).
+
+### Changed
+- **Exports carry no personal history**: Settings' "Export routes and areas" used to copy whole routes, laps, stop yields and recording times included. It now carries waypoints and purpose only; the gathers seen while recording go only with "... with recorded gathers". Importing an older export drops those fields.
+- Danger and the price log are cleared by Settings, Forget learned data, with the rest.
+
+### Saved data
+- Schema 4 still: new sections start empty (`obs.players`, `obs.presence`, `priceLog`, routes' `revisions`, characters' `profs`, sessions' `trail`); settings `mapLayers`, `hudCopilot`, `editorSnap`. A 0.6.0 save keeps everything.
+
 ## 0.6.0 (development build, unreleased)
 
 Tested headless only (unit, integration against Forever-GPS's real API code, rendered previews, benchmarks). Nothing of 0.6.0 has been run in the game yet: docs/MANUAL_TESTING.md items 89-104.

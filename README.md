@@ -2,7 +2,9 @@
 
 An all-in-one gathering companion for **World of Warcraft: Forever** (1.60.1, interface 16001): where to level Herbalism, Mining, Skinning and Fishing, which farms pay best for *your* character, routes drawn on the world map and minimap, Skinning treated as real hunting (beast clusters, kill time, respawns), goals and staged leveling plans, one-key gathering, and session statistics that teach the recommendations what you actually achieve — with every estimate saying what it rests on.
 
-Version 0.6.0 (development build). What has been seen in the real game client: 0.3.0 and 0.4.0 load, `/hme diag` and `/fgps diag` work, and two screenshots of 0.4.0 (Farm Finder, Dashboard, the farming HUD) led to the fixes in 0.4.0 and 0.5.0. The 0.5.0 and 0.6.0 changes are tested headless only so far: see [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). A personal-use project: no public releases.
+Version 0.7.0 (development build). What has been seen in the real game client: 0.3.0 and 0.4.0 load, `/hme diag` and `/fgps diag` work, and two screenshots of 0.4.0 (Farm Finder, Dashboard, the farming HUD) led to the fixes in 0.4.0 and 0.5.0. The 0.5.0, 0.6.0 and 0.7.0 changes are tested headless only so far: see [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). A personal-use project: no public releases.
+
+**New in 0.7.0**: route **versions** you can put back, **redo**, moving and **snapping** waypoints, **sharing** one route without your history, your own **danger map** (enemy players you met, deaths with an enemy in sight) on the map and in risk, **price trends**, a **ready to go?** check (bags, repairs, rank cap), **your characters** with their professions, the **session path** on the map, and an optional Copilot line on the HUD.
 
 **New in 0.6.0**: the **Farming Copilot** (what to farm now and why, for your mode and the time you have, with its evidence and one click), a **prediction ledger** that compares every planned session with what you got and adjusts estimates for farms you have not measured, the **Skinning Explorer** (every beast as a profile with your own drop journal), **quest synergy** (farms that also progress quests in your log), the **Route Director** (loops sized to your time, laps, empty stops), a **notification center**, **session reviews**, **search everything**, and sell/process/keep advice. How it all works: [docs/COPILOT.md](docs/COPILOT.md).
 
@@ -36,7 +38,7 @@ Optional addons HME uses when present: Forever-GPS (navigation, prices, and with
 
 HME detects the API at login and uses each part it finds. Going back to the released Forever-GPS needs nothing in HME.
 
-**Before trusting it in the game**, run the checklist in [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md) (items 37-62 came with 0.3.0, 63-76 with 0.4.0, 77-88 with 0.5.0, 89-104 with 0.6.0). Everything so far is tested only headless; see [TESTING.md](TESTING.md#verified-where).
+**Before trusting it in the game**, run the checklist in [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md) (items 37-62 came with 0.3.0, 63-76 with 0.4.0, 77-88 with 0.5.0, 89-104 with 0.6.0, 105-118 with 0.7.0). Everything so far is tested only headless; see [TESTING.md](TESTING.md#verified-where).
 
 ## Using it
 

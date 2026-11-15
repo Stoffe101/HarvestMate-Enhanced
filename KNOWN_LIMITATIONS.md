@@ -62,3 +62,15 @@ Everything in HME has only run against the headless fake client. Layout, texture
 - No estimated-profitability heatmap (the views are density, your gathering and skill-up potential).
 - Expeditions are greedy (good, not optimal) and plan at most 6 stages of 2 hours.
 - The new pages (Setup, Expedition card, Diagnostics window) are laid out but unverified in the game.
+
+## 0.7.0
+
+- **Players seen** depend on nameplates being shown for players (or your targeting them); with player nameplates off, the danger map only knows the players you target or mouse over. Counted where you stood, not where they were. In instances nothing is counted. If WoW Forever marks these unit answers secret, they are skipped and the map stays empty.
+- **"Enemy in sight"** on a death means an enemy player was seen in the 30 seconds before, not that one killed you.
+- **Price trends** need three days of prices; HME logs a price only when it reads one (opening Materials, a Farm Finder search, the Copilot) and only if the addon's price is under a day old. Listings, not sales.
+- **Ready to go?**: bags are forecast for skinning farms (the farm's materials an hour); for herbs, ore and fish only the free slots are checked. Durability is read from the worn items; whether the game would let you skin without a knife is not checked.
+- **Characters** show what each last told HME; a character not played since 0.7.0 has no professions listed.
+- **Session path** is a point every 15 seconds when you moved 15 yards: not a recording of every turn. Only the 5 newest sessions keep it.
+- **The map layer button** sits at the top left of the world map's canvas; another addon's button may share that spot (in-game check 109).
+- **Snapping** uses HME's merged nodes (bundled spawns, your gathers, GatherMate2); a node the data places wrongly snaps wrongly. Snap can be turned off on the editor bar.
+
