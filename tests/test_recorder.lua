@@ -140,8 +140,10 @@ R.MAX_RAW = saveMax
 local long = GP:RouteNamed(E_MAP, "long")
 check(long and #long.points / 2 <= R.MAX_SAVED, "saved within the bound")
 
-STEP("export and import: points and gathers travel, the recording is marked imported")
-local text = HME.DBM.Export({ routes = true })
+STEP("export and import: points travel (gathers only when asked), the recording is marked imported")
+local plainExport = assert(HME.DBM.ReadImport(HME.DBM.Export({ routes = true })))
+for _, r in ipairs(plainExport.routes) do check(r.obs == nil, "gathers seen while recording stay home unless asked for") end
+local text = HME.DBM.Export({ routes = true, gathers = true })
 local data = assert(HME.DBM.ReadImport(text))
 local count = #GP.db.routes
 HME.DBM.ApplyImport(data)

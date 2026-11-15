@@ -625,6 +625,41 @@ C.Rule({ id = "prices", run = function(ctx, add)
     end
 end })
 
+-- 0.7.0: you keep meeting enemy players in this zone (Engine/Danger.lua).
+C.Rule({ id = "danger", run = function(ctx, add)
+    if not (HME.Danger and ctx.profile.mapID) then return end
+    local zm = HME.Geo.ZoneOf(ctx.profile.mapID, ctx.profile.x, ctx.profile.y) or ctx.profile.mapID
+    local z = HME.Danger.Zone(zm)
+    if not (z.enemiesPerHour and z.enemiesPerHour >= 4) then return end
+    local why = { z.text, "Counted from enemy players' nameplates and the players you targeted, where you stood; "
+        .. "it says nothing about who is here now." }
+    add({ id = ("danger:%d:%d"):format(zm, math.floor(z.enemiesPerHour / 4)), type = "danger", priority = ctx.mode == "safe" and 30 or 52,
+        title = "Enemy players are common here", objective = ("About %s an hour in %s, from your own time here."):format(
+            z.enemiesPerHour >= 10 and tostring(math.floor(z.enemiesPerHour + 0.5)) or ("%.1f"):format(z.enemiesPerHour),
+            HME.ZoneData.Name(zm) or "this zone"),
+        why = why, conf = math.min(0.85, 0.4 + z.hours / 6), evidence = ("%.1f h of your time in the zone"):format(z.hours),
+        action = ctx.mode ~= "safe" and { kind = "mode", label = "Show lower-risk farms", mode = "safe" } or nil })
+end })
+
+-- 0.7.0: a material in your bags whose price moved a lot (Engine/Trends.lua).
+C.Rule({ id = "market", run = function(ctx, add)
+    if not (HME.Trends and HME.Bags) then return end
+    local me = HME.db and HME.db.chars and HME.Bags.Me() and HME.db.chars[HME.Bags.Me()]
+    local ids = {}
+    for id in pairs(type(me) == "table" and type(me.bags) == "table" and me.bags or {}) do ids[#ids + 1] = id end
+    table.sort(ids)
+    local movers = HME.Trends.Movers(ids, 0.2)
+    local m = movers[1]
+    if not m then return end
+    local name = (HME.Goals and HME.Goals.ItemName(m.id)) or ("item " .. m.id)
+    local up = m.t.trend == "up"
+    add({ id = ("market:%d:%s:%d"):format(m.id, m.t.trend, m.t.days), type = "market", priority = ctx.mode == "profit" and 40 or 20,
+        title = up and (name .. " is selling high") or (name .. " is selling low"),
+        objective = m.t.text, why = { HME.Trends.Advice(m.t) or "", "HME never lists, buys or sells: the auction house is your move." },
+        conf = math.min(0.75, 0.35 + m.t.days * 0.05), evidence = ("%d days of %s"):format(m.t.days, m.t.source),
+        action = { kind = "material", label = "Open " .. name, itemID = m.id, name = name } })
+end })
+
 -- What the ledger learned from your sessions.
 C.Rule({ id = "learned", run = function(ctx, add)
     if not ctx.prof then return end
@@ -854,6 +889,17 @@ function C.Run(action)
         end
         HME.Print(why or "no route to trim.")
         return false
+    elseif k == "mode" and action.mode then
+        C.SetMode(action.mode)
+        HME.OpenWindow("copilot")
+        return true
+    elseif k == "material" then
+        HME.OpenWindow("materials")
+        if HME.Pages.materialsShow then
+            local entry = ns.itemIndex and ns.itemIndex[action.itemID]
+            HME.Pages.materialsShow(type(entry) == "table" and entry.prof or nil, action.name)
+        end
+        return true
     elseif k == "page" then
         HME.OpenWindow(action.page)
         if action.page == "trainers" and action.prof and HME.Pages.trainersSet then HME.Pages.trainersSet(action.prof) end

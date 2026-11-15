@@ -253,6 +253,9 @@ end
 HME.On("QUEST_LOG_UPDATE", function() HME.Soon("quest-index", 2, Q.Rebuild) end)
 HME.On("PLAYER_ENTERING_WORLD", function() HME.Soon("quest-index", 4, Q.Rebuild) end)
 
+-- The creatures your open objectives name: { [npcID] = { entries } } (the map's quest layer).
+function Q.Creatures() return index.npc end
+
 -- Every unfinished objective entry this creature (npcID, name) serves.
 function Q.ForCreature(npcID, name)
     local out, seen = {}, {}

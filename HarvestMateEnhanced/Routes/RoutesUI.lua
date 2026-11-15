@@ -196,7 +196,8 @@ local function BuildRoutes(p)
             if self.disabled or not r.route then return end
             local route = r.route
             if route.edited or route.recorded then
-                GP:Confirm(("|cffffd100%s|r was %s. Rebuilding works the loop out again and replaces those waypoints."):format(
+                GP:Confirm(("|cffffd100%s|r was %s. Rebuilding works the loop out again and replaces those waypoints "
+                    .. "(they are kept as a version you can restore in the Inspector)."):format(
                     route.name, route.edited and "edited by hand" or "recorded in game"), "Rebuild", function() GP:RebuildRoute(route, true) end)
                 return
             end
@@ -870,6 +871,63 @@ local TABS = {
 }
 GP.CONFIG_TABS = TABS
 
+-- Share: one route as text, with what it carries and what it leaves out.
+local shareBox
+local function K() return HME.Kit end
+function GP:ShowShare(route)
+    local text = HME.DBM.ShareRoute(route)
+    if not text then return nil end
+    if not shareBox then
+        local W = 460
+        local f = CreateFrame("Frame", "HarvestMateEnhancedShare", UIParent)
+        f:SetSize(W, 196)
+        f:SetPoint("CENTER", 0, 60)
+        f:SetFrameStrata("FULLSCREEN_DIALOG")
+        f:SetToplevel(true)
+        f:EnableMouse(true)
+        f:Hide()
+        table.insert(UISpecialFrames, "HarvestMateEnhancedShare")
+        f.shadow = T.Shadow(f, 14)
+        f.bg = T.Surface(f, C.raised)
+        T.Outline(f, C.edge)
+        f.title = T.Text(f, "", "title", C.text, 15)
+        f.title:SetPoint("TOPLEFT", 16, -14)
+        f.title:SetWidth(W - 60)
+        f.title:SetWordWrap(false)
+        f.close = T.FlatButton(f, "×", 28, 26, "ghost")
+        f.close:SetPoint("TOPRIGHT", -8, -8)
+        f.close:SetScript("OnClick", function() f:Hide() end)
+        f.note = T.Text(f, "", "small")
+        f.note:SetPoint("TOPLEFT", 16, -42)
+        f.note:SetWidth(W - 32)
+        f.note:SetWordWrap(true)
+        if f.note.SetSpacing then f.note:SetSpacing(2) end
+        f.box = T.EditBox(f, W - 32)
+        f.box:SetPoint("BOTTOMLEFT", 16, 50)
+        f.box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+        f.done = T.FlatButton(f, "Close", 90, 26, "primary")
+        f.done:SetPoint("BOTTOMRIGHT", -14, 12)
+        f.done:SetScript("OnClick", function() f:Hide() end)
+        f.hint = T.Text(f, "Ctrl+C copies it. Another HME imports it in Settings, Your data.", "meta")
+        f.hint:SetPoint("BOTTOMLEFT", 16, 20)
+        f.hint:SetWidth(W - 130)
+        f.hint:SetWordWrap(false)
+        shareBox = f
+    end
+    local f = shareBox
+    f.title:SetText(("Share %s"):format(route.name or "route"))
+    f.note:SetText("Carries the waypoints, the zone and what the loop is for. "
+        .. K().Paint("Leaves out", T.HEX.text) .. " your laps and lap times, stop visits and yields, versions, "
+        .. "when and how long you recorded it, gathers seen on the way, and the prediction (rates, gold). Nothing is sent: "
+        .. "you copy the text and give it to whoever you like.")
+    f.box:SetText(text)
+    f:SetHeight(42 + (f.note:GetStringHeight() or 60) + 100)
+    f:Show()
+    f.box:SetFocus()
+    f.box:HighlightText()
+    return text
+end
+
 -- The Route Inspector: a panel over the Routes page.
 local inspector
 function GP:InspectRoute(route)
@@ -880,7 +938,7 @@ function GP:InspectRoute(route)
     if not page then return end
     local K = HME.Kit
     if not inspector then
-        local W = 520
+        local W = 620
         -- Its own floating frame over the window (closes with it, and with Escape).
         local f = CreateFrame("Frame", "HarvestMateEnhancedRouteInspector", UIParent)
         f:SetSize(W, 360)
@@ -937,9 +995,20 @@ function GP:InspectRoute(route)
             f.timed[i] = b
             prev = b
         end
-        f.trim = T.FlatButton(f, "Without empty stops", 150, 24, "ghost")
+        f.trim = T.FlatButton(f, "Drop empty stops", 130, 24, "ghost")
         f.trim:SetPoint("BOTTOMLEFT", 12, 14)
-        T.Tooltip(f.trim, "Without empty stops", "A new route without the stops that never gave anything in 4 or more visits. "
+        -- Versions (0.7.0): the waypoints an edit, rebuild, restore or trim replaced.
+        f.versions = T.Dropdown(f, 168, {}, function(k) return k == 0 and "Versions..." or "?" end,
+            function() return 0 end, function(k) end)
+        f.versions:SetPoint("BOTTOMLEFT", 150, 14)
+        f.versions.menuTitle = "Put an older version back"
+        T.Tooltip(f.versions, "Versions", "The waypoints an edit, a rebuild, a trim or a restore replaced (6 kept). "
+            .. "Putting one back keeps the current waypoints as a version too.")
+        f.share = T.FlatButton(f, "Share", 70, 28, "ghost")
+        f.share:SetPoint("RIGHT", f.edit, "LEFT", -8, 0)
+        T.Tooltip(f.share, "Share", "This route as text to copy: the waypoints and what it is for, without your laps, "
+            .. "yields, history or earnings.")
+        T.Tooltip(f.trim, "Drop empty stops", "A new route without the stops that never gave anything in 4 or more visits. "
             .. "This route is not changed.")
         inspector = f
     end
@@ -983,6 +1052,10 @@ function GP:InspectRoute(route)
         lines[#lines + 1] = ("|cff999b8fTimed loops|r  the whole loop is %s already, under %d minutes."):format(
             U.Duration(shortest.secs), HME.RouteDirector.MINUTES[1])
     end
+    local versions = HME.RouteEditor.Versions(route)
+    if #versions > 0 then
+        lines[#lines + 1] = ("|cff999b8fVersions|r  %d kept; the newest is from %s."):format(#versions, versions[1].text)
+    end
     lines[#lines + 1] = K.Paint("A recorded path proves the line you walked, not the ground around it.", T.HEX.text3)
     f.text:SetText(table.concat(lines, "\n"))
     f:SetHeight(146 + (f.text:GetStringHeight() or 80) + 100)
@@ -1002,6 +1075,8 @@ function GP:InspectRoute(route)
         end)
     end
     f.trim:SetShown(#laps.weak > 0)
+    f.versions:ClearAllPoints()
+    f.versions:SetPoint("BOTTOMLEFT", #laps.weak > 0 and 150 or 14, 14)
     f.trim:SetScript("OnClick", function()
         local v, why = HME.RouteDirector.WithoutWeak(route)
         if v then
@@ -1011,6 +1086,26 @@ function GP:InspectRoute(route)
             HME.Print(why or "nothing to trim.")
         end
     end)
+    local vkeys, vlabels = { 0 }, { [0] = "Versions..." }
+    for _, v in ipairs(versions) do
+        vkeys[#vkeys + 1] = v.index
+        vlabels[v.index] = v.text
+    end
+    f.versions.keys = vkeys
+    f.versions.labels = function(k) return vlabels[k] or "Versions..." end
+    f.versions.setter = function(k)
+        if k == 0 or not vlabels[k] then return end
+        GP:Confirm(("Put back the version of |cffffd100%s|r from %s? The waypoints it has now are kept as a version."):format(
+            route.name, vlabels[k]), "Put it back", function()
+            if HME.RouteEditor.Restore(route, k) then
+                HME.Print(("|cffffd100%s|r: an older version is back."):format(route.name))
+                GP:InspectRoute(route)
+            end
+        end)
+    end
+    f.versions:SetShown(#versions > 0)
+    f.versions.Refresh()
+    f.share:SetScript("OnClick", function() GP:ShowShare(route) end)
     f.follow:SetScript("OnClick", function() HME.Guidance.Start(route) f:Hide() end)
     f.edit:SetScript("OnClick", function() HME.RouteEditor.Start(route) f:Hide() end)
     f:Show()

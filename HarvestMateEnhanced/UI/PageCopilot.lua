@@ -31,7 +31,8 @@ local TYPE = {
     train = { "Training", T.HEX.info }, goal = { "Goal", T.HEX.gold }, quest = { "Quest", T.HEX.brass },
     bags = { "Bags", T.HEX.warning }, grey = { "Grey farm", T.HEX.warning }, prices = { "Prices", T.HEX.text3 },
     learned = { "Learned", T.HEX.info }, setup = { "Start", T.HEX.info }, status = { "Working", T.HEX.text3 },
-    route = { "Route", T.HEX.brass },
+    route = { "Route", T.HEX.brass }, danger = { "Danger", T.HEX.danger }, market = { "Market", T.HEX.gold },
+    ready = { "Ready?", T.HEX.warning },
 }
 local BUDGET_KEYS = { 15, 30, 60, 120, 0 }
 local BUDGET_LABEL = { [15] = "15 min", [30] = "30 min", [60] = "1 hour", [120] = "2 hours", [0] = "No limit" }

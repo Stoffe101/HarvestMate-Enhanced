@@ -20,7 +20,10 @@ local Geo = HME.Geo
 local R = {}
 HME.Risk = R
 
-R.WEIGHTS = { creatures = 0.35, territory = 0.25, guards = 0.25, deaths = 0.15 }
+R.WEIGHTS = { creatures = 0.35, territory = 0.25, guards = 0.25, deaths = 0.15,
+    -- 0.7.0: enemy players you met in the zone (Engine/Danger.lua), only when
+    -- you spent half an hour there; adds to the score, which stays at most 1.
+    enemies = 0.15 }
 R.LABELS = {
     { 0.20, "Lower risk", "48c75a" },
     { 0.40, "Moderate risk", "ffe14d" },
@@ -121,8 +124,18 @@ function R.Assess(area, profile)
     local d, n = R.Deaths(area.mapID, area.x, area.y, (area.radius or 150) + 100)
     parts.deaths = d
     if n > 0 then reasons[#reasons + 1] = ("you died here %d time%s"):format(n, n == 1 and "" or "s") end
+    local pressure, zone = nil, nil
+    if HME.Danger then pressure, zone = HME.Danger.Pressure(area.mapID) end
+    if pressure then
+        parts.enemies = pressure
+        if pressure >= 0.25 then
+            reasons[#reasons + 1] = ("you met %s enemy players an hour in this zone"):format(
+                zone.enemiesPerHour >= 10 and tostring(math.floor(zone.enemiesPerHour + 0.5)) or ("%.1f"):format(zone.enemiesPerHour))
+        end
+    end
     local score = 0
     for k, w in pairs(R.WEIGHTS) do score = score + (parts[k] or 0) * w end
+    score = math.min(1, score)
     -- A user-avoided zone is flagged regardless.
     if HME.settings and HME.settings.avoidZones and HME.settings.avoidZones[Z.Name(area.mapID)] then
         score = math.max(score, 0.9)
@@ -149,6 +162,9 @@ end
 -- Records a death where it happened (Engine/Learning.lua).
 function R.NoteDeath(mapID, x, y)
     if not (HME.db and mapID) then return end
-    U.Push(HME.db.obs.deaths, { m = mapID, x = x and U.Round(x, 3), y = y and U.Round(y, 3), t = (time and time()) or 0 },
+    -- (pvp: an enemy player was seen in the 30 seconds before; Engine/Danger.lua)
+    local pvp = HME.Danger and HME.Danger.EnemyInSight() or nil
+    U.Push(HME.db.obs.deaths, { m = mapID, x = x and U.Round(x, 3), y = y and U.Round(y, 3), t = (time and time()) or 0,
+        pvp = pvp or nil },
         HME.DBM.LIMITS.deaths)
 end

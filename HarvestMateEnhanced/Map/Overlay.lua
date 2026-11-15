@@ -7,6 +7,14 @@
 -- Shown while previewing a Farm Finder result, for the farm being followed,
 -- or always for your professions when the setting is on.
 --
+-- Layers (0.7.0), on any map, from the "HME layers" button on the world map
+-- or Settings; each says what it is in the legend under the button:
+--   danger   your deaths (red pins, "enemy in sight" when Engine/Danger.lua
+--            saw one just before) and spots where you met enemy players
+--            (red shading, darker for more), with the zone's summary
+--   quests   spawn points of the creatures your open quest objectives name
+--            (Engine/Quests.lua), gold pins: where to look, not live mobs
+--
 -- The holder sits on the map canvas the way Gatherpedia's spawn pins did on
 -- Forever (a child of WorldMapFrame.ScrollContainer.Child, redrawn after
 -- SetMapID through hooksecurefunc). Pins are reused, and capped (600, or 250
@@ -168,6 +176,68 @@ end
 --   discs  { x, y, radius (map share), rgb, alpha }
 --   outlines { { x1, y1, x2, y2, ... }, rgb }
 --   labels { x, y, text }
+O.LAYERS = { "danger", "quests" }
+O.LAYER_NAMES = { danger = "Your deaths and enemy players seen", quests = "Creatures your quests need" }
+O.LAYER_LEGEND = {
+    danger = { { 0.93, 0.25, 0.22 }, "Red pins: where you died. Red shading: where you met enemy players (darker for more). Your own records." },
+    quests = { { 0.98, 0.8, 0.36 }, "Gold pins: spawn points of creatures your open objectives name. Not live." },
+}
+local DANGER = { 0.93, 0.25, 0.22 }
+local DARK = { 0.45, 0.08, 0.08 }
+local QUEST = { 0.98, 0.8, 0.36 }
+
+function O.Layer(key)
+    local l = HME.settings and HME.settings.mapLayers
+    return type(l) == "table" and l[key] == true
+end
+function O.LayersOn()
+    for _, k in ipairs(O.LAYERS) do if O.Layer(k) then return true end end
+    return false
+end
+function O.SetLayer(key, on)
+    if not HME.settings then return end
+    if type(HME.settings.mapLayers) ~= "table" then HME.settings.mapLayers = {} end
+    HME.settings.mapLayers[key] = on and true or nil
+    if O.UpdateLegend then O.UpdateLegend() end
+    O.Draw()
+end
+
+-- The layers' marks for a map (added to `out`).
+local function AddLayers(out, mapID)
+    local W = HME.Geo.MapYards(mapID) or 1500
+    if O.Layer("danger") and HME.Danger then
+        local d = HME.Danger.MapData(mapID)
+        for _, s in ipairs(d.spots) do
+            out.discs[#out.discs + 1] = { s.x, s.y, HME.Danger.CELL * 0.6, DANGER, 0.2 + 0.55 * s.e / math.max(1, d.most) }
+        end
+        local now = (time and time()) or 0
+        for _, death in ipairs(d.deaths) do
+            local ago = HME.Bags and HME.Bags.Age(now - (death.t or now)) or "?"
+            out.pins[#out.pins + 1] = { death.x, death.y, DANGER, DARK, true,
+                { "You died here", ago .. " ago" .. (death.pvp and " · an enemy player was in sight just before" or "") }, true }
+        end
+        local z = HME.Danger.Zone(mapID)
+        if z.text ~= "" then out.labels[#out.labels + 1] = { 0.5, 0.075, z.text } end
+    end
+    if O.Layer("quests") and HME.QuestSynergy and HME.QuestSynergy.Creatures then
+        local want = HME.QuestSynergy.Creatures()
+        if next(want) then
+            for _, b in ipairs(HME.Spawns.BeastPoints(mapID)) do
+                local entries = want[b.npcID]
+                if entries and entries[1] then
+                    local e = entries[1]
+                    for _, p in ipairs(b.pts) do
+                        out.pins[#out.pins + 1] = { p[1], p[2], QUEST, QUEST, false,
+                            { ("%s (level %d-%d)"):format(b.name, b.min, b.max), ("%s: %s · a spawn point, not a live creature"):format(
+                                e.title or "Quest", e.text or "") }, true }
+                    end
+                end
+            end
+        end
+    end
+    return W
+end
+
 local function Collect(mapID)
     local out = { pins = {}, discs = {}, outlines = {}, labels = {} }
     local s = HME.settings or {}
@@ -278,6 +348,7 @@ local function Collect(mapID)
         local stops = route and HME.Guidance.Stops(route) or {}
         if stops[1] then out.labels[#out.labels + 1] = { stops[1][1], stops[1][2] - 0.012, "Start", true } end
     end
+    if O.LayersOn() then AddLayers(out, mapID) end
     return out
 end
 O.Collect = Collect
@@ -334,11 +405,12 @@ function O.Draw()
     local map = _G.WorldMapFrame
     if not (map and map:IsShown()) then return end
     local mapID = map.GetMapID and map:GetMapID()
-    if not mapID or (not shown.result and not HME.Guidance.Active() and not (HME.settings and HME.settings.nodePinsAlways)) then
+    local layers = O.LayersOn()
+    if not mapID or (not shown.result and not HME.Guidance.Active() and not (HME.settings and HME.settings.nodePinsAlways) and not layers) then
         O.Hide()
         return
     end
-    if HME.settings and HME.settings.nodePins == false and shown.kind ~= "preview" then
+    if HME.settings and HME.settings.nodePins == false and shown.kind ~= "preview" and not layers then
         O.Hide()
         return
     end
@@ -465,5 +537,68 @@ function O.ClearPreview()
     O.Draw()
 end
 
+---------------------------------------------------------------------------
+-- The "HME layers" button and legend on the world map
+---------------------------------------------------------------------------
+local layerButton, legend
+function O.UpdateLegend()
+    if not legend then return end
+    local lines = {}
+    for _, k in ipairs(O.LAYERS) do
+        if O.Layer(k) then
+            local c = O.LAYER_LEGEND[k][1]
+            lines[#lines + 1] = ("|cff%02x%02x%02x%s|r  %s"):format(c[1] * 255, c[2] * 255, c[3] * 255, O.LAYER_NAMES[k],
+                O.LAYER_LEGEND[k][2])
+        end
+    end
+    legend.text:SetText(table.concat(lines, "\n"))
+    legend:SetHeight((legend.text:GetStringHeight() or 30) + 14)
+    legend:SetShown(#lines > 0)
+    if layerButton then layerButton:SetText(#lines > 0 and ("HME layers (%d)"):format(#lines) or "HME layers") end
+end
+
+function O.SetupButton()
+    local map = _G.WorldMapFrame
+    if layerButton or not (map and map.ScrollContainer) then return layerButton end
+    local T = ns.Theme
+    local b = T.FlatButton(map.ScrollContainer, "HME layers", 110, 22, "secondary")
+    b:SetPoint("TOPLEFT", map.ScrollContainer, "TOPLEFT", 8, -8)
+    if b.SetFrameLevel and map.ScrollContainer.GetFrameLevel then b:SetFrameLevel((map.ScrollContainer:GetFrameLevel() or 1) + 20) end
+    T.Tooltip(b, "HarvestMate Enhanced map layers", "Your deaths and the enemy players you met; the creatures your quests need. "
+        .. "Your own records and the bundled spawn data: nothing live.")
+    b:SetScript("OnClick", function(self)
+        if MenuUtil and MenuUtil.CreateContextMenu then
+            MenuUtil.CreateContextMenu(self, function(_, root)
+                root:CreateTitle("HME map layers")
+                for _, k in ipairs(O.LAYERS) do
+                    root:CreateCheckbox(O.LAYER_NAMES[k], function() return O.Layer(k) end, function() O.SetLayer(k, not O.Layer(k)) end)
+                end
+            end)
+        else
+            -- (No menus on this client: step through none, danger, both.)
+            local d, q = O.Layer("danger"), O.Layer("quests")
+            if not d then O.SetLayer("danger", true) elseif not q then O.SetLayer("quests", true)
+            else O.SetLayer("danger", false) O.SetLayer("quests", false) end
+        end
+    end)
+    local f = CreateFrame("Frame", nil, map.ScrollContainer)
+    f:SetSize(300, 40)
+    f:SetPoint("TOPLEFT", b, "BOTTOMLEFT", 0, -4)
+    if f.SetFrameLevel and b.GetFrameLevel then f:SetFrameLevel((b:GetFrameLevel() or 1)) end
+    f.bg = T.Surface(f, T.C.raised)
+    if f.bg and f.bg.SetAlpha then f.bg:SetAlpha(0.85) end
+    f.text = T.Text(f, "", "small")
+    f.text:SetPoint("TOPLEFT", 8, -7)
+    f.text:SetWidth(284)
+    f.text:SetWordWrap(true)
+    f:Hide()
+    layerButton, legend = b, f
+    O.UpdateLegend()
+    return b
+end
+HME.On("PLAYER_LOGIN", function() HME.Try(O.SetupButton) end)
+
 HME.Listen("GUIDANCE_CHANGED", function() O.Draw() end)
+HME.Listen("DANGER_CHANGED", function() if O.Layer("danger") then O.Draw() end end)
+HME.Listen("QUESTS_CHANGED", function() if O.Layer("quests") then O.Draw() end end)
 HME.Listen("SETTINGS", function() O.Draw() end)

@@ -157,6 +157,8 @@ function Pr.Get(itemID)
         rec.suspect = true
         raw.typical = raw.low   -- the cheapest listing, not an outlier's typical
     end
+    -- One point a day for the price history (Engine/Trends.lua); outliers are not logged.
+    if raw and not rec.suspect and HME.Trends then HME.Try(HME.Trends.Note, itemID, raw) end
     if raw then
         rec.source = source
         rec.age = raw.age

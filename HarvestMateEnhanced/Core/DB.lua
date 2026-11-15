@@ -70,6 +70,7 @@ DB.SETTINGS = {
     huntMode = "guided",         -- "guided", "free" or "minimal" arrow while farming
     heatView = "density",        -- heatmap: "density", "observed" (yours) or "skill"
     mapDetail = "detailed",      -- "detailed" pins, "simple" areas only, or "heatmap"
+    mapLayers = {},              -- 0.7.0: [layer] = true: "danger", "quests" (Map/Overlay.lua)
     idleMinutes = 5,             -- no activity this long: that stretch is idle, not farming
     suggest = {},                -- [kind] = false switches a suggestion kind off
     -- recommendations
@@ -235,6 +236,9 @@ function DB.Prepare(saved)
     Section(obs, "mobs")     -- [npcID] = true (skinnable) / false (checked, not skinnable)
     Section(obs, "deaths")   -- { { m = mapID, x, y, t }, ... }
     Section(obs, "loot")     -- [npcID] = { n = looted, copper = total, vendor = total value }
+    Section(obs, "players")  -- 0.7.0: [mapID] = { [spot] = { x, y, e = enemies, f = others, t, h = { [hour+1] = n } } }
+    Section(obs, "presence") -- 0.7.0: [mapID] = seconds there outside instances
+    Section(saved, "priceLog") -- 0.7.0: [itemID] = "day:low:typical;..." (Engine/Trends.lua)
     Section(saved, "stats")
     Section(saved, "sessions")
     Section(saved, "migrations")
@@ -396,7 +400,8 @@ end
 
 function DB.ResetLearned()
     local obs = HME.db.obs
-    for _, k in ipairs({ "nodes", "skins", "mobs", "deaths", "loot" }) do obs[k] = {} end
+    for _, k in ipairs({ "nodes", "skins", "mobs", "deaths", "loot", "players", "presence" }) do obs[k] = {} end
+    HME.db.priceLog = {}
     HME.db.stats = {}
     HME.db.sessions = {}
     HME.char.eff = { kill = {} }
@@ -500,18 +505,52 @@ local function Checksum(s)
     return string.format("%08x", h)
 end
 
+-- What a shared route carries (0.7.0): the waypoints and what the loop is
+-- for, nothing about you. Left out: laps and lap times, stop visits and
+-- yields, versions, when and how long you recorded it, the gathers seen on
+-- the way, the prediction (rates and gold), and the drawn path and terrain
+-- (the importer walks its own). Before 0.7.0 an export carried the whole route.
+DB.SHARE_FIELDS = { "name", "mapID", "points", "kinds", "sight", "color", "recorded", "loop", "backforth", "trimmed" }
+-- opts.gathers: also the gathers seen while recording (what and where only),
+-- only when you ask for them.
+function DB.CleanRoute(route, opts)
+    if type(route) ~= "table" then return nil end
+    local copy = {}
+    for _, k in ipairs(DB.SHARE_FIELDS) do
+        if route[k] ~= nil then copy[k] = U.Copy(route[k]) end
+    end
+    if opts and opts.gathers and type(route.obs) == "table" then
+        copy.obs = {}
+        for i, o in ipairs(route.obs) do
+            if type(o) == "table" then copy.obs[i] = { k = o.k, n = o.n, x = o.x, y = o.y } end
+        end
+    end
+    if route.recorded then copy.recordedBy, copy.source = "import", "Recorded" end
+    if type(route.planned) == "table" then
+        -- How it was planned (the farm, its area), without the prediction or when.
+        local d = U.Copy(route.planned)
+        d.predicted, d.t, d.goal, d.key = nil, nil, nil, nil   -- (no key: the Farm Finder never re-plans a shared route)
+        copy.planned = d
+        copy.source = "Farm Finder"
+    end
+    return copy
+end
+
+-- One route as text to paste into another HME (Settings, Your data, Import).
+function DB.ShareRoute(route)
+    local copy = DB.CleanRoute(route)
+    if not copy then return nil end
+    local body = DB.Serialize({ v = 1, routes = { copy } })
+    return EXPORT_HEADER .. Checksum(body) .. ":" .. body
+end
+
 function DB.Export(what)
     what = what or { routes = true, taboos = true, nodes = false }
     local payload = { v = 1 }
     local r = HME.db.routes
     if what.routes then
-        -- Without the drawn polylines and terrain summaries: the importer walks its own.
         payload.routes = {}
-        for i, route in ipairs(r.routes or {}) do
-            local copy = U.Copy(route)
-            copy.path, copy.pathLeg, copy.terrain, copy.walkLength, copy.working = nil, nil, nil, nil, nil
-            payload.routes[i] = copy
-        end
+        for i, route in ipairs(r.routes or {}) do payload.routes[i] = DB.CleanRoute(route, { gathers = what.gathers }) end
     end
     if what.taboos then
         payload.taboos = r.taboos
@@ -566,6 +605,10 @@ function DB.ApplyImport(data)
             copy.working = nil
             copy.imported = true
             copy.edited, copy.verified, copy.laps = nil, nil, nil
+            -- Older exports carried the sender's laps, stop yields and versions: not theirs to keep here.
+            copy.lapLog, copy.stopStats, copy.revisions, copy.editedAt = nil, nil, nil, nil
+            copy.recordedAt, copy.recordSecs, copy.recordYards, copy.variantOf, copy.variant = nil, nil, nil, nil, nil
+            if type(copy.planned) == "table" then copy.planned.predicted = nil end
             copy.path, copy.pathLeg, copy.terrain, copy.walkLength = nil, nil, nil, nil
             -- Someone else's recording is not yours: still a recording, labelled imported.
             if copy.recordedBy then copy.recordedBy = "import" end

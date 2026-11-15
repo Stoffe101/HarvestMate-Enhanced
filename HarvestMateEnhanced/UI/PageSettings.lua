@@ -205,6 +205,11 @@ HME.Pages.settings = function(body, page)
     Switch("Spawn pins always", "Pins for your gathering professions on every map (busier).", function() return S().nodePinsAlways end,
         function(v) S().nodePinsAlways = v end)
     Switch("Hunting areas", "Shaded areas for skinning farms.", function() return S().huntAreas end, function(v) S().huntAreas = v end)
+    Switch("Map: danger layer", "Your deaths and the spots where you met enemy players, on every map (your own records). "
+        .. "Also from the HME layers button on the world map.", function() return HME.MapOverlay.Layer("danger") end,
+        function(v) HME.MapOverlay.SetLayer("danger", v) end)
+    Switch("Map: quest creatures", "Spawn points of the creatures your open quest objectives name (not live mobs).",
+        function() return HME.MapOverlay.Layer("quests") end, function(v) HME.MapOverlay.SetLayer("quests", v) end)
     Drop("Map detail", "Detailed: a pin per spawn point, grouped where they crowd. Simple: farming areas only. Heatmap: "
         .. "shaded density of spawn points (lighter where data is unconfirmed).", { "detailed", "simple", "heatmap" },
         { detailed = "Detailed pins", simple = "Areas only", heatmap = "Heatmap" },
@@ -346,8 +351,15 @@ HME.Pages.settings = function(body, page)
     local io = T.EditBox(root, PAGE_W - 30)
     io:SetPoint("TOPLEFT", 0, y)
     y = y - 30
-    Button("Export routes and areas", "Puts your routes, avoid areas and skip list in the box above, to copy and share.", function()
+    Button("Export routes and areas", "Puts your routes' waypoints, avoid areas and skip list in the box above, to copy and share. "
+        .. "Left out: your laps, stop yields, versions, recording times, gathers seen on the way and predictions.", function()
         io:SetText(HME.DBM.Export({ routes = true, taboos = true }))
+        io:HighlightText()
+        io:SetFocus()
+    end)
+    Button("... with recorded gathers", "The same, plus what you gathered and where while recording your routes "
+        .. "(your observations: only when you choose to share them).", function()
+        io:SetText(HME.DBM.Export({ routes = true, taboos = true, gathers = true }))
         io:HighlightText()
         io:SetFocus()
     end)

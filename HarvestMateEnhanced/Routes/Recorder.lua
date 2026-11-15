@@ -265,6 +265,7 @@ function R.Trim(route, first, last)
     if last - first + 1 < 2 then return false end
     local out = {}
     for i = first, last do out[#out + 1], out[#out + 2] = route.points[2 * i - 1], route.points[2 * i] end
+    if HME.RouteEditor and HME.RouteEditor.Revise then HME.RouteEditor.Revise(route, "before trimming") end
     route.points = out
     route.trimmed = true
     route.length = HME.Routes:RouteLength(route)

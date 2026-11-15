@@ -790,6 +790,8 @@ function GP:RebuildRoute(route, force)
         return false
     end
     local before, oldPoints, oldNodes = self:RouteNodes(route), route.points, route.nodes
+    -- The waypoints a rebuild replaces are kept as a version (0.7.0).
+    if HME.RouteEditor and HME.RouteEditor.Revise then HME.RouteEditor.Revise(route, "before Rebuild") end
     route.working = true
     return self:RunJob(function() return Build(route) end, function()
         route.working = nil

@@ -92,11 +92,21 @@ end
 function E.Lines(itemID)
     local opts, pick = E.Options(itemID)
     local lines = {}
-    if #opts == 0 then return { "No price known yet: no auction data and no vendor value loaded." } end
+    if #opts == 0 then lines[1] = "No price known yet: no auction data and no vendor value loaded." end
     for _, o in ipairs(opts) do
         local mark = o == pick and "|cff8fcc5c> |r" or "  "
         lines[#lines + 1] = ("%s|cff999b8f%s|r  %s%s"):format(mark, o.label, o.text,
             o.suspect and " |cfff5a345(the auction price looks unusual)|r" or "")
+    end
+    -- 0.7.0: how the price moved (Engine/Trends.lua).
+    if HME.Trends then
+        local t = HME.Trends.Of(itemID)
+        if t.days > 0 then
+            local hex = t.trend == "up" and "8fcc5c" or (t.trend == "down" and "f5a345" or "999b8f")
+            lines[#lines + 1] = ("  |cff999b8fTrend|r  |cff%s%s|r"):format(hex, t.text)
+            local advice = HME.Trends.Advice(t)
+            if advice then lines[#lines + 1] = "  " .. advice end
+        end
     end
     return lines
 end

@@ -69,7 +69,9 @@ Engine\Geo.lua
 Engine\Spawns.lua
 Engine\SkillModel.lua
 Engine\Prices.lua
+Engine\Trends.lua
 Engine\Risk.lua
+Engine\Danger.lua
 Engine\Cluster.lua
 Engine\Optimize.lua
 Engine\Skinning.lua
