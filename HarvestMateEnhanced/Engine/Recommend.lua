@@ -40,6 +40,53 @@ R.GOALS = {
     { key = "here", label = "In my current zone" },
     { key = "near", label = "Least travel" },
 }
+-- The number a goal is about, for one result (as the Farm Finder's rows lead with).
+function R.GoalValue(r, goal)
+    local m = r and r.metrics or {}
+    if goal == "material" then return m.materialPerHour or 0 end
+    if goal == "profit" then return (m.range and m.range.mid) or 0 end
+    if m.skillRange and m.skillRange.mid then return m.skillRange.mid end
+    if m.skillPerHour then return m.skillPerHour end
+    if m.catchesPerHour then return m.catchesPerHour end
+    return (m.range and m.range.mid) or 0
+end
+
+-- Practical alternatives to a farm, among the same search's results:
+--   safer   clearly lower risk, at least 70% of the goal's number
+--   closer  at least five minutes and half the travel saved, at least 80%
+-- Risk is one side of the choice, never a ban: these are offered, not ranked
+-- above it. nil when nothing qualifies.
+R.SAFER_SHARE, R.CLOSER_SHARE = 0.7, 0.8
+function R.Alternatives(results, r, goal)
+    if not (r and results) then return nil end
+    local base = R.GoalValue(r, goal)
+    if base <= 0 then return nil end
+    local out = {}
+    local rs = r.risk and r.risk.score or 0
+    if rs >= 0.2 then
+        for _, c in ipairs(results) do
+            if c ~= r and c.risk and c.risk.score <= rs - 0.15 then
+                local share = R.GoalValue(c, goal) / base
+                if share >= R.SAFER_SHARE and (not out.safer or share > out.safer.share) then
+                    out.safer = { result = c, share = share }
+                end
+            end
+        end
+    end
+    if r.travel and r.travel >= 300 then
+        for _, c in ipairs(results) do
+            if c ~= r and c.travel and c.travel <= r.travel * 0.5 and r.travel - c.travel >= 300 then
+                local share = R.GoalValue(c, goal) / base
+                if share >= R.CLOSER_SHARE and (not out.closer or c.travel < out.closer.result.travel) then
+                    out.closer = { result = c, share = share }
+                end
+            end
+        end
+    end
+    if not (out.safer or out.closer) then return nil end
+    return out
+end
+
 R.GOAL_LABEL = {}
 for _, g in ipairs(R.GOALS) do R.GOAL_LABEL[g.key] = g.label end
 

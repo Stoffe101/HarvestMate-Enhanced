@@ -663,6 +663,23 @@ HME.Pages.finder = function(body, page)
             list[#list + 1] = (line:gsub("^  ", ""))
         end
         local ev = r.evidence or {}
+        -- Practical alternatives: lower risk, or much closer, for most of the number.
+        local alt = HME.Recommend.Alternatives(results, r, State().goal)
+        if alt then
+            section("Alternatives")
+            local unit = State().goal == "profit" and "the gold" or (State().goal == "material" and "the materials" or "the skill-ups")
+            if alt.safer then
+                local c = alt.safer.result
+                add(("  Lower risk: %s (%s), %s instead of %s, about %d%% of %s, %s away."):format(c.zone, c.subarea or "",
+                    K.Paint(c.risk.label, c.risk.hex), K.Paint(r.risk.label, r.risk.hex), alt.safer.share * 100, unit,
+                    c.travel and U.Duration(c.travel) or "?"))
+            end
+            if alt.closer then
+                local c = alt.closer.result
+                add(("  Closer: %s (%s), %s away instead of %s, about %d%% of %s: better for a short session."):format(c.zone,
+                    c.subarea or "", U.Duration(c.travel), U.Duration(r.travel), alt.closer.share * 100, unit))
+            end
+        end
         section("Expect")
         if m.skillRange and (m.skillPerHour or 0) > 0 then
             add(("  Skill-ups: about %.0f an hour (%.0f to %.0f); %.0f%% of gathers give a point now"):format(
@@ -742,7 +759,7 @@ HME.Pages.finder = function(body, page)
         end
         if #notes > 0 then section("Good to know") end
         for _, n in ipairs(notes) do add(K.Paint(n, T.HEX.text2)) end
-        local TAB_OF = { Expect = "overview", ["Good to know"] = "overview", ["What you will find"] = "find", Risk = "risk",
+        local TAB_OF = { Alternatives = "overview", Expect = "overview", ["Good to know"] = "overview", ["What you will find"] = "find", Risk = "risk",
             ["How sure"] = "evidence" }
         local shown = {}
         for _, sec in ipairs(sections) do

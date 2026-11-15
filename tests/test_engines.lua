@@ -231,3 +231,22 @@ while HME.Busy() and frames < 5000 do
     frames = frames + 1
 end
 check(frames > 1, "as a job it is split across frames (" .. frames .. " slices)")
+
+STEP("alternatives: lower risk or much closer, for most of the number, never invented")
+do
+    local R = HME.Recommend
+    local function Res(zone, risk, travel, skill)
+        return { zone = zone, subarea = "x", travel = travel, risk = { score = risk, label = "r" .. risk, hex = "ffffff" },
+            metrics = { skillRange = { mid = skill } } }
+    end
+    local risky = Res("Risky", 0.6, 900, 100)
+    local safer = Res("Safer", 0.2, 1000, 80)
+    local tooPoor = Res("Poor", 0.1, 600, 50)
+    local closer = Res("Close", 0.6, 200, 85)
+    local alt = R.Alternatives({ risky, safer, tooPoor, closer }, risky, "level")
+    check(alt and alt.safer and alt.safer.result == safer, "the lower-risk farm with 80% of the skill-ups")
+    check(math.abs(alt.safer.share - 0.8) < 1e-6, "its share")
+    check(alt.closer and alt.closer.result == closer, "and the much closer one")
+    eq(R.Alternatives({ safer, tooPoor }, safer, "level"), nil, "a low-risk farm needs no safer alternative here")
+    eq(R.Alternatives({ risky, tooPoor }, risky, "level"), nil, "50% of the number is no alternative")
+end
