@@ -177,3 +177,21 @@ RunTimers(1)
 eq(HME.Session.Rates().skins, n + 2, "no double count")
 C_Spell.GetSpellName = realName
 HME.Session.Stop("test")
+
+STEP("estimates are what a real session gets, not a perfect circuit (0.4.0)")
+-- 0.3.0 promised a level-41 character 209 beasts and 175 skill-ups an hour in
+-- Hillsbrad: a 6-second kill, every spawn alive, no interruptions.
+do
+    local profile = { level = 41, faction = "Alliance", class = "WARRIOR", speed = 7, mapID = 1424, x = 0.46, y = 0.42,
+        skills = { Skinning = { rank = 143, max = 225 } }, zone = "Hillsbrad Foothills", real = false }
+    HME.char.eff.kill = {}
+    local res = HME.Recommend.Find({ prof = "Skinning", goal = "level" }, nil, profile)
+    check(#res > 0, "farms found")
+    for i = 1, math.min(5, #res) do
+        local m = res[i].metrics
+        check(m.beastsPerHour <= 170, ("%s: %.0f beasts an hour at most"):format(res[i].zone, m.beastsPerHour))
+        check(m.killSecs >= 7, ("%s: a kill takes at least 7 s (%.1f)"):format(res[i].zone, m.killSecs))
+        check(m.theoretical and m.theoretical >= m.beastsPerHour, "the perfect circuit is kept apart, and higher")
+        check(m.skillPerHour <= m.beastsPerHour + 0.01, "never more skill-ups than skins")
+    end
+end

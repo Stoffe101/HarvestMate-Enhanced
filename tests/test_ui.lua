@@ -314,13 +314,13 @@ HME.OpenWindow("dashboard")
 local dashPage = HME.Window.frame.pages.dashboard
 dashPage.Refresh()
 local lv = dashPage.refs.levels
-check(lv and lv:IsShown() and lv:GetText() == "Levels", "the Skinning card has a Levels button")
+check(lv and lv:IsShown() and (lv:GetText() == "Levels" or lv:GetText() == "Skinning levels"), "the Skinning card has a Levels button")
 Click(lv)
 check(HME.SkinTracker.Shown(), "it opens the Skinning levels display")
 eq(_G.HarvestMateEnhancedSkinLevels.max:GetText(), tostring(HME.SkillModel.MaxSkinLevel(HME.Player.Professions().Skinning.rank)),
     "the highest level you can skin, large")
 dashPage.Refresh()
-eq(lv:GetText(), "Hide", "and says it hides it now")
+check(lv:GetText():find("^Hide"), "and says it hides it now: " .. lv:GetText())
 Click(lv)
 check(not HME.SkinTracker.Shown(), "closed again")
 HarvestMateEnhanced_ToggleSkinLevels()

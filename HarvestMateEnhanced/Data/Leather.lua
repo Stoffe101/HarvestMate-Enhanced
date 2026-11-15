@@ -49,3 +49,9 @@ L.SKIN_SECONDS = 2.5      -- the skinning cast and its loot window
 L.PULL_YARDS = 22         -- you pull from this far, so travel to a mob stops short
 L.PULL_SECONDS = 3        -- spotting, targeting and pulling
 L.DOWNTIME = 0.12         -- eating, drinking, pet care, repairs: share added to the time
+-- 0.4.0: the share of the modelled pace a real session keeps (finding the next
+-- target, pathing round terrain, adds, bags, the odd look at chat). Without
+-- it the model promised a perfect, uninterrupted circuit: 209 beasts and 175
+-- skill-ups an hour at level 41 in Hillsbrad. Your measured sessions replace
+-- the whole estimate as they come in (Engine/Learning.lua), this included.
+L.PRACTICAL = 0.78

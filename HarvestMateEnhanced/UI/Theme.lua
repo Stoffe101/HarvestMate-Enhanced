@@ -1,10 +1,12 @@
 -- HarvestMate Enhanced: UI/Theme.lua
 -- HME's design system. Started as the shared look of severd8's WoW: Forever
--- addons (MIT; from GatherPath Forever 1.12.1, see UPSTREAM.md); 0.3.0 redraws
--- it: calm charcoal surfaces, one leaf-green accent, gold kept for money,
--- Inter for type (bundled, SIL OFL 1.1: Media/Fonts/Inter-LICENSE.txt),
--- rounded shapes drawn as nine slices, primary and secondary buttons, pill
--- switches, and a window with a slim header, a quiet sidebar and a status line.
+-- addons (MIT; from GatherPath Forever 1.12.1, see UPSTREAM.md); 0.3.0 redrew
+-- it, 0.4.0 gives it an identity of its own, a field atlas: warm charcoal
+-- surfaces, moss green for what is selected and the one main action, brass
+-- for ornament only (contour lines, corner ticks, the header rule), gold kept
+-- for money, Inter for type (bundled, SIL OFL 1.1: Media/Fonts/Inter-LICENSE.txt),
+-- rounded shapes drawn as nine slices, buttons that grow to fit their label,
+-- and a window that fits the screen at any UI scale.
 --
 -- Every shape falls back to a flat square where the client lacks nine-slice
 -- textures, and the type to the game's font where a font file will not load
@@ -36,43 +38,46 @@ T.CHAT_PREFIX = "|T" .. T.LOGO .. ":0|t |cff4fd68c" .. T.NAME .. "|r"
 -- Tokens
 ---------------------------------------------------------------------------
 local C = {
-    -- surfaces, darkest to lightest
-    side    = { 0.055, 0.060, 0.068, 1 },     -- sidebar, status line
-    win     = { 0.078, 0.084, 0.095, 0.98 },  -- the window
-    field   = { 0.058, 0.062, 0.071, 1 },     -- inputs, list wells
-    card    = { 0.105, 0.113, 0.127, 1 },     -- cards
-    raised  = { 0.145, 0.155, 0.173, 1 },     -- secondary buttons, selected segments
-    raisedHi = { 0.190, 0.202, 0.225, 1 },    -- their hover
-    line    = { 1, 1, 1, 0.07 },              -- hairlines inside
-    edge    = { 1, 1, 1, 0.11 },              -- outlines of cards and windows
-    fieldEdge = { 1, 1, 1, 0.13 },            -- outlines of inputs
-    -- text
-    text    = { 0.93, 0.94, 0.95 },
-    text2   = { 0.74, 0.77, 0.81 },
-    text3   = { 0.56, 0.59, 0.64 },
-    -- the accent: leaf green
-    accent  = { 0.31, 0.84, 0.55, 1 },
-    accentHi = { 0.42, 0.90, 0.64, 1 },
-    accentInk = { 0.03, 0.11, 0.07, 1 },      -- text on accent buttons
-    accentWash = { 0.31, 0.84, 0.55, 0.12 },  -- selected rows and tabs
+    -- surfaces, darkest to lightest: warm charcoal with a little moss in it
+    side    = { 0.062, 0.066, 0.058, 1 },     -- sidebar, status line
+    win     = { 0.084, 0.090, 0.080, 0.98 },  -- the window
+    field   = { 0.058, 0.062, 0.055, 1 },     -- inputs, list wells
+    card    = { 0.112, 0.120, 0.106, 1 },     -- cards
+    raised  = { 0.158, 0.168, 0.148, 1 },     -- secondary buttons, selected segments
+    raisedHi = { 0.205, 0.217, 0.193, 1 },    -- their hover
+    line    = { 1, 1, 0.92, 0.07 },           -- hairlines inside
+    edge    = { 1, 1, 0.92, 0.11 },           -- outlines of cards and windows
+    fieldEdge = { 1, 1, 0.92, 0.14 },         -- outlines of inputs
+    -- text: warm white, three tones
+    text    = { 0.95, 0.94, 0.90 },
+    text2   = { 0.78, 0.78, 0.73 },
+    text3   = { 0.60, 0.61, 0.56 },
+    -- the accent: moss green
+    accent  = { 0.56, 0.80, 0.36, 1 },
+    accentHi = { 0.65, 0.88, 0.45, 1 },
+    accentInk = { 0.06, 0.10, 0.03, 1 },      -- text on accent buttons
+    accentWash = { 0.56, 0.80, 0.36, 0.13 },  -- selected rows and tabs
+    -- ornament: brass (lines and marks, never text that means money)
+    brass   = { 0.80, 0.65, 0.42, 1 },
     -- meaning
-    gold    = { 0.95, 0.77, 0.32, 1 },        -- money and value
-    success = { 0.31, 0.84, 0.55, 1 },
-    warning = { 0.97, 0.66, 0.27, 1 },
-    danger  = { 0.94, 0.39, 0.43, 1 },
-    info    = { 0.40, 0.67, 1.00, 1 },
+    gold    = { 0.98, 0.80, 0.36, 1 },        -- money and value
+    success = { 0.56, 0.80, 0.36, 1 },
+    warning = { 0.96, 0.64, 0.27, 1 },
+    danger  = { 0.93, 0.41, 0.39, 1 },
+    info    = { 0.46, 0.71, 0.96, 1 },
 }
 -- Older names other files still use, on the new palette.
 C.red, C.redHi = C.raised, C.raisedHi
 C.btnEdge = C.edge
-C.offTrack = { 0.21, 0.22, 0.25, 1 }
+C.offTrack = { 0.22, 0.23, 0.21, 1 }
 C.onTrack = C.accent
 C.orange = C.text3                 -- small labels and card titles
 C.muted, C.grey, C.title, C.version = C.text2, C.text3, C.text, C.text3
 C.tabOn = C.accentWash
 C.fill = C.accent
 
-T.HEX = { accent = "4fd68c", gold = "f2c452", text2 = "bdc4cf", text3 = "8f97a3", danger = "f0646d", warning = "f7a845", info = "66abff" }
+T.HEX = { accent = "8fcc5c", gold = "facc5c", text = "f2f0e6", text2 = "c7c7ba", text3 = "999b8f", danger = "ed6963",
+    warning = "f5a345", info = "75b5f5", brass = "cca66b", silver = "c4c6cc", copper = "d98c5a" }
 
 ---------------------------------------------------------------------------
 -- Type: Inter, in a few roles (the game's own font where Inter won't load)
@@ -80,15 +85,16 @@ T.HEX = { accent = "4fd68c", gold = "f2c452", text2 = "bdc4cf", text3 = "8f97a3"
 local FONT = BASE .. "Media\\Fonts\\"
 T.FONT = { regular = FONT .. "Inter-Regular.ttf", semibold = FONT .. "Inter-SemiBold.ttf", bold = FONT .. "Inter-Bold.ttf" }
 -- role = { weight, size, colour, game template it stands in for }
+-- 0.4.0: a size larger across the board, for reading at a glance in game.
 local ROLES = {
-    body    = { "regular", 12, C.text, "GameFontHighlight" },
-    small   = { "regular", 11, C.text, "GameFontHighlightSmall" },
+    body    = { "regular", 13, C.text, "GameFontHighlight" },
+    small   = { "regular", 12, C.text, "GameFontHighlightSmall" },
     meta    = { "regular", 11, C.text3, "GameFontDisableSmall" },
     metaLg  = { "regular", 12, C.text3, "GameFontDisable" },
-    strong  = { "semibold", 12, C.text, "GameFontNormal" },
-    label   = { "semibold", 10, C.text3, "GameFontNormalSmall" },
-    title   = { "semibold", 16, C.text, "GameFontNormalLarge" },
-    display = { "bold", 22, C.text, "GameFontNormalHuge" },
+    strong  = { "semibold", 13, C.text, "GameFontNormal" },
+    label   = { "semibold", 11, C.text3, "GameFontNormalSmall" },
+    title   = { "semibold", 17, C.text, "GameFontNormalLarge" },
+    display = { "bold", 24, C.text, "GameFontNormalHuge" },
 }
 T.ROLES = ROLES
 local BY_TEMPLATE = {
@@ -278,6 +284,18 @@ local function FlatButton(parent, text, width, height, kind)
     if fs.SetWordWrap then fs:SetWordWrap(false) end
     b:SetFontString(fs)
     b.label = fs
+    -- A label never gets cut: the button grows to fit it (never below the
+    -- width it was given). b.autoFit = false turns that off.
+    b.baseW = width or 100
+    local setText, setWidth, setSize = b.SetText, b.SetWidth, b.SetSize
+    local function Fit(self)
+        if self.autoFit == false then return setWidth(self, self.baseW) end
+        local need = math.ceil(T.StringWidth(self.label) + 20)
+        setWidth(self, math.max(self.baseW, need))
+    end
+    function b:SetText(t) setText(self, t) Fit(self) end
+    function b:SetWidth(w) self.baseW = w Fit(self) end
+    function b:SetSize(w, h) setSize(self, w, h) self.baseW = w Fit(self) end
     b:SetText(text)
     function b:SetKind(k)
         self.kind = KINDS[k] and k or "secondary"
@@ -346,6 +364,62 @@ end
 T.C, T.Fill, T.Border, T.Text, T.FlatButton = C, Fill, Border, Text, FlatButton
 
 ---------------------------------------------------------------------------
+-- Field-atlas ornament: contour lines, a brass corner tick, a soft glow.
+---------------------------------------------------------------------------
+-- Contour lines across a frame (header, hero cards), tinted, very faint.
+function T.Topo(frame, color, alpha, layer)
+    local t = frame:CreateTexture(nil, layer or "BACKGROUND", nil, -6)
+    t:SetAllPoints()
+    t:SetTexture(T.ART .. "Topo")
+    local c = color or C.brass
+    t:SetVertexColor(c[1], c[2], c[3], alpha or 0.08)
+    return t
+end
+
+-- A small brass corner mark at a card's top left.
+function T.Tick(frame, color, alpha)
+    local t = frame:CreateTexture(nil, "ARTWORK")
+    t:SetSize(9, 9)
+    t:SetPoint("TOPLEFT", 3, -3)
+    t:SetTexture(T.ART .. "Tick")
+    local c = color or C.brass
+    t:SetVertexColor(c[1], c[2], c[3], alpha or 0.55)
+    return t
+end
+
+function T.Glow(frame, color, alpha, size)
+    local t = frame:CreateTexture(nil, "BACKGROUND", nil, -5)
+    t:SetSize(size or 160, size or 160)
+    t:SetTexture(T.ART .. "Glow")
+    local c = color or C.accent
+    t:SetVertexColor(c[1], c[2], c[3], alpha or 0.10)
+    return t
+end
+
+-- The width a font string's text takes, uncut.
+function T.StringWidth(fs)
+    local w = fs.GetUnboundedStringWidth and fs:GetUnboundedStringWidth() or (fs.GetStringWidth and fs:GetStringWidth())
+    return type(w) == "number" and w or 0
+end
+
+-- Fits text to a width: tries its size, then up to `steps` sizes smaller
+-- (never below `min`), and only then lets the game cut it. For big numbers
+-- in tiles. Returns the size used.
+function T.FitText(fs, width, role, size, min)
+    local r = ROLES[role] or ROLES.display
+    size = size or r[2]
+    min = min or math.max(11, size - 8)
+    local s = size
+    while s > min do
+        if FontObject(role) then fs:SetFont(T.FONT[r[1]], s, "") end
+        if T.StringWidth(fs) <= width then return s end
+        s = s - 2
+    end
+    if FontObject(role) then fs:SetFont(T.FONT[r[1]], min, "") end
+    return min
+end
+
+---------------------------------------------------------------------------
 -- An on-screen panel (HUD, Skinning levels): dark, a little see-through,
 -- rounded, outlined.
 ---------------------------------------------------------------------------
@@ -369,7 +443,7 @@ function T.HeaderStrip(frame, text)
     frame.logo:SetPoint("LEFT", 6, 0)
     frame.logo:SetSize(12, 12)
     frame.logo:SetTexture(T.LOGO)
-    frame.text = Text(frame, text or T.SHORT, "label")
+    frame.text = Text(frame, text or T.SHORT, "label", C.text2)
     frame.text:SetPoint("LEFT", frame.logo, "RIGHT", 5, 0)
     frame.text:SetPoint("RIGHT", -6, 0)
     frame.text:SetJustifyH("LEFT")
@@ -400,8 +474,9 @@ function T.Card(parent, title, x, y, w, h)
     f:SetSize(w, h)
     f.bg = T.Surface(f, C.card)
     T.Outline(f, C.line)
-    f.title = Text(f, title and title:upper() or "", "label")
-    f.title:SetPoint("TOPLEFT", 12, -11)
+    f.tick = T.Tick(f)
+    f.title = Text(f, title or "", "strong", C.text2, 12)
+    f.title:SetPoint("TOPLEFT", 14, -10)
     return f
 end
 
@@ -664,14 +739,19 @@ function T.Window(opts)
     header:RegisterForDrag("LeftButton")
     header:SetScript("OnDragStart", function() win:StartMoving() end)
     header:SetScript("OnDragStop", function() win:StopMovingOrSizing() end)
+    header.topo = T.Topo(header, C.brass, 0.07)
     local hline = header:CreateTexture(nil, "BORDER")
     hline:SetPoint("BOTTOMLEFT"); hline:SetPoint("BOTTOMRIGHT"); hline:SetHeight(1)
-    hline:SetColorTexture(unpack(C.line))
+    hline:SetColorTexture(C.brass[1], C.brass[2], C.brass[3], 0.28)
     local logo = header:CreateTexture(nil, "ARTWORK")
     logo:SetSize(26, 26)
     logo:SetPoint("LEFT", 16, 0)
     logo:SetTexture(T.LOGO)
-    local title = Text(header, T.NAME, "title", C.text, 15)
+    local title = Text(header, T.NAME, "title", C.text, 16)
+    if T.NAME:find(" ") then
+        local first, rest = T.NAME:match("^(%S+)%s+(.+)$")
+        title:SetText(first .. " |cff" .. T.HEX.brass .. rest .. "|r")
+    end
     title:SetPoint("LEFT", logo, "RIGHT", 10, 0)
     local chip = CreateFrame("Frame", nil, header)
     chip:SetSize(52, 18)
@@ -730,7 +810,7 @@ function T.Window(opts)
       if t.header then
         if not opts.compact then
             if t.header ~= "" then
-                local h = Text(side, t.header:upper(), "label")
+                local h = Text(side, t.header, "label")
                 h:SetPoint("TOPLEFT", 18, yTab - 12)
                 h:SetWidth(SIDE - 30)
                 h:SetWordWrap(false)
@@ -784,8 +864,13 @@ function T.Window(opts)
         local page = CreateFrame("Frame", nil, win)
         page:SetPoint("TOPLEFT", SIDE + 16, -(HEADER + 14))
         page:SetPoint("BOTTOMRIGHT", -16, FOOTER + 10)
+        page.pip = page:CreateTexture(nil, "ARTWORK")
+        page.pip:SetSize(9, 9)
+        page.pip:SetPoint("TOPLEFT", 0, -6)
+        page.pip:SetTexture(T.ART .. "Pip")
+        page.pip:SetVertexColor(C.brass[1], C.brass[2], C.brass[3], 0.9)
         page.title = Text(page, t.label, "title", C.text, 19)
-        page.title:SetPoint("TOPLEFT", 0, 0)
+        page.title:SetPoint("TOPLEFT", 16, 0)
         local body = CreateFrame("Frame", nil, page)
         body:SetPoint("TOPLEFT", 0, -30)
         body:SetPoint("BOTTOMRIGHT")
@@ -816,7 +901,21 @@ function T.Window(opts)
     win.footer = foot
 
     win.hint = hint
-    function win:SetUIScale(s) self:SetScale(math.max(0.6, math.min(1.5, s or 1))) end
+    -- The window keeps its proportions and fits the screen: at a large UI
+    -- scale or a small resolution it scales down instead of hanging off it.
+    function win:SetUIScale(s)
+        self.userScale = math.max(0.6, math.min(1.5, s or self.userScale or 1))
+        local fit = self.userScale
+        local uw, uh = UIParent:GetWidth(), UIParent:GetHeight()
+        if type(uw) == "number" and type(uh) == "number" and uw > 0 and uh > 0 then
+            fit = math.min(fit, (uh - 24) / H, (uw - 24) / W)
+        end
+        self.fitScale = math.max(0.5, fit)
+        self:SetScale(self.fitScale)
+    end
+    win:RegisterEvent("UI_SCALE_CHANGED")
+    win:RegisterEvent("DISPLAY_SIZE_CHANGED")
+    win:SetScript("OnEvent", function(self) self:SetUIScale() end)
     for _, t in ipairs(opts.tabs) do
         if t.key then
             win:ShowTab(opts.first or t.key)

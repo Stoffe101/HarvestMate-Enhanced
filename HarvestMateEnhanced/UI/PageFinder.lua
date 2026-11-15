@@ -1,8 +1,10 @@
 -- HarvestMate Enhanced: UI/PageFinder.lua
--- The Farm Finder. Top: what to farm (profession, goal, risk), how long you
--- can play, filters. Left: ranked farms with their headline figure, risk and
--- how sure. Right: the chosen farm in plain words first (why, what you'll
--- find, what you can expect as a range and what it rests on), then Start.
+-- The Farm Finder (0.4.0 layout). Top: profession and goal; risk, play time,
+-- region, confidence and saving sit behind Filters. Left: ranked farms, each
+-- led by the one number the goal is about (skill-ups, gold or materials an
+-- hour), with how sure (four diamonds), risk and travel underneath. Right:
+-- the chosen farm: why, three figures with their ranges, how sure in plain
+-- words, then tabs (Overview, Find, Risk, Evidence) and one primary action.
 -- Right-click (or the box) marks farms to compare side by side.
 -- Skinning: "Best beasts" lists, for the materials typed, which beasts give
 -- them best, with levels, Skinning needed, yield, how sure, and where.
@@ -17,7 +19,8 @@ local U = HME.U
 local C = T.C
 
 local PAGE_W = 738
-local LIST_W = 330
+local LIST_W = 336
+local LIST_H = 448
 
 local PROF_KEYS = { "Herbalism", "Mining", "Combined", "Skinning", "Fishing" }
 local PROF_LABELS = { Herbalism = "Herbs", Mining = "Ore", Combined = "Herbs + Ore", Skinning = "Skinning", Fishing = "Fishing" }
@@ -84,29 +87,51 @@ HME.Pages.finder = function(body, page)
     local profs = K.Segments(body, PROF_KEYS, PROF_LABELS, function() return State().prof end, function(k)
         State().prof = k
         page.Search()
-    end, 84)
+    end, 86)
     profs:SetPoint("TOPLEFT", 0, 0)
     local goalKeys, goalLabels = {}, {}
     for _, g in ipairs(HME.Recommend.GOALS) do
         goalKeys[#goalKeys + 1] = g.key
         goalLabels[g.key] = g.label
     end
-    local goal = T.Dropdown(body, 170, goalKeys, goalLabels, function() return State().goal end, function(k)
+    local goal = T.Dropdown(body, 190, goalKeys, goalLabels, function() return State().goal end, function(k)
         State().goal = k
         page.Layout()
         page.Search()
     end)
-    goal:SetPoint("TOPLEFT", 428, 0)
+    goal:SetPoint("TOPLEFT", 440, -1)
+    goal:SetHeight(26)
+    -- Filters: the less used choices, in a panel over the results.
+    local filters = CreateFrame("Frame", nil, body)
+    filters:SetSize(PAGE_W, 76)
+    filters:SetPoint("TOPLEFT", 0, -34)
+    filters:SetFrameLevel((body:GetFrameLevel() or 1) + 20)
+    filters.bg = T.Surface(filters, C.raised)
+    T.Outline(filters, C.edge)
+    filters:EnableMouse(true)
+    filters:Hide()
+    local filterBtn = K.Button(body, "Filters", 88, 26, function() filters:SetShown(not filters:IsShown()) page.Layout() end,
+        "Risk, how long you can play, region and confidence. Save keeps this search as a profile.")
+    filterBtn:SetPoint("TOPRIGHT", 0, -1)
+    local function FLabel(text, x)
+        local l = K.Label(filters, text, { template = "label" })
+        l:SetPoint("TOPLEFT", x, -10)
+        return l
+    end
+    FLabel("Risk", 14)
+    FLabel("Play time", 160)
+    FLabel("Region", 344)
+    FLabel("Confidence", 488)
     local riskLabels = { fastest = "Fastest", balanced = "Balanced risk", safer = "Lower risk" }
-    local risk = T.Dropdown(body, 132, { "fastest", "balanced", "safer" }, riskLabels, function() return State().risk end,
+    local risk = T.Dropdown(filters, 134, { "fastest", "balanced", "safer" }, riskLabels, function() return State().risk end,
         function(k) State().risk = k; page.Search() end)
-    risk:SetPoint("TOPLEFT", 606, 0)
+    risk:SetPoint("TOPLEFT", 14, -30)
     T.Tooltip(risk, "PvP and creature risk", "How much risk counts against a farm: territory, enemy guards, creatures "
         .. "above your level, elites, and where you died. HME cannot see other players; no place is ever called safe.")
 
-    -- Row 2: material, time, filters, plan-for
-    local mat = T.EditBox(body, 178)
-    mat:SetPoint("TOPLEFT", 0, -30)
+    -- Row 2: the material (for that goal), what was found, compare.
+    local mat = T.EditBox(body, 230)
+    mat:SetPoint("TOPLEFT", 0, -36)
     mat.hint = K.Label(mat, "e.g. Goldthorn, Iron Ore", { template = "GameFontDisableSmall" })
     mat.hint:SetPoint("LEFT", 6, 0)
     mat:SetScript("OnTextChanged", function(self)
@@ -116,29 +141,29 @@ HME.Pages.finder = function(body, page)
     mat:SetScript("OnEnterPressed", function(self) self:ClearFocus(); page.Search() end)
     T.Tooltip(mat, "Materials", "One or more, separated by commas. Farms that give several of them rank higher.")
 
-    local minutes = K.Segments(body, { 15, 30, 60, 120 }, { [15] = "15m", [30] = "30m", [60] = "1h", [120] = "2h" },
+    local minutes = K.Segments(filters, { 15, 30, 60, 120 }, { [15] = "15m", [30] = "30m", [60] = "1h", [120] = "2h" },
         function() return HME.settings.sessionMinutes end, function(k)
             HME.settings.sessionMinutes = k
             page.Search()
-        end, 40)
-    minutes:SetPoint("TOPLEFT", 186, -30)
+        end, 44)
+    minutes:SetPoint("TOPLEFT", 160, -30)
     T.Tooltip(minutes, "How long you can play", "The trip there takes part of it: a farm far away has to be much better to win a short session.")
 
     local contLabels = { any = "Anywhere", E = "Eastern Kingdoms", K = "Kalimdor", F = "Forever zones" }
-    local cont = T.Dropdown(body, 128, { "any", "E", "K", "F" }, contLabels,
+    local cont = T.Dropdown(filters, 134, { "any", "E", "K", "F" }, contLabels,
         function() return State().filters.continent or "any" end, function(k)
             State().filters.continent = k ~= "any" and k or nil
             page.Search()
         end)
-    cont:SetPoint("TOPLEFT", 352, -30)
+    cont:SetPoint("TOPLEFT", 344, -30)
     local confLabels = { any = "Any confidence", Medium = "Medium or better", High = "High only" }
-    local conf = T.Dropdown(body, 128, { "any", "Medium", "High" }, confLabels,
+    local conf = T.Dropdown(filters, 134, { "any", "Medium", "High" }, confLabels,
         function() return State().filters.minConfidence or "any" end, function(k)
             State().filters.minConfidence = k ~= "any" and k or nil
             page.Search()
         end)
-    conf:SetPoint("TOPLEFT", 486, -30)
-    local saveProfile = K.Button(body, "Save", 56, 24, function()
+    conf:SetPoint("TOPLEFT", 488, -30)
+    local saveProfile = K.Button(filters, "Save search", 96, 24, function()
         local s = State()
         local name = ("%s %s"):format(PROF_LABELS[s.prof] or s.prof, HME.Recommend.GOAL_LABEL[s.goal] or s.goal)
         if s.goal == "material" and s.material and s.material ~= "" then name = s.material .. " (" .. (PROF_LABELS[s.prof] or s.prof) .. ")" end
@@ -146,46 +171,53 @@ HME.Pages.finder = function(body, page)
             minutes = HME.settings.sessionMinutes, filters = s.filters })
         HME.Print(p and ("saved profile |cffffd100%s|r (Dashboard, Goals & Plans)."):format(p.name) or ("not saved: " .. tostring(why)))
     end, "Save this search as a farming profile, to start it again from the Dashboard.", "ghost")
-    saveProfile:SetPoint("TOPLEFT", 620, -30)
-    local planBtn = K.Button(body, "Plan", 56, 24, function() HME.OpenWindow("goals") end,
+    saveProfile:SetPoint("TOPRIGHT", -14, -14)
+    local planBtn = K.Button(filters, "Plan ahead", 96, 24, function() HME.OpenWindow("goals") end,
         "Plan for another level or skill, or a longer climb (Goals & Plans).", "ghost")
-    planBtn:SetPoint("TOPLEFT", 682, -30)
+    planBtn:SetPoint("TOPRIGHT", -14, -42)
 
-    local status = K.Label(body, "", { template = "meta", width = PAGE_W - 130, wrap = false })
-    status:SetPoint("TOPLEFT", 2, -60)
+    local status = K.Label(body, "", { template = "meta", width = PAGE_W - 150, wrap = false })
+    status:SetPoint("TOPLEFT", 2, -42)
 
     -- Results
+    local NUM_W = 92   -- the right column: the goal's number and its unit
     local list = K.List(body, {
-        width = LIST_W, height = 434, rowHeight = 54,
+        width = LIST_W, height = LIST_H, rowHeight = 66,
         empty = "Pick a profession and a goal.",
         makeRow = function(row)
             row.rank = K.Label(row, "", { template = "meta", size = 12 })
-            row.rank:SetPoint("TOPLEFT", 10, -9)
+            row.rank:SetPoint("TOPLEFT", 10, -10)
             row.mark = row:CreateTexture(nil, "OVERLAY")
             row.mark:SetSize(8, 8)
-            row.mark:SetPoint("TOPLEFT", 10, -30)
-            row.mark:SetTexture(T.ART .. "Circle")
+            row.mark:SetPoint("TOPLEFT", 11, -32)
+            row.mark:SetTexture(T.ART .. "Pip")
             row.mark:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], 1)
-            row.title = K.Label(row, "", { template = "strong", width = 196, wrap = false })
+            local tw = LIST_W - 30 - NUM_W - 22
+            row.title = K.Label(row, "", { template = "strong", size = 14, width = tw, wrap = false })
             row.title:SetPoint("TOPLEFT", 30, -8)
-            row.sub = K.Label(row, "", { template = "small", width = 196, wrap = false })
-            row.sub:SetPoint("TOPLEFT", 30, -24)
-            row.sub2 = K.Label(row, "", { template = "meta", width = 196, wrap = false })
-            row.sub2:SetPoint("TOPLEFT", 30, -38)
-            row.risk = K.Badge(row, 80, 17)
-            row.risk:SetPoint("TOPRIGHT", -6, -7)
-            row.conf = K.Badge(row, 80, 17)
-            row.conf:SetPoint("TOPRIGHT", -6, -28)
+            row.sub = K.Label(row, "", { template = "small", color = C.text2, width = tw, wrap = false })
+            row.sub:SetPoint("TOPLEFT", 30, -27)
+            row.pips = K.Pips(row)
+            row.pips:SetPoint("TOPLEFT", 30, -48)
+            row.sub2 = K.Label(row, "", { template = "meta", width = tw - 46, wrap = false })
+            row.sub2:SetPoint("LEFT", row.pips, "RIGHT", 6, 0)
+            row.num = K.Label(row, "", { template = "display", size = 19, width = NUM_W, wrap = false, justify = "RIGHT" })
+            row.num:SetPoint("TOPRIGHT", -12, -9)
+            row.unit = K.Label(row, "", { template = "meta", width = NUM_W, wrap = false, justify = "RIGHT" })
+            row.unit:SetPoint("TOPRIGHT", -12, -33)
         end,
         fillRow = function(row, r)
             row.rank:SetText(r.rank)
             row.mark:SetShown(marked[r.key] ~= nil)
             row.title:SetText(r.zone .. "  " .. K.Paint(r.subarea, T.HEX.text3))
-            row.sub:SetText(page.Headline(r))
-            row.sub2:SetText(page.SubLine(r))
-            row.risk:Set(r.risk and r.risk.label or "?", r.risk and r.risk.hex)
-            row.conf:Set((r.evidence and r.evidence.level == "measured") and "measured" or ((r.confidence.label or "?") .. " conf."),
-                K.ConfHex(r.confidence.label))
+            row.sub:SetText(page.SubLine(r, row.sub, LIST_W - 30 - NUM_W - 22))
+            local num, unit, color = page.Primary(r)
+            row.num:SetText(num)
+            T.FitText(row.num, NUM_W, "display", 19, 13)
+            row.num:SetTextColor(color[1], color[2], color[3])
+            row.unit:SetText(unit)
+            row.pips:Set(page.ConfLevel(r), K.ConfHex(r.confidence and r.confidence.label))
+            row.sub2:SetText(page.RowFacts(r))
         end,
         onClick = function(r, _, button)
             if button == "RightButton" then
@@ -204,32 +236,46 @@ HME.Pages.finder = function(body, page)
             GameTooltip:Show()
         end,
     })
-    list:SetPoint("TOPLEFT", 0, -78)
+    list:SetPoint("TOPLEFT", 0, -64)
 
     -- Detail / comparison
-    local DCARD_H = 434
-    local d = T.Card(body, "", LIST_W + 10, -78, PAGE_W - LIST_W - 10, DCARD_H)
+    local DCARD_H = LIST_H
+    local d = T.Card(body, "", LIST_W + 10, -64, PAGE_W - LIST_W - 10, DCARD_H)
     d.title:Hide()
-    local DW = PAGE_W - LIST_W - 36
-    d.head = K.Label(d, "", { template = "title", size = 16, width = DW - 176, wrap = false })
+    d.tick:Hide()
+    local DW = PAGE_W - LIST_W - 38
+    d.head = K.Label(d, "", { template = "title", size = 18, width = DW - 150, wrap = false })
     d.head:SetPoint("TOPLEFT", 14, -14)
     d.title = d.head
-    d.where = K.Label(d, "", { template = "meta", width = DW - 176, wrap = false })
-    d.where:SetPoint("TOPLEFT", 14, -34)
+    d.where = K.Label(d, "", { template = "meta", width = DW - 150, wrap = false })
+    d.where:SetPoint("TOPLEFT", 14, -37)
     d.summary = K.Label(d, "", { template = "small", color = C.text2, width = DW })
-    d.summary:SetPoint("TOPLEFT", 14, -52)
+    d.summary:SetPoint("TOPLEFT", 14, -58)
     -- Three numbers that matter most, as tiles.
     d.kpis = CreateFrame("Frame", nil, d)
-    d.kpis:SetSize(DW, 58)
+    d.kpis:SetSize(DW, 96)
     local tileW = (DW - 12) / 3
     d.kpi = {}
     for i = 1, 3 do
-        local t = K.Stat(d.kpis, "", tileW, 58)
+        local t = K.Stat(d.kpis, "", tileW, 70)
         t:SetPoint("TOPLEFT", (i - 1) * (tileW + 6), 0)
         t.bg:Paint(C.field)
         d.kpi[i] = t
     end
-    local scroll = T.ScrollArea(d, 200)
+    -- How sure, in words, under the tiles.
+    d.sure = K.Pips(d.kpis)
+    d.sure:SetPoint("TOPLEFT", 2, -82)
+    d.sureText = K.Label(d.kpis, "", { template = "meta", width = DW - 50, wrap = false })
+    d.sureText:SetPoint("LEFT", d.sure, "RIGHT", 6, 0)
+    -- Tabs over the details.
+    local TABS = { "overview", "find", "risk", "evidence" }
+    local TAB_LABELS = { overview = "Overview", find = "Find", risk = "Risk", evidence = "Evidence" }
+    local tab = "overview"
+    d.tabs = K.Segments(d, TABS, TAB_LABELS, function() return tab end, function(k)
+        tab = k
+        if selected and not comparing and not beastView then page.ShowDetail(selected) end
+    end, (DW - 4) / 4)
+    local scroll = T.ScrollArea(d, 140)
     scroll:ClearAllPoints()
     scroll:SetPoint("TOPLEFT", 14, -170)
     scroll:SetPoint("BOTTOMRIGHT", -12, 52)
@@ -241,71 +287,79 @@ HME.Pages.finder = function(body, page)
     divider:SetPoint("BOTTOMRIGHT", -12, 46)
     divider:SetHeight(1)
     divider:SetColorTexture(unpack(C.line))
-    d.start = K.Button(d, "Start farming", 130, 28, function()
+    d.start = K.Button(d, "Start farming", 124, 30, function()
         if selected then HME.Guidance.StartResult(selected, State().goal) end
     end, "Plans the loop on the map and minimap and guides you. If it is far away, the trip goes through Forever-GPS "
         .. "(when installed) and HME takes over when you arrive.", "primary")
-    d.start:SetPoint("BOTTOMRIGHT", -12, 12)
-    d.preview = K.Button(d, "Preview on map", 112, 28, function() if selected then HME.MapOverlay.Preview(selected) end end,
+    d.start:SetPoint("BOTTOMRIGHT", -12, 10)
+    d.preview = K.Button(d, "Preview", 84, 30, function() if selected then HME.MapOverlay.Preview(selected) end end,
         "Opens the world map on this farm with its spawn points, hunting areas and loop.")
     d.preview:SetPoint("RIGHT", d.start, "LEFT", -8, 0)
     local modeLabels = { guided = "Guided circuit", adaptive = "Adaptive circuit", free = "Free farming", minimal = "Minimal arrow" }
-    d.mode = T.Dropdown(d, 118, { "guided", "adaptive", "free", "minimal" }, modeLabels,
+    d.mode = T.Dropdown(d, 136, { "guided", "adaptive", "free", "minimal" }, modeLabels,
         function() return HME.settings.huntMode or "guided" end, function(k) HME.Guidance.SetMode(k) end)
-    d.mode:SetPoint("BOTTOMLEFT", 12, 14)
+    d.mode:SetPoint("BOTTOMLEFT", 12, 13)
     T.Tooltip(d.mode, "How to be guided", "Guided: the arrow leads stop by stop. Free: the area stays highlighted and "
         .. "the arrow stays out of the way. Minimal: the arrow fades while you are on the loop and comes back when you stray.")
     d.markBtn = K.Button(d, "Mark", 64, 24, function() if selected then page.ToggleMark(selected) end end,
         "Mark this farm to compare it with others (right-click in the list does the same).", "ghost")
-    d.compare = K.Button(body, "Compare (0)", 120, 22, function() page.ShowCompare() end,
+    d.compare = K.Button(body, "Compare (0)", 110, 24, function() page.ShowCompare() end,
         "Side by side: the farms you marked (Mark, or right-click in the list).", "ghost")
-    d.compare:SetPoint("TOPLEFT", PAGE_W - 120, -55)
-    for _, b in ipairs({ d.preview, d.start, d.mode, d.markBtn, d.kpis }) do b:Hide() end
+    d.compare:SetPoint("TOPRIGHT", 0, -36)
+    for _, b in ipairs({ d.preview, d.start, d.mode, d.markBtn, d.kpis, d.tabs }) do b:Hide() end
 
     -- Places what follows the summary under it, however many lines it took.
     local function Below(withKpis)
         local h = d.summary:GetStringHeight() or 30
         if (d.summary:GetText() or "") == "" then h = 0 end
-        local y = -52 - h - 10
+        local y = -58 - h - 10
         d.kpis:ClearAllPoints()
         d.kpis:SetPoint("TOPLEFT", 14, y)
         d.kpis:SetShown(withKpis and true or false)
-        if withKpis then y = y - 58 - 12 end
+        if withKpis then
+            y = y - 96 - 8
+            d.tabs:ClearAllPoints()
+            d.tabs:SetPoint("TOPLEFT", 14, y)
+            d.tabs:Show()
+            y = y - 26 - 12
+        else
+            d.tabs:Hide()
+        end
         return y
     end
     local function PlaceScroll(y)
         scroll:ClearAllPoints()
         scroll:SetPoint("TOPLEFT", 14, y)
-        scroll:SetPoint("BOTTOMRIGHT", -12, 84)
+        scroll:SetPoint("BOTTOMRIGHT", -12, 54)
     end
 
     -- Best beasts for a material (Skinning): one row per beast, at the area
     -- where it gives the most of it an hour; a click opens that area.
     local beasts = K.List(d, {
-        width = DW, height = 236, rowHeight = 52,
+        width = DW, height = 300, rowHeight = 58,
         empty = "",
         makeRow = function(row)
-            row.title = K.Label(row, "", { template = "strong", width = DW - 110, wrap = false })
+            row.title = K.Label(row, "", { template = "strong", width = DW - 80, wrap = false })
             row.title:SetPoint("TOPLEFT", 10, -7)
-            row.sub = K.Label(row, "", { template = "small", width = DW - 24, wrap = false })
-            row.sub:SetPoint("TOPLEFT", 10, -23)
+            row.sub = K.Label(row, "", { template = "small", color = C.text2, width = DW - 24, wrap = false })
+            row.sub:SetPoint("TOPLEFT", 10, -25)
             row.sub2 = K.Label(row, "", { template = "meta", width = DW - 24, wrap = false })
-            row.sub2:SetPoint("TOPLEFT", 10, -37)
-            row.conf = K.Badge(row, 80, 17)
-            row.conf:SetPoint("TOPRIGHT", -6, -6)
+            row.sub2:SetPoint("TOPLEFT", 10, -41)
+            row.conf = K.Pips(row)
+            row.conf:SetPoint("TOPRIGHT", -12, -10)
         end,
         fillRow = function(row, e)
             row.title:SetText(page.BeastTitle(e))
             row.sub:SetText(page.BeastSub(e))
             row.sub2:SetText(page.BeastWhere(e))
-            row.conf:Set((e.confidence or "?") .. " conf.", K.ConfHex(e.confidence))
+            row.conf:Set(K.CONF_LEVEL[e.confidence or ""] or 0, K.ConfHex(e.confidence))
         end,
         onClick = function(e) page.OpenBeastArea(e) end,
         onEnter = function(row, e) page.BeastTooltip(row, e) end,
     })
     beasts:SetPoint("TOPLEFT", 12, -100)
     beasts:Hide()
-    d.beastsBtn = K.Button(d, "Best beasts", 96, 24, function()
+    d.beastsBtn = K.Button(d, "Best beasts", 96, 26, function()
         if beastView then page.ShowDetail(selected) else page.ShowBeasts() end
     end, "Skinning: which beasts give the material you typed best, their levels, the Skinning they need, "
         .. "the yield per skin, how sure, and the hunting areas. Click a beast to open its best area.")
@@ -328,6 +382,48 @@ HME.Pages.finder = function(body, page)
 
     local function Money(v) return K.Money(v or 0) end
 
+    -- The one number a row leads with, for the goal: value, unit, colour.
+    function page.Primary(r)
+        local m, g = r.metrics or {}, State().goal
+        if g == "material" and m.materialPerHour then
+            return U.Thousands(m.materialPerHour), "materials/h", C.text
+        end
+        if (g == "profit" or g == "balanced") and m.range and (m.range.mid or 0) > 0 then
+            return K.Money(m.range.mid, true), "gold/h, est.", C.gold
+        end
+        if m.catchesPerHour and not m.skillRange then
+            return U.Thousands(m.catchesPerHour), "catches/h", C.text
+        end
+        local mid = m.skillRange and m.skillRange.mid or m.skillPerHour
+        if mid and mid > 0 then return U.Thousands(mid), "skill-ups/h", C.accent end
+        if m.range and (m.range.mid or 0) > 0 then return K.Money(m.range.mid, true), "gold/h, est.", C.gold end
+        return "–", "no estimate", C.text3
+    end
+
+    -- Under the name: risk and travel, in the risk's colour.
+    function page.RowFacts(r)
+        local risk = r.risk and K.Paint(r.risk.label or "?", r.risk.hex) or "?"
+        local travel = r.travel and (U.Duration(r.travel) .. " away") or "travel ?"
+        local measured = r.evidence and r.evidence.level == "measured" and ("  ·  " .. K.Paint("measured", T.HEX.accent)) or ""
+        return risk .. "  ·  " .. travel .. measured
+    end
+
+    function page.ConfLevel(r)
+        if r.evidence and r.evidence.level == "measured" then return 4 end
+        return K.CONF_LEVEL[r.confidence and r.confidence.label or ""] or 0
+    end
+
+    -- How sure, in one line a player reads at a glance.
+    local EVIDENCE_WORDS = {
+        measured = "Measured by you", ["partly measured"] = "Partly measured", ["known yield"] = "Yield measured, pace estimated",
+        ["published data"] = "From published data, rate estimated", assumption = "Estimate: not measured yet",
+    }
+    function page.SureLine(r)
+        local ev = r.evidence or {}
+        local words = EVIDENCE_WORDS[ev.level or ""] or "Estimate"
+        return ("%s  ·  %s confidence"):format(words, (r.confidence and r.confidence.label or "?"):lower())
+    end
+
     function page.Headline(r)
         local m, g = r.metrics, State().goal
         local travel = r.travel and U.Duration(r.travel) or "travel ?"
@@ -340,17 +436,29 @@ HME.Pages.finder = function(body, page)
         return ("%.0f skill/h%s  ·  %s"):format(m.skillRange and m.skillRange.mid or m.skillPerHour or 0, gold, travel)
     end
 
-    -- As many names as fit the row (about 34 letters), then "+N".
-    function page.SubLine(r)
+    -- As many names as fit, then "+N". With a font string and a width the
+    -- names are measured as drawn; without, about 34 letters.
+    function page.SubLine(r, fs, width)
         local names, used, n = {}, 0, #(r.targets or {})
-        for _, t in ipairs(r.targets or {}) do
-            local len = #(t.name or "") + (#names > 0 and 2 or 0)
-            if #names > 0 and used + len > 34 then break end
-            names[#names + 1] = t.name
-            used = used + len
+        local function Text(list, rest)
+            return table.concat(list, ", ") .. (rest > 0 and K.Paint(("  +%d"):format(rest), T.HEX.text3) or "")
         end
-        local more = n > #names and K.Paint(("  +%d"):format(n - #names), T.HEX.text3) or ""
-        return table.concat(names, ", ") .. more
+        for _, t in ipairs(r.targets or {}) do
+            if fs and width then
+                names[#names + 1] = t.name
+                fs:SetText(Text(names, n - #names))
+                if #names > 1 and T.StringWidth(fs) > width then
+                    names[#names] = nil
+                    break
+                end
+            else
+                local len = #(t.name or "") + (#names > 0 and 2 or 0)
+                if #names > 0 and used + len > 34 then break end
+                names[#names + 1] = t.name
+                used = used + len
+            end
+        end
+        return Text(names, n - #names)
     end
 
     local function ItemName(id) return (HME.Goals and HME.Goals.ItemName(id)) or ("item " .. id) end
@@ -422,7 +530,7 @@ HME.Pages.finder = function(body, page)
         d.beastsBtn:SetText("Back")
         local names = {}
         for _, id in ipairs(beastIDs) do names[#names + 1] = ItemName(id) end
-        d.head:SetWidth(DW - 110)
+        d.head:SetWidth(DW - 80)
         d.title:SetText(#names > 0 and ("Best beasts for " .. table.concat(names, ", ")) or "Best beasts")
         d.where:SetText("Skinning · each at its best area")
         d.summary:SetText("Ranked by how many an hour (the beast's share of the kills). Click one to open that area.")
@@ -438,7 +546,7 @@ HME.Pages.finder = function(body, page)
             beasts:SetEmptyText("No beast in these farms gives it. Try another risk mode or fewer filters.")
         end
         beasts:SetItems(items)
-        for _, b in ipairs({ d.preview, d.start, d.markBtn, d.mode, d.compare }) do b:Hide() end
+        for _, b in ipairs({ d.preview, d.start, d.markBtn, d.mode, d.compare, d.tabs }) do b:Hide() end
         return items
     end
 
@@ -456,32 +564,35 @@ HME.Pages.finder = function(body, page)
     function page.FillKpis(r)
         local m, g = r.metrics or {}, State().goal
         local k1, k2, k3 = d.kpi[1], d.kpi[2], d.kpi[3]
-        local function range(x) return x and ("%.0f to %.0f"):format(x.low, x.high) or "" end
+        local function range(x) return x and ("range %s"):format(K.Range(x.low, x.high)) or "" end
+        local function mrange(x) return ("range %s–%s"):format(K.Money(x.low, true), K.Money(x.high, true)) end
         if g == "material" and m.materialPerHour then
-            k1.label:SetText("MATERIALS / HOUR")
-            k1:Set(("%.0f"):format(m.materialPerHour), "of what you asked for", C.text)
+            k1:SetLabel("Materials an hour")
+            k1:Set(U.Thousands(m.materialPerHour), "of what you asked for", C.text)
         elseif m.catchesPerHour and not m.skillRange then
-            k1.label:SetText("CATCHES / HOUR")
-            k1:Set(("%.0f"):format(m.catchesPerHour), "", C.text)
+            k1:SetLabel("Catches an hour")
+            k1:Set(U.Thousands(m.catchesPerHour), "", C.text)
         elseif g == "profit" and m.range then
-            k1.label:SetText("GOLD / HOUR")
+            k1:SetLabel("Gold an hour")
             local priced = (m.range.mid or 0) > 0
-            k1:Set(priced and K.Money(m.range.mid) or "–", priced and ("%s to %s"):format(K.Money(m.range.low), K.Money(m.range.high)) or "no prices yet", C.gold)
+            k1:Set(priced and K.Money(m.range.mid) or "–", priced and mrange(m.range) or "no prices yet", C.gold)
         else
-            k1.label:SetText("SKILL-UPS / HOUR")
+            k1:SetLabel("Skill-ups an hour")
             local mid = m.skillRange and m.skillRange.mid or m.skillPerHour
-            k1:Set(mid and ("%.0f"):format(mid) or "–", m.skillRange and range(m.skillRange) or "", C.accent)
+            k1:Set(mid and U.Thousands(mid) or "–", m.skillRange and range(m.skillRange) or "", C.accent)
         end
         if g == "profit" then
-            k2.label:SetText("OVER THE TRIP")
-            k2:Set((r.tripGph or 0) > 0 and K.Money(r.tripGph) or "–", ("%d min incl. travel"):format(HME.settings.sessionMinutes or 60), C.gold)
+            k2:SetLabel("Over the trip")
+            k2:Set((r.tripGph or 0) > 0 and K.Money(r.tripGph) or "–", ("%d min with travel"):format(HME.settings.sessionMinutes or 60), C.gold)
         else
-            k2.label:SetText("GOLD / HOUR")
+            k2:SetLabel("Gold an hour")
             local priced = m.range and (m.range.mid or 0) > 0
-            k2:Set(priced and K.Money(m.range.mid) or "–", priced and "while farming" or "no prices yet", C.gold)
+            k2:Set(priced and K.Money(m.range.mid) or "–", priced and "estimate, while farming" or "no prices yet", C.gold)
         end
-        k3.label:SetText("TRAVEL")
+        k3:SetLabel("Travel")
         k3:Set(r.travel and U.Duration(r.travel) or "?", r.travelQuality or (r.travel and "estimate" or "unknown"), C.text)
+        d.sure:Set(page.ConfLevel(r), K.ConfHex(r.confidence and r.confidence.label))
+        d.sureText:SetText(page.SureLine(r))
     end
 
     local secs = {}
@@ -499,7 +610,7 @@ HME.Pages.finder = function(body, page)
         local y = 0
         for i, sec in ipairs(list) do
             local x = Sec(i)
-            x.head:SetText((sec[1] or ""):upper())
+            x.head:SetText(sec[1] or "")
             x.head:ClearAllPoints()
             x.head:SetPoint("TOPLEFT", 0, y)
             x.head:Show()
@@ -528,10 +639,9 @@ HME.Pages.finder = function(body, page)
         if not r then return end
         local m = r.metrics
         d:Show()
-        d.head:SetWidth(DW - 176)
+        d.head:SetWidth(DW - 150)
         d.title:SetText(r.zone)
-        d.where:SetText(("%s  ·  around %d, %d  ·  %s"):format(r.subarea or "", (r.cx or 0) * 100, (r.cy or 0) * 100,
-            ((r.evidence and r.evidence.level) or "estimate")))
+        d.where:SetText(("%s  ·  around %d, %d"):format(r.subarea or "", (r.cx or 0) * 100, (r.cy or 0) * 100))
         d.summary:SetText(r.summary or "")
         page.FillKpis(r)
         PlaceScroll(Below(true))
@@ -564,8 +674,11 @@ HME.Pages.finder = function(body, page)
         end
         if m.materialPerHour then add(("  Materials: about %.0f an hour"):format(m.materialPerHour)) end
         if m.beastsPerHour then
-            add(("  Beasts: about %.0f an hour (%s); a kill about %.0f s (%s), walking %.0f s"):format(m.beastsPerHour,
-                m.limit == "respawn" and "respawns limit it" or "your pace limits it", m.killSecs, m.killBasis, m.walkSecs))
+            add(("  Beasts: about %.0f an hour in a real session (%s); a kill about %.0f s (%s), walking %.0f s"):format(
+                m.beastsPerHour, m.limit == "respawn" and "respawns limit it" or "your pace limits it", m.killSecs, m.killBasis, m.walkSecs))
+            if m.theoretical and m.theoretical > m.beastsPerHour * 1.05 then
+                add(("  A perfect, uninterrupted circuit would reach about %.0f: not what to plan on."):format(m.theoretical))
+            end
         end
         if m.nodesPerHour then
             add(("  Nodes: about %.0f an hour; loop about %s, %s a lap"):format(m.nodesPerHour, U.Yards(m.loopYards), U.Duration(m.lapSecs)))
@@ -624,7 +737,15 @@ HME.Pages.finder = function(body, page)
         end
         if #notes > 0 then section("Good to know") end
         for _, n in ipairs(notes) do add(K.Paint(n, T.HEX.text2)) end
-        page.ShowSections(sections)
+        local TAB_OF = { Expect = "overview", ["Good to know"] = "overview", ["What you will find"] = "find", Risk = "risk",
+            ["How sure"] = "evidence" }
+        local shown = {}
+        for _, sec in ipairs(sections) do
+            if (TAB_OF[sec[1]] or "overview") == tab then shown[#shown + 1] = sec end
+        end
+        page.allSections = sections
+        page.ShowSections(shown)
+        d.tabs:Refresh()
         for _, b in ipairs({ d.preview, d.start, d.markBtn, d.compare }) do b:Show() end
         d.mode:SetShown(r.prof == "Skinning")
         d.markBtn:SetText(marked[r.key] and "Marked" or "Mark")
@@ -682,7 +803,16 @@ HME.Pages.finder = function(body, page)
     function page.Layout()
         local g = State().goal
         mat:SetShown(g == "material")
+        status:ClearAllPoints()
+        status:SetPoint("TOPLEFT", g == "material" and 240 or 2, -42)
+        status:SetWidth(PAGE_W - (g == "material" and 240 or 2) - 120)
         d.beastsBtn:SetShown(State().prof == "Skinning")
+        local n = 0
+        local f = State().filters or {}
+        if f.continent then n = n + 1 end
+        if f.minConfidence then n = n + 1 end
+        if State().risk ~= "balanced" then n = n + 1 end
+        filterBtn:SetText(filters:IsShown() and "Close" or (n > 0 and ("Filters · %d"):format(n) or "Filters"))
     end
 
     local searching = false
@@ -742,6 +872,7 @@ HME.Pages.finder = function(body, page)
                     selected = results[1]
                     if beastView then page.ShowBeasts() else page.ShowDetail(results[1]) end
                     if s.goal == "profit" or s.goal == "balanced" then HME.Suggest.CheckPrices(results) end
+                    list.Render()
                 end
             end, profile)
     end

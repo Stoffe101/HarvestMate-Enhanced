@@ -46,7 +46,7 @@ end
 
 -- A section heading with a hairline under it.
 function K.Heading(parent, text, x, y, w)
-    local fs = T.Text(parent, text, "strong", C.text, 13)
+    local fs = T.Text(parent, text, "strong", C.text, 14)
     fs:SetPoint("TOPLEFT", x, y)
     local line = parent:CreateTexture(nil, "BORDER")
     line:SetColorTexture(unpack(C.line))
@@ -64,17 +64,21 @@ K.Rgb = Rgb
 
 -- A small tinted pill: b:Set(text, hex). The colour washes the pill and
 -- colours its text, so meaning reads at a glance without shouting.
+-- The pill grows to fit its text (never below the width it was given), so
+-- "Medium confidence" is never cut to "Medium c...".
 function K.Badge(parent, w, h)
     local b = CreateFrame("Frame", nil, parent)
     b:SetSize(w or 90, h or 18)
+    b.minW = w or 0
     b.bg = T.Surface(b, { 0.2, 0.2, 0.2, 0.9 })
-    b.text = T.Text(b, "", "label", nil, 10)
-    b.text:SetPoint("LEFT", 6, 0)
-    b.text:SetPoint("RIGHT", -6, 0)
+    b.text = T.Text(b, "", "label", nil, 11)
+    b.text:SetPoint("LEFT", 7, 0)
+    b.text:SetPoint("RIGHT", -7, 0)
     b.text:SetJustifyH("CENTER")
     b.text:SetWordWrap(false)
     function b:Set(text, hex)
         self.text:SetText(text or "")
+        self:SetWidth(math.max(self.minW, math.ceil(T.StringWidth(self.text) + 16)))
         local r, g, bl = Rgb(hex)
         self.bg:Paint({ r, g, bl, 0.16 })
         self.text:SetTextColor(math.min(1, r * 0.75 + 0.25), math.min(1, g * 0.75 + 0.25), math.min(1, bl * 0.75 + 0.25))
@@ -89,22 +93,29 @@ function K.Stat(parent, label, w, h)
     f:SetSize(w or 140, h or 62)
     f.bg = T.Surface(f, C.card)
     T.Outline(f, C.line)
-    f.label = T.Text(f, label and label:upper() or "", "label")
+    f.label = T.Text(f, label or "", "label")
     f.label:SetPoint("TOPLEFT", 12, -10)
-    f.value = T.Text(f, "", "display", nil, 20)
-    f.value:SetPoint("TOPLEFT", 12, -24)
+    f.label:SetPoint("RIGHT", -10, 0)
+    f.label:SetWordWrap(false)
+    f.value = T.Text(f, "", "display", nil, 22)
+    f.value:SetPoint("TOPLEFT", 12, -25)
     f.value:SetPoint("RIGHT", -10, 0)
     f.value:SetWordWrap(false)
     f.sub = T.Text(f, "", "meta")
     f.sub:SetPoint("TOPLEFT", f.value, "BOTTOMLEFT", 0, -3)
     f.sub:SetPoint("RIGHT", -10, 0)
     f.sub:SetWordWrap(false)
+    f.size = 22
+    -- The value is fitted: a long one steps down a size or two before the
+    -- game would ever cut it (gold an hour must always be readable).
     function f:Set(value, sub, color)
         self.value:SetText(value or "–")
+        T.FitText(self.value, (self:GetWidth() or 140) - 22, "display", self.size, 14)
         local c = color or C.text
         self.value:SetTextColor(c[1], c[2], c[3])
         self.sub:SetText(sub or "")
     end
+    function f:SetLabel(text) self.label:SetText(text or "") end
     return f
 end
 
@@ -173,8 +184,9 @@ function K.Bar(parent, w, h)
     bar.text = T.Text(bar, "", "label", C.text, 10)
     bar.text:SetPoint("CENTER")
     bar.text:SetJustifyH("CENTER")
-    local inner = w
+    -- Widths are read when drawn, so a bar can be resized after it is made.
     function bar:Set(value, max, color, label, top)
+        local inner = self:GetWidth() or w
         top = top or 300
         local f = U.Clamp((value or 0) / top, 0, 1)
         self.fillShape:SetWidth(math.max(4, inner * f))
@@ -186,6 +198,7 @@ function K.Bar(parent, w, h)
     end
     function bar:Mark(at, top)
         if not at then self.mark:Hide() return end
+        local inner = self:GetWidth() or w
         self.mark:ClearAllPoints()
         local x = inner * U.Clamp(at / (top or 300), 0, 1)
         self.mark:SetPoint("TOPLEFT", x, 2)
@@ -208,16 +221,69 @@ function K.Icon(parent, size, texture)
     return f
 end
 
--- Copper with coin icons where the client draws them.
-function K.Money(copper)
+-- Money as short text: "3g 13s", "45s 20c", "1,240g". No coin icons: in a
+-- tile they turned "3g 13s 35c" into a row of icons cut to "3[g]13...".
+-- The letters carry the coin colours; copper is left out from 1 gold up
+-- (and silver from 100 gold up), where it never changes a decision.
+local GOLD, SILVER, COPPER = "|cff" .. T.HEX.gold .. "g|r", "|cff" .. T.HEX.silver .. "s|r", "|cff" .. T.HEX.copper .. "c|r"
+function K.Money(copper, plain)
     copper = math.floor((copper or 0) + 0.5)
-    local coins = (C_CurrencyInfo and C_CurrencyInfo.GetCoinTextureString) or _G.GetCoinTextureString
-    if coins and copper >= 0 then
-        local ok, s = pcall(coins, copper)
-        if ok and type(s) == "string" then return s end
+    local neg = copper < 0
+    copper = math.abs(copper)
+    local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
+    local G, S, Cc = plain and "g" or GOLD, plain and "s" or SILVER, plain and "c" or COPPER
+    local out
+    if g >= 100 then
+        out = U.Thousands(g) .. G
+    elseif g > 0 then
+        out = s > 0 and (g .. G .. " " .. s .. S) or (g .. G)
+    elseif s > 0 then
+        out = c > 0 and (s .. S .. " " .. c .. Cc) or (s .. S)
+    else
+        out = c .. Cc
     end
-    return U.Money(copper)
+    return neg and ("-" .. out) or out
 end
+
+-- A rate: "142 skill-ups/h", "~85 skins/h", "3g 13s/h".
+function K.Rate(n, unit, approx)
+    if not n then return "–" end
+    return (approx and "~" or "") .. U.Thousands(n) .. (unit and (" " .. unit) or "") .. "/h"
+end
+function K.MoneyRate(copper) return K.Money(copper) .. "/h" end
+
+-- A range: "113–163".
+function K.Range(lo, hi, fmt)
+    fmt = fmt or U.Thousands
+    if not (lo and hi) then return "" end
+    if fmt(lo) == fmt(hi) then return fmt(lo) end
+    return fmt(lo) .. "–" .. fmt(hi)
+end
+
+-- Confidence as up to four diamonds: K.Pips(parent):Set(level 0-4, hex).
+-- Reads at a glance and never truncates.
+function K.Pips(parent, n)
+    n = n or 4
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(n * 10, 10)
+    f.pips = {}
+    for i = 1, n do
+        local p = f:CreateTexture(nil, "ARTWORK")
+        p:SetSize(8, 8)
+        p:SetPoint("LEFT", (i - 1) * 10, 0)
+        p:SetTexture(T.ART .. "Pip")
+        f.pips[i] = p
+    end
+    function f:Set(level, hex)
+        local r, g, b = Rgb(hex or T.HEX.accent)
+        for i, p in ipairs(self.pips) do
+            if i <= (level or 0) then p:SetVertexColor(r, g, b, 1) else p:SetVertexColor(1, 1, 0.9, 0.16) end
+        end
+    end
+    f:Set(0)
+    return f
+end
+K.CONF_LEVEL = { High = 4, Good = 3, Medium = 2, Low = 1 }
 
 -- Virtual list: rows exist only for what is on screen.
 --   list = K.List(parent, { rowHeight, width, height, makeRow(row), fillRow(row, item, index), onClick(item, index, button) })
@@ -358,12 +424,12 @@ function K.Segments(parent, keys, labels, get, set, w)
     local f = CreateFrame("Frame", nil, parent)
     f.buttons = {}
     local bw = w or 90
-    f:SetSize(bw * #keys, 24)
+    f:SetSize(bw * #keys, 26)
     f.bg = T.Surface(f, C.field)
     T.Outline(f, C.fieldEdge)
     for i, k in ipairs(keys) do
         local b = CreateFrame("Button", nil, f)
-        b:SetSize(bw - 4, 18)
+        b:SetSize(bw - 4, 20)
         b:SetPoint("LEFT", (i - 1) * bw + 2, 0)
         b.bg = T.Surface(b, C.field)
         b.text = T.Text(b, labels[k] or k, "small")
@@ -410,5 +476,5 @@ end
 K.DIFF_HEX = HME.SkillModel.HEX
 
 function K.ConfHex(label)
-    return label == "High" and "4fd68c" or (label == "Medium" and "f2c452" or "f7a845")
+    return label == "High" and T.HEX.accent or (label == "Medium" and "e0c062" or T.HEX.warning)
 end

@@ -117,7 +117,7 @@ end
 local function Plain(s)
     return (tostring(s or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "WW"):gsub("|n", "\n"))
 end
-local CHAR_W = 0.55
+local CHAR_W = 0.58   -- a little wider than Inter's average: room the game will need
 function R.TextWidth(fs, text)
     local size = FontOf(fs)
     local widest = 0
@@ -158,6 +158,17 @@ local function At(rect, name)
 end
 
 local RectOf
+-- A frame's scale times its parents': sizes and offsets are in its own units.
+local function EffScale(o)
+    local s = 1
+    local p = o
+    while p and p ~= UIParent do
+        s = s * (rawget(p, "__scale") or 1)
+        p = rawget(p, "__parent")
+    end
+    return s
+end
+R.EffScale = EffScale
 local function Size(o)
     local kind = rawget(o, "__kind")
     local w = rawget(o, "__wset") and o.__w or nil
@@ -166,7 +177,8 @@ local function Size(o)
         if not w then w = R.TextWidth(o) end
         if not h then h = R.TextHeight(o, rawget(o, "__wset") and o.__w or nil) end
     end
-    return w or 0, h or 0
+    local e = EffScale(o)
+    return (w or 0) * e, (h or 0) * e
 end
 
 RectOf = function(o)
@@ -217,13 +229,15 @@ RectOf = function(o)
             local rr = p[2] and RectOf(p[2])
             if rr then
                 local ax, ay = At(rr, p[3])
-                ax, ay = ax + p[4], ay + p[5]
+                local e = EffScale(o)
+                ax, ay = ax + p[4] * e, ay + p[5] * e
                 local name = p[1]
                 if name:find("LEFT") then l = ax elseif name:find("RIGHT") then r = ax else cx = ax end
                 if name:find("TOP") then t = ay elseif name:find("BOTTOM") then b = ay else cy = ay end
             end
         end
         if (l or r or cx) and (t or b or cy) then
+            -- (offsets were added in the frame's own units)
             local w, h = Size(o)
             if l and r then w = r - l end
             if t and b then h = t - b end
@@ -252,11 +266,15 @@ local function esc(s) return (tostring(s):gsub("&", "&amp;"):gsub("<", "&lt;"):g
 
 R.ICON_CDN = "https://wow.zamimg.com/images/wow/icons/large/"
 R.MEDIA = {}   -- addon texture path (lower case) -> png file, filled by the driver
+R.WARN = {}   -- warnings found while drawing (missing addon art), per render
 local function ImageFor(path)
     if type(path) ~= "string" then return nil end
     local icon = path:match("[Ii]nterface[\\/][Ii]cons[\\/]([%w_%-]+)")
     if icon then return R.ICON_CDN .. icon:lower() .. ".jpg" end
     local key = path:lower():gsub("\\", "/"):gsub("%.tga$", ""):gsub("%.blp$", "")
+    if key:find("^interface/addons/harvestmateenhanced/") and not R.MEDIA[key] and not key:find("/fonts/") then
+        R.WARN["missing art: " .. key:gsub("^interface/addons/harvestmateenhanced/", "")] = true
+    end
     return R.MEDIA[key]
 end
 
@@ -330,6 +348,7 @@ local function Region(o, origin, out, alpha)
         local text = rawget(o, "__text") or ""
         if text == "" then return end
         local size, f, weight = FontOf(o)
+        size = size * EffScale(o)
         local tc = rawget(o, "__tc") or { f[2], f[3], f[4], 1 }
         local lh = ("line-height:%dpx;"):format(size + 3 + (rawget(o, "__spacing") or 0))
         local family = lh .. (weight and ("font-family:Inter;font-weight:" .. weight .. ";text-shadow:0 1px 0 rgba(0,0,0,.5)") or "font-family:'Friz Quadrata TT',Georgia,serif")
@@ -341,7 +360,7 @@ local function Region(o, origin, out, alpha)
         -- The game keeps text without a set width on one line.
         local wrap = (rawget(o, "__wrap") == false or not rawget(o, "__wset")) and "nowrap" or "normal"
         local clip = (wrap == "nowrap" and rawget(o, "__wset")) and ";overflow:hidden" or ""
-        out[#out + 1] = ('<div class="fs%s" style="%s;font-size:%dpx;color:%s;justify-content:%s;align-items:%s;text-align:%s;white-space:%s;opacity:%.2f;%s%s"><span style="%s"><span class="t">%s</span></span></div>')
+        out[#out + 1] = ('<div class="fs%s" style="%s;font-size:%.1fpx;color:%s;justify-content:%s;align-items:%s;text-align:%s;white-space:%s;opacity:%.2f;%s%s"><span style="%s"><span class="t">%s</span></span></div>')
             :format(rawget(o, "__wset") and "" or " auto", Box(rect, origin), size, css(tc), jh == "left" and "flex-start" or (jh == "right" and "flex-end" or "center"),
                 align, jh, wrap, a, family, clip, clip ~= "" and "overflow:hidden;text-overflow:ellipsis" or "", Markup(text, size))
     elseif kind == "Texture" or kind == "Line" then
@@ -373,7 +392,15 @@ local function Region(o, origin, out, alpha)
                     :format(Box(rect, origin), (t[4] or 0.5) * 1.3)
                 return
             else
-                style = "background:" .. c
+                -- Other UI art (contour lines, medallion, pip, compass, tick, glow): the
+                -- white shape as a mask, in its tint.
+                local img = ImageFor(file)
+                if img then
+                    style = ("background:%s;-webkit-mask:url(%s) center/100%% 100%% no-repeat;mask:url(%s) center/100%% 100%% no-repeat")
+                        :format(c, img, img)
+                else
+                    style = "background:" .. c
+                end
             end
         elseif file then
             local img = ImageFor(file)
@@ -407,7 +434,11 @@ local function Frame(o, origin, out, alpha, depth)
     local inner = rect or origin
     if rect and o ~= UIParent then
         local clip = kind == "ScrollFrame" and ";overflow:hidden" or ""
-        out[#out + 1] = ('<div class="f" style="%s%s">'):format(Box(rect, origin), clip)
+        local cls = (kind == "Button" and rawget(o, "__fs")) and "f btn" or "f"
+        local offscreen = (rect.l < -1 or rect.b < -1 or rect.r > R.SCREEN_W + 1 or rect.t > R.SCREEN_H + 1) and o ~= UIParent
+            and Parent(o) == UIParent
+        if offscreen then R.WARN["off screen: a top-level frame reaches past the screen edge"] = true end
+        out[#out + 1] = ('<div class="%s" style="%s%s">'):format(cls, Box(rect, origin), clip)
     end
     table.sort(regions, function(x, y)
         local lx, ly = LAYER[rawget(x, "__layer") or "ARTWORK"] or 3, LAYER[rawget(y, "__layer") or "ARTWORK"] or 3
@@ -441,6 +472,9 @@ body{margin:0;background:#1b2027;font-family:"Segoe UI",Arial,sans-serif}
 .ph{display:inline-block;background:rgba(200,200,200,.35);border-radius:2px;vertical-align:-2px}
 .cap{color:#9aa;font:12px Segoe UI;padding:6px 10px;background:#0e1114}
 .bad{outline:1px solid #ff3b3b;background:rgba(255,59,59,.18)}
+.warn{outline:1px dashed rgba(255,190,60,.7)}
+body.clean .bad,body.clean .warn{outline:none;background:none}
+body.clean .cap,body.clean #report{display:none}
 #report{font:12px Segoe UI;color:#ddd;padding:8px 12px;background:#0e1114}
 #report li{margin:2px 0}
 ]]
@@ -448,6 +482,7 @@ body{margin:0;background:#1b2027;font-family:"Segoe UI",Arial,sans-serif}
 -- In the page: once the fonts are in, every piece of text is measured as drawn;
 -- pairs that overlap are outlined in red and listed under the picture.
 R.CHECK = [=[
+if(location.search.indexOf('clean')>=0)document.body.classList.add('clean');
 document.fonts.ready.then(function(){
   var screen=document.querySelector('.screen').getBoundingClientRect();
   function visible(r){return r.width>0&&r.height>0&&r.right>screen.left&&r.left<screen.right&&r.bottom>screen.top&&r.top<screen.bottom;}
@@ -464,9 +499,38 @@ document.fonts.ready.then(function(){
     var a=items[i].r,b=items[j].r; var w=Math.min(a.right,b.right)-Math.max(a.left,b.left), h=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
     if(w>2&&h>2){bad.push([items[i],items[j]]);items[i].el.classList.add('bad');items[j].el.classList.add('bad');}
   }
-  var cut=[]; document.querySelectorAll('.fs:not(.auto)>span').forEach(function(s){if(s.scrollWidth>s.clientWidth+1&&visible(s.getBoundingClientRect()))cut.push(s.textContent.trim().slice(0,50));});
+  // Cut: text wider than its box. Tight: within 8% of its box, which the
+  // game's own text measure can tip over (the first real-client screenshots
+  // showed cuts the previews did not).
+  var cut=[], tight=[], tiny=[], dim=[], narrow=[];
+  document.querySelectorAll('.fs:not(.auto)>span').forEach(function(s){
+    var r=s.getBoundingClientRect(); if(!visible(r))return; var t=s.querySelector('.t'); if(!t)return;
+    var txt=s.textContent.trim(); if(!txt)return;
+    var nat=t.getBoundingClientRect().width;
+    if(s.scrollWidth>s.clientWidth+1){cut.push(txt.slice(0,50)); s.parentElement.classList.add('bad');}
+    else if(getComputedStyle(s.parentElement).whiteSpace==='nowrap' && nat>s.clientWidth*0.92 && s.clientWidth>0){tight.push(txt.slice(0,50)); s.parentElement.classList.add('warn');}
+  });
+  document.querySelectorAll('.fs .t').forEach(function(t){
+    var r=t.getBoundingClientRect(); if(!visible(r)||!t.textContent.trim())return;
+    var box=t.closest('.fs'); var cs=getComputedStyle(box); var px=parseFloat(cs.fontSize)*zoom();
+    if(px<10.5) tiny.push(t.textContent.trim().slice(0,40)+' ('+px.toFixed(1)+'px)');
+    var m=cs.color.match(/[\d.]+/g); if(m){var L=(0.2126*m[0]+0.7152*m[1]+0.0722*m[2])/255; var a=m[3]!==undefined?+m[3]:1; var op=parseFloat(cs.opacity); if(L*a*op<0.30) dim.push(t.textContent.trim().slice(0,40));}
+  });
+  document.querySelectorAll('.btn').forEach(function(b){
+    var r=b.getBoundingClientRect(); if(!visible(r))return;
+    var t=b.querySelector('.fs .t'); var txt=t?t.textContent.trim():'';
+    if(r.height*1<18*zoom()&&txt) narrow.push(txt.slice(0,30)+' (short: '+Math.round(r.height/zoom())+')');
+    if(t&&txt){var tw=t.getBoundingClientRect().width; if(tw>r.width-8) narrow.push(txt.slice(0,30)+' (label fills the button)');}
+  });
+  function zoom(){return parseFloat(getComputedStyle(document.body).zoom)||1;}
+  var warn=JSON.parse(document.getElementById('lua-warn').textContent||'[]');
   var rep=document.getElementById('report');
-  rep.innerHTML='<b>'+bad.length+' overlapping text pairs</b>, '+cut.length+' cut short'+'<ol>'+bad.map(function(p){return '<li>'+p[0].txt.slice(0,60)+' &lt;&gt; '+p[1].txt.slice(0,60)+'</li>';}).join('')+'</ol>'+(cut.length?'<div>cut: '+cut.join(' | ')+'</div>':'');
+  function list(name,a){return a.length?'<div><b>'+a.length+' '+name+'</b>: '+a.slice(0,12).join(' | ')+'</div>':'';}
+  rep.innerHTML='<b>'+bad.length+' overlapping text pairs</b>, '+cut.length+' cut short, '+tight.length+' tight, '+narrow.length+' cramped buttons, '+tiny.length+' tiny, '+dim.length+' dim, '+warn.length+' other'
+    +'<ol>'+bad.map(function(p){return '<li>'+p[0].txt.slice(0,60)+' &lt;&gt; '+p[1].txt.slice(0,60)+'</li>';}).join('')+'</ol>'
+    +list('cut',cut)+list('tight (may cut in game)',tight)+list('cramped buttons',narrow)+list('tiny text',tiny)+list('dim text',dim)+list('other',warn);
+  var res={overlap:bad.map(function(p){return [p[0].txt.slice(0,60),p[1].txt.slice(0,60)];}),cut:cut,tight:tight,narrow:narrow,tiny:tiny,dim:dim,other:warn};
+  var pre=document.createElement('pre'); pre.id='result'; pre.style.display='none'; pre.textContent=JSON.stringify(res); document.body.appendChild(pre);
   document.title=document.title+' ['+bad.length+']';
 });
 ]=]
@@ -475,6 +539,7 @@ document.fonts.ready.then(function(){
 function R.Render(title, opts)
     opts = opts or {}
     rects, busy = {}, {}
+    R.WARN = {}
     local origin = { l = 0, t = R.SCREEN_H, r = R.SCREEN_W, b = 0 }
     local out = {}
     for _, c in ipairs(rawget(UIParent, "__children") or {}) do Frame(c, origin, out, 1, 0) end
@@ -487,11 +552,16 @@ function R.Render(title, opts)
             shift = ("transform:translate(%.1fpx,%.1fpx)"):format(-(rr.l - pad), -(R.SCREEN_H - rr.t - pad))
         end
     end
-    return ('<!doctype html><html><head><meta charset="utf-8"><title>%s</title><style>%s</style></head><body>'
+    local warn = {}
+    for k in pairs(R.WARN) do warn[#warn + 1] = '"' .. k:gsub('"', "'") .. '"' end
+    table.sort(warn)
+    -- zoom: UI units to the screen's pixels (opts.zoom), so text shows at the size it would have.
+    return ('<!doctype html><html><head><meta charset="utf-8"><title>%s</title><style>%s</style></head><body style="zoom:%.4f">'
         .. '<div class="cap">%s · a render of the layout in a stand-in client, not a game screenshot</div>'
         .. '<div class="screen" style="width:%dpx;height:%dpx"><div style="position:absolute;left:0;top:0;width:%dpx;height:%dpx;%s">%s</div></div>'
-        .. '<div id="report">checking...</div><script>%s</script></body></html>')
-        :format(esc(title), R.STYLE, esc(title), w, h, R.SCREEN_W, R.SCREEN_H, shift, table.concat(out, "\n"), R.CHECK)
+        .. '<div id="report">checking...</div><script id="lua-warn" type="application/json">[%s]</script><script>%s</script></body></html>')
+        :format(esc(title), R.STYLE, opts.zoom or 1, esc(title), w, h, R.SCREEN_W, R.SCREEN_H, shift, table.concat(out, "\n"),
+            table.concat(warn, ","), R.CHECK)
 end
 
 return R

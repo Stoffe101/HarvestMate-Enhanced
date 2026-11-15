@@ -116,6 +116,7 @@ end
 -- Kill time
 ---------------------------------------------------------------------------
 Sk.BASE_KILL = 14   -- seconds for a beast of your own level, pull to death (model)
+Sk.KILL_FLOOR = 0.55
 
 -- A weak starting guess by class (1 = the plain model). Measured fights
 -- replace it quickly; it is never treated as a fact about a class.
@@ -123,7 +124,9 @@ Sk.CLASS_PRIOR = { HUNTER = 0.9, WARLOCK = 0.95, MAGE = 0.95, WARRIOR = 1.05, PR
 
 local function ModelKill(diff, elite, class)
     local t
-    if diff >= 0 then t = Sk.BASE_KILL * (1 + 0.15 * diff) else t = Sk.BASE_KILL * math.max(0.4, 1 + 0.07 * diff) end
+    -- Far below you a beast still takes a few swings (and a pull): the floor
+    -- is 55% of an even fight (0.3.0 had 40%, about 6 s, too fast for most).
+    if diff >= 0 then t = Sk.BASE_KILL * (1 + 0.15 * diff) else t = Sk.BASE_KILL * math.max(Sk.KILL_FLOOR, 1 + 0.07 * diff) end
     if elite then t = t * 3.5 end
     return t * (Sk.CLASS_PRIOR[class or ""] or 1)
 end
@@ -559,22 +562,31 @@ function Sk.Evaluate(circuit, profile, opts)
     -- Walk to the next live beast: nearest-neighbour distance in the live
     -- density, less pull range; plus the loop between areas spread over the
     -- beasts met on it.
-    local alive = spawns * (1 - competition) * 0.85
-    local density = alive / areaYards
-    local nn = 0.5 / math.sqrt(math.max(density, 1e-9))
-    local walk = math.max(0, nn - LD.PULL_YARDS) / speedFoot
     local loop = 0
     if #circuit > 1 then
         for i = 1, #circuit do
             local a, b = circuit[i], circuit[i % #circuit + 1]
             loop = loop + U.Dist(a.yx, a.yy, b.yx, b.yy)
         end
-        walk = walk + (loop / speedFoot) / math.max(1, alive)
     end
-    local perBeast = (kill + LD.LOOT_SECONDS + LD.SKIN_SECONDS + LD.PULL_SECONDS + walk) * (1 + LD.DOWNTIME)
-    local pace = 3600 / perBeast
     local respawn = LD.RESPAWN_SECONDS
     local supply = spawns * (1 - competition) * 3600 / respawn
+    -- Time per beast for a share of the spawns alive: the walk to the next
+    -- live one grows as the area thins out.
+    local function PerBeast(aliveShare)
+        local alive = math.max(1, spawns * (1 - competition) * aliveShare)
+        local nn = 0.5 / math.sqrt(math.max(alive / areaYards, 1e-9))
+        local w = math.max(0, nn - LD.PULL_YARDS) / speedFoot
+        if loop > 0 then w = w + (loop / speedFoot) / alive end
+        return (kill + LD.LOOT_SECONDS + LD.SKIN_SECONDS + LD.PULL_SECONDS + w) * (1 + LD.DOWNTIME), w
+    end
+    -- Killing faster than beasts come back leaves fewer alive: one step
+    -- toward that steady state (0.3.0 kept every spawn alive forever).
+    local perBeast, walk = PerBeast(0.85)
+    local share = U.Clamp(0.85 * supply / (3600 / perBeast), 0.3, 0.85)
+    perBeast, walk = PerBeast(share)
+    local theoretical = 3600 / perBeast
+    local pace = theoretical * (LD.PRACTICAL or 1)
     local bph, limit = pace, "pace"
     if supply < pace then bph, limit = supply, "respawn" end
     local learned = HME.Learning and HME.Learning.Rate(opts.key, "beasts")
@@ -596,7 +608,8 @@ function Sk.Evaluate(circuit, profile, opts)
     end
     return {
         materialPerHour = material,
-        beastsPerHour = bph, limit = limit, pace = pace, supply = supply, killSecs = kill, killBasis = killBasis,
+        beastsPerHour = bph, limit = limit, pace = pace, theoretical = math.min(theoretical, supply), supply = supply,
+        killSecs = kill, killBasis = killBasis,
         walkSecs = walk, perBeast = perBeast, skillChance = chance, skillPerHour = bph * chance * skinP,
         gph = gph, valuePerBeast = value, lootPerBeast = lootN > 0 and loot or nil, lootObserved = lootN,
         yieldBasis = priorOnly and "estimate" or "measured", observedSkins = observed, items = items,
