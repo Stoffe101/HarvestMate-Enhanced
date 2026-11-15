@@ -6,6 +6,12 @@
 -- the prediction check, records and the time split. When nothing has been
 -- recognised for a while it says so instead of showing quiet zeros.
 -- A plain frame: never in the way of protected frames, and never acts.
+--
+-- 0.5.0: every text has a width inside the panel. A real-client screenshot
+-- showed the route-only title ("Hillsbrad Foothills - Skinning leveling")
+-- drawn on one line past the HUD's edge: it had a start and no width. A
+-- route's name is now two lines (the zone; then what for, and the stop),
+-- each fitted to the panel, with the full name in the tooltip.
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
 
 local _, ns = ...
@@ -65,6 +71,11 @@ local function Build()
     f.state = T.Text(f.head, "", "label", nil, 11)
     f.state:SetPoint("RIGHT", f.size, "LEFT", -4, 0)
     f.state:SetJustifyH("RIGHT")
+    f.state:SetWidth(130)
+    f.state:SetWordWrap(false)
+    f.head.text:ClearAllPoints()
+    f.head.text:SetPoint("LEFT", f.head.logo, "RIGHT", 5, 0)
+    f.head.text:SetWidth(70)
     -- Three live numbers.
     f.kpi = {}
     for i = 1, 3 do
@@ -89,12 +100,16 @@ local function Build()
     f.goal.num = T.Text(f.goal, "", "small")
     f.goal.num:SetPoint("TOPRIGHT", 0, 0)
     f.goal.num:SetJustifyH("RIGHT")
+    f.goal.num:SetWidth(90)
+    f.goal.num:SetWordWrap(false)
     f.goal.bar = K.Bar(f.goal, 200, 4)
     f.goal.bar.text:Hide()
     f.goal.bar:SetPoint("BOTTOMLEFT", 0, 0)
-    f.big = T.Text(f, "", "strong", C.text, 14)
-    f.big:SetPoint("TOPLEFT", 12, -32)
-    f.big:SetWordWrap(false)
+    -- The route: the zone on top, then what for and where you are on the loop.
+    f.title = T.Text(f, "", "strong", C.text, 14)
+    f.title:SetWordWrap(false)
+    f.sub = T.Text(f, "", "small", C.text2)
+    f.sub:SetWordWrap(false)
     f.text = T.Text(f, "", "small", C.text2)
     f.text:SetWordWrap(true)
     if f.text.SetSpacing then f.text:SetSpacing(2) end
@@ -113,8 +128,16 @@ local function Build()
             HME.Session.Stop("manual")
         end
     end)
-    T.Tooltip(f, "Farming HUD", "Drag to move (Settings can lock it). Right-click: pause or resume. Middle-click: end the "
-        .. "session. The chevron changes its size. /hme hud hides it.")
+    f:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        local g = HME.Guidance.Active()
+        GameTooltip:AddLine(g and g.name or "Farming HUD")
+        if g and g.phaseText then GameTooltip:AddLine(g.phaseText, 1, 1, 1, true) end
+        GameTooltip:AddLine("Drag to move (Settings can lock it). Right-click: pause or resume. Middle-click: end the "
+            .. "session. The chevron changes its size. /hme hud hides it, /hme hud reset puts it back.", 0.8, 0.8, 0.8, true)
+        GameTooltip:Show()
+    end)
+    f:SetScript("OnLeave", function() GameTooltip:Hide() end)
     local pos = HME.char and HME.char.ui.hud
     if type(pos) == "table" and pos[1] then
         f:ClearAllPoints()
@@ -131,6 +154,32 @@ local function Build()
 end
 
 function H.Frame() return f end
+
+-- A route's name as two lines: "Hillsbrad Foothills - Skinning leveling"
+-- becomes "Hillsbrad Foothills" and "Skinning leveling".
+function H.SplitName(name)
+    name = tostring(name or "")
+    local a, b = name:match("^(.-)%s+[-–—]%s+(.+)$")
+    if a and a ~= "" then return a, b end
+    return name, nil
+end
+
+-- Text that must fit a width: one size smaller first, then the game's own
+-- cut (the full text is in the tooltip).
+local function Fit(fs, text, width, role, size)
+    fs:SetWidth(width)
+    fs:SetText(text)
+    if T.StringWidth(fs) > width then T.FitText(fs, width, role, size, size - 2) end
+end
+
+-- Back to where it starts (for a HUD dragged somewhere awkward).
+function H.ResetPosition()
+    if HME.char then HME.char.ui.hud = nil end
+    if f then
+        f:ClearAllPoints()
+        f:SetPoint(H.DEFAULT[1], UIParent, H.DEFAULT[2], H.DEFAULT[3], H.DEFAULT[4])
+    end
+end
 
 function H.Update()
     local s = HME.settings
@@ -150,9 +199,38 @@ function H.Update()
     local state
     if r and r.paused then state = K.Paint("Paused", T.HEX.warning)
     elseif r then state = U.Duration(r.farmSecs or 0) .. (g and K.Paint("  ·  guided", T.HEX.accent) or "")
-    elseif g then state = K.Paint("guided", T.HEX.accent) end
+    elseif g then state = K.Paint(g.phase == "travel" and "travelling" or "guided", T.HEX.accent) end
     f.state:SetText(state or "")
     local y = -30
+    -- The route, when one is followed: two fitted lines.
+    if g then
+        local zone, what = H.SplitName(g.name or "Your farm")
+        local where
+        if g.phase == "farm" and g.mode ~= "free" and (g.stops or 0) > 0 then
+            where = ("stop %d/%d"):format(g.stop or 1, g.stops)
+        elseif g.phase == "travel" then
+            where = g.owner == "fgps" and "Forever-GPS is leading" or (g.owner and "on the way" or "not navigating")
+        elseif g.mode == "free" then
+            where = "free farming"
+        end
+        local parts = {}
+        if what then parts[#parts + 1] = what end
+        if where then parts[#parts + 1] = where end
+        local subText = table.concat(parts, "  ·  ")
+        if subText == "" then subText = g.phaseText or "" end
+        f.title:ClearAllPoints()
+        f.title:SetPoint("TOPLEFT", 12, y)
+        Fit(f.title, zone, inner, "strong", 14)
+        f.sub:ClearAllPoints()
+        f.sub:SetPoint("TOPLEFT", 12, y - 18)
+        Fit(f.sub, subText, inner, "small", 12)
+        f.title:Show()
+        f.sub:SetShown(subText ~= "")
+        y = y - (subText ~= "" and 40 or 22)
+    else
+        f.title:Hide()
+        f.sub:Hide()
+    end
     local colW = inner / 3
     for i, col in ipairs(f.kpi) do
         col:ClearAllPoints()
@@ -160,7 +238,6 @@ function H.Update()
         col:SetWidth(colW - 6)
         col:SetShown(r ~= nil)
     end
-    f.big:SetShown(r == nil)
     local lines, warn = {}, nil
     if r then
         local label, n, noun = Main(r, g)
@@ -181,9 +258,6 @@ function H.Update()
             warn = K.Paint(("No %ss recognised in %s."):format(noun, U.Duration(r.farmSecs)), T.HEX.warning)
                 .. " /hme diag shows what HME saw."
         end
-    else
-        f.big:SetText(g and g.name or "Session not started")
-        y = y - 24
     end
     -- The first open goal, in every size.
     local goal
@@ -221,11 +295,7 @@ function H.Update()
             end
         end
         if g then
-            if g.mode ~= "free" and g.stops and g.stops > 0 and g.phase == "farm" then
-                lines[#lines + 1] = ("Route: stop %d of %d"):format(g.stop or 1, g.stops)
-            elseif g.phaseText then
-                lines[#lines + 1] = g.phaseText
-            end
+            if size == "detailed" and g.phaseText then lines[#lines + 1] = g.phaseText end
             local owner = HME.Guidance.ArrowOwner()
             if owner then lines[#lines + 1] = K.Paint("Arrow: " .. owner, T.HEX.text3) end
         end

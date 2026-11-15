@@ -440,7 +440,9 @@ local function Frame(o, origin, out, alpha, depth)
         if offscreen then R.WARN["off screen: a top-level frame reaches past the screen edge"] = true end
         -- Top-level frames are tagged: text in different ones may overlap (one
         -- floats above the other), text in the same one may not.
-        local top = depth == 0 and (' data-top="%s"'):format(tostring(rawget(o, "__name") or o):gsub('"', "")) or ""
+        -- Panels (top-level frames that draw a surface) are also marked: text must stay inside them.
+        local top = depth == 0 and (' data-top="%s"%s'):format(tostring(rawget(o, "__name") or o):gsub('"', ""),
+            rawget(o, "bg") and ' data-panel="1"' or "") or ""
         out[#out + 1] = ('<div class="%s"%s style="%s%s">'):format(cls, top, Box(rect, origin), clip)
     end
     table.sort(regions, function(x, y)
@@ -527,13 +529,30 @@ document.fonts.ready.then(function(){
     if(t&&txt){var tw=t.getBoundingClientRect().width; if(tw>r.width-8) narrow.push(txt.slice(0,30)+' (label fills the button)');}
   });
   function zoom(){return parseFloat(getComputedStyle(document.body).zoom)||1;}
+  // Outside: text that runs past the panel it belongs to (its top-level
+  // frame), whether or not it overlaps other text. A real-client screenshot
+  // showed a HUD title running over the world beside the HUD.
+  var outside=[];
+  document.querySelectorAll('.fs .t').forEach(function(t){
+    var txt=t.textContent.trim(); if(!txt)return;
+    var top=t.closest('[data-top]'); if(!top||!top.hasAttribute('data-panel'))return;
+    var r=t.getBoundingClientRect(), q=top.getBoundingClientRect();
+    if(q.width<4||q.height<4||!visible(r))return;
+    // What a clipping ancestor (a scroll area, a cut text box) hides is not outside.
+    var a=t.parentElement, hidden=false;
+    while(a&&a!==top){ if(getComputedStyle(a).overflow==='hidden'){var b=a.getBoundingClientRect();
+        r={left:Math.max(r.left,b.left),top:Math.max(r.top,b.top),right:Math.min(r.right,b.right),bottom:Math.min(r.bottom,b.bottom)};
+        if(r.right-r.left<1||r.bottom-r.top<1){hidden=true;break;}} a=a.parentElement; }
+    if(hidden)return;
+    if(r.right>q.right+1.5||r.left<q.left-1.5||r.bottom>q.bottom+1.5||r.top<q.top-1.5){outside.push(txt.slice(0,50)); t.classList.add('bad');}
+  });
   var warn=JSON.parse(document.getElementById('lua-warn').textContent||'[]');
   var rep=document.getElementById('report');
   function list(name,a){return a.length?'<div><b>'+a.length+' '+name+'</b>: '+a.slice(0,12).join(' | ')+'</div>':'';}
-  rep.innerHTML='<b>'+bad.length+' overlapping text pairs</b>, '+cut.length+' cut short, '+tight.length+' tight, '+narrow.length+' cramped buttons, '+tiny.length+' tiny, '+dim.length+' dim, '+warn.length+' other'
+  rep.innerHTML='<b>'+bad.length+' overlapping text pairs</b>, '+outside.length+' outside their panel, '+cut.length+' cut short, '+tight.length+' tight, '+narrow.length+' cramped buttons, '+tiny.length+' tiny, '+dim.length+' dim, '+warn.length+' other'
     +'<ol>'+bad.map(function(p){return '<li>'+p[0].txt.slice(0,60)+' &lt;&gt; '+p[1].txt.slice(0,60)+'</li>';}).join('')+'</ol>'
-    +list('cut',cut)+list('tight (may cut in game)',tight)+list('cramped buttons',narrow)+list('tiny text',tiny)+list('dim text',dim)+list('other',warn);
-  var res={overlap:bad.map(function(p){return [p[0].txt.slice(0,60),p[1].txt.slice(0,60)];}),cut:cut,tight:tight,narrow:narrow,tiny:tiny,dim:dim,other:warn};
+    +list('outside their panel',outside)+list('cut',cut)+list('tight (may cut in game)',tight)+list('cramped buttons',narrow)+list('tiny text',tiny)+list('dim text',dim)+list('other',warn);
+  var res={overlap:bad.map(function(p){return [p[0].txt.slice(0,60),p[1].txt.slice(0,60)];}),outside:outside,cut:cut,tight:tight,narrow:narrow,tiny:tiny,dim:dim,other:warn};
   var pre=document.createElement('pre'); pre.id='result'; pre.style.display='none'; pre.textContent=JSON.stringify(res); document.body.appendChild(pre);
   document.title=document.title+' ['+bad.length+']';
 });

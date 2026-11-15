@@ -158,7 +158,14 @@ function cmds.recipe(rest)
     end
 end
 function cmds.giveback() HME.Guidance.GiveBack() end
-function cmds.hud() HME.HUD.Toggle() end
+function cmds.hud(rest)
+    if rest == "reset" then
+        HME.HUD.ResetPosition()
+        HME.Print("the farming HUD is back at the top right.")
+        return
+    end
+    HME.HUD.Toggle()
+end
 function cmds.skinlevels(rest)
     if rest == "on" or rest == "off" then HME.SkinTracker.Toggle(rest == "on") else HME.SkinTracker.Toggle() end
 end

@@ -164,7 +164,7 @@ def diff(name):
     return changed / float(ia.size[0] * ia.size[1])
 
 
-SEVERE = ("overlap", "cut", "narrow", "error")
+SEVERE = ("overlap", "outside", "cut", "narrow", "error")
 
 
 def gallery(states, results):
@@ -172,7 +172,7 @@ def gallery(states, results):
     rows, groups = [], {}
     for s in states:
         groups.setdefault(s.get("group", "Other"), []).append(s)
-    total = {k: 0 for k in ("overlap", "cut", "tight", "narrow", "tiny", "dim", "other")}
+    total = {k: 0 for k in ("overlap", "outside", "cut", "tight", "narrow", "tiny", "dim", "other")}
     for g, items in groups.items():
         rows.append("<h2>%s</h2><div class=grid>" % html.escape(g))
         for s in items:
@@ -196,9 +196,15 @@ def gallery(states, results):
             img = "shots/%s.png" % s["name"]
             dimg = "shots/%s.diff.png" % s["name"]
             difflink = ' · <a href="%s">diff</a>' % dimg if os.path.exists(os.path.join(OUT, dimg)) else ""
-            rows.append('<figure><a href="%s"><img loading=lazy src="%s"></a><figcaption><b>%s</b><br><small>%s · %s</small>'
+            before = "baseline/%s.png" % s["name"]
+            if d and os.path.exists(os.path.join(OUT, before)):
+                img_html = ('<div class=ba><a href="%s"><img loading=lazy src="%s"></a><a href="%s"><img loading=lazy src="%s"></a></div>'
+                            '<small>before (baseline) · after</small>' % (before, before, "shots/%s.png" % s["name"], "shots/%s.png" % s["name"]))
+            else:
+                img_html = '<a href="shots/%s.png"><img loading=lazy src="shots/%s.png"></a>' % (s["name"], s["name"])
+            rows.append('<figure>%s<figcaption><b>%s</b><br><small>%s · %s</small>'
                         '<div>%s</div><small><a href="%s.html">checked page</a>%s</small>%s</figcaption></figure>' % (
-                            img, img, html.escape(s["title"]), html.escape(s.get("screen", "")), html.escape(s["name"]),
+                            img_html, html.escape(s["title"]), html.escape(s.get("screen", "")), html.escape(s["name"]),
                             " ".join(badges), s["name"], difflink, "<ul>%s</ul>" % details if details else ""))
         rows.append("</div>")
     summary = ", ".join("%d %s" % (v, k) for k, v in total.items())
@@ -207,7 +213,7 @@ body{background:#111310;color:#e6e4dc;font:14px/1.45 Segoe UI,Arial,sans-serif;m
 h1{font-weight:600}h2{margin:28px 0 10px;font-weight:600;color:#cca66b}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:18px}
 figure{margin:0;background:#1c1f1a;border:1px solid #2c3029;border-radius:8px;overflow:hidden}
-figure img{width:100%%;display:block;background:#0b0c0a}figcaption{padding:10px 12px}
+figure img{width:100%%;display:block;background:#0b0c0a}.ba{display:grid;grid-template-columns:1fr 1fr;gap:2px}figcaption{padding:10px 12px}
 small{color:#999b8f}a{color:#8fcc5c}.b{display:inline-block;border-radius:9px;padding:1px 8px;margin:4px 4px 0 0;font-size:12px}
 .ok{background:#25331d;color:#a7d77a}.warn{background:#3a2f17;color:#f5c45f}.bad{background:#3d1b1a;color:#f28a84}
 ul{margin:6px 0 0 18px;padding:0;font-size:12px;color:#c7c7ba}.note{max-width:900px;color:#c7c7ba}
@@ -215,7 +221,7 @@ ul{margin:6px 0 0 18px;padding:0;font-size:12px;color:#c7c7ba}.note{max-width:90
 <p class=note>Renders of the addon's real layout code in a stand-in client (fonts: the bundled Inter;
 game textures: placeholders; spell icons from a public CDN). They are not game screenshots and do not
 prove the look in WoW Forever: docs/MANUAL_TESTING.md lists what to check in the client.
-Checks: overlapping text, text cut short, text within 8%% of its box (may be cut in the game), cramped
+Checks: overlapping text, text outside its panel, text cut short, text within 8%% of its box (may be cut in the game), cramped
 buttons, text under 10.5 px on screen, dim text, missing addon art, frames off the screen.</p>
 <p><b>%d states.</b> %s.</p>%s</body></html>""" % (len(states), summary, "\n".join(rows))
     with open(os.path.join(OUT, "review.html"), "w", encoding="utf-8") as f:
@@ -262,7 +268,7 @@ def main():
         if bad:
             print("  %s: %s" % (s["name"], json.dumps(bad)[:300]))
     print("review", os.path.join(OUT, "review.html"))
-    if "--strict" in flags and any(total[k] for k in ("overlap", "cut", "narrow")):
+    if "--strict" in flags and any(total[k] for k in ("overlap", "outside", "cut", "narrow")):
         return 1
     return 0
 

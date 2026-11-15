@@ -178,8 +178,48 @@ Page("settings", "settings", "Settings", "Settings")
 win:Hide()
 
 -----------------------------------------------------------------------------
--- 2. On screen while farming: the HUD and the Skinning levels box
+-- 2. On screen while farming: the HUD in every state, and the Skinning levels box
 -----------------------------------------------------------------------------
+local function Hud(name, title)
+    HME.HUD.Update()
+    local h = _G.HarvestMateEnhancedHUD
+    if h and h:IsShown() then Write(name, title, "Farming HUD", { around = h, pad = 16 }) end
+end
+-- A route and no session, as in the real-client screenshot (its long name).
+HME.settings.skinLevels = false
+HME.SkinTracker.Update()
+do
+    local res = HME.Recommend.Find({ prof = "Skinning", goal = "level" }, nil, HME.Player.Profile())
+    HME.Guidance.StartResult(res[1], "level")
+    Settle()
+end
+local gd = HME.Guidance.Active()
+if gd then
+    gd.name, gd.stop, gd.stops, gd.phase = "Hillsbrad Foothills - Skinning leveling", 1, 12, "farm"
+    gd.phaseText = "Following the loop: stop 1 of 12."
+    for _, size in ipairs({ "compact", "normal", "detailed" }) do
+        HME.settings.hudSize = size
+        Hud("hud-route-only-" .. size, "HUD, route and no session (" .. size .. "): the reported overflow")
+    end
+    gd.name = "Stranglethorn Vale, the Vile Reef and Booty Bay's beaches - Skinning leveling (3)"
+    HME.settings.hudSize = "normal"
+    Hud("hud-route-very-long", "HUD, a very long route name")
+    gd.name = "Hillsbrad Foothills - Skinning leveling"
+    gd.phase, gd.owner = "travel", "fgps"
+    Hud("hud-route-travel-fgps", "HUD, on the way: Forever-GPS leads")
+    gd.phase, gd.owner = "farm", nil
+    HME.Session.Start()
+    local hc = HME.Session.Current()
+    hc.farm, hc.combat, hc.counts.kills = 43 * 60, 20 * 60, 31
+    for _, size in ipairs({ "compact", "normal", "detailed" }) do
+        HME.settings.hudSize = size
+        Hud("hud-noskins-" .. size, "HUD, route and session, nothing recognised (" .. size .. ")")
+    end
+    HME.Session.Stop("preview")
+    HME.db.sessions[#HME.db.sessions] = nil
+    HME.Guidance.Stop()
+end
+HME.settings.hudSize = "normal"
 HME.Session.Start()
 cur = HME.Session.Current()
 for k, v in pairs(hudSession) do if type(v) ~= "table" or k == "counts" or k == "items" then cur[k] = v end end
@@ -188,9 +228,34 @@ HME.SkinTracker.Update()
 Settle()
 if HME.HUD and HME.HUD.Update then HME.HUD.Update() end
 local hud = _G.HarvestMateEnhancedHUD
-if hud then Write("hud", "Farming HUD", "On screen", { around = hud, pad = 16 }) end
+if hud then Write("hud", "Farming HUD, session going well (normal)", "Farming HUD", { around = hud, pad = 16 }) end
+for _, size in ipairs({ "compact", "detailed" }) do
+    HME.settings.hudSize = size
+    Hud("hud-session-" .. size, "HUD, session only (" .. size .. ")")
+end
+HME.settings.hudSize = "normal"
+cur.paused = "manual"
+Hud("hud-paused", "HUD, paused")
+cur.paused = false
+HME.HUD.Update()
 local box = _G.HarvestMateEnhancedSkinLevels
-if box then Write("skinlevels", "Skinning levels", "On screen", { around = box, pad = 16 }) end
+if box then Write("skinlevels", "Skinning levels", "Skinning levels", { around = box, pad = 16 }) end
+-- With a target: a known beast, then an unknown creature far above you.
+do
+    local realExists = UnitExists
+    UnitExists = function(u) return u == "player" or u == "target" end
+    UNIT_LEVELS = { target = 26 }
+    UNIT_GUIDS = { target = "Creature-0-1-2-3-2354-000000AB" }
+    FireEvent("PLAYER_TARGET_CHANGED")
+    if box then Write("skinlevels-target", "Skinning levels, a beast targeted", "Skinning levels", { around = box, pad = 16 }) end
+    UNIT_LEVELS = { target = 47 }
+    UNIT_GUIDS = { target = "Creature-0-1-2-3-99999-000000AB" }
+    FireEvent("PLAYER_TARGET_CHANGED")
+    if box then Write("skinlevels-target-strong", "Skinning levels, an unknown creature far above you", "Skinning levels",
+        { around = box, pad = 16 }) end
+    UnitExists, UNIT_LEVELS, UNIT_GUIDS = realExists, nil, nil
+    FireEvent("PLAYER_TARGET_CHANGED")
+end
 
 -----------------------------------------------------------------------------
 -- 3. The whole screen at several sizes and UI scales
