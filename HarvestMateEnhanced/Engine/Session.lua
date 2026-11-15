@@ -300,6 +300,8 @@ function S.Rates()
     local c = cur.counts
     return {
         secs = cur.farm, farmSecs = cur.farm, travelSecs = cur.travel, combatSecs = cur.combat,
+        totalSecs = math.max(cur.farm + cur.travel + cur.idle, Now() - (cur.clockStart or Now())),
+        lastActivityAgo = Now() - (cur.lastActivity or Now()),
         gatherSecs = cur.gather, idleSecs = cur.idle,
         waitSecs = math.max(0, cur.farm - cur.combat - cur.gather),
         value = cur.value, gph = cur.value / h, tripGph = cur.value / math.max(trip, 1 / 3600),

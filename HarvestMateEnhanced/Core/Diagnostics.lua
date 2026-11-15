@@ -117,6 +117,12 @@ function D.Lines()
         Add("Session: %s farming, %s travel, %d nodes, %d skins, %d kills, %d catches, %d skill-ups%s", U.Duration(r.farmSecs),
             U.Duration(r.travelSecs), r.nodes, r.skins, r.kills, r.catches, r.skillups, r.paused and (" (paused: " .. tostring(r.paused) .. ")") or "")
     end
+    -- Skin detection: HME's own count against HarvestMate's skinning loot.
+    local det = HME.Learning.detect
+    if det then
+        Add("Skin detection: %d skins counted (%d by the backstop), HarvestMate saw %d skinning loots", det.skins + det.backstop,
+            det.backstop, det.gatherSkins)
+    end
     -- Loot decisions (creature IDs only)
     local recent = HME.Learning.recent or {}
     if #recent > 0 then

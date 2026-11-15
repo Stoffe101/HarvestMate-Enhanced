@@ -145,3 +145,35 @@ check(again, "the area is still listed")
 eq(again.evidence.level, "measured", "measured sessions")
 check(again.metrics.range.high / again.metrics.range.low < r.metrics.range.high / r.metrics.range.low, "narrower once measured")
 near(again.metrics.range.mid, 32500, 9000, "centred near what you earned")
+
+STEP("WoW Forever's own Skinning spell ID still counts skins (first real-client session)")
+-- In the client, Skinning's cast had an ID none of the classic ranks have:
+-- HME counted no skins for 43 farming minutes while Gatherpedia counted leather.
+HME.db.obs.skins = {}
+local realName = C_Spell.GetSpellName
+C_Spell.GetSpellName = function(id) if id == 8613 or id == 1239001 then return "Skinning" end return nil end
+HME.Session.Start()
+local before = HME.Session.Rates().skins
+FireEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "cast", 1239001)
+LOOT_SOURCE = "Creature-0-1-2-3-1126-00F0F0F0"
+LOOT = { { id = 2318, qty = 1 } }
+FireEvent("LOOT_OPENED")
+eq(HME.db.obs.skins[1126] and HME.db.obs.skins[1126].n, 1, "a cast with Skinning's name is a skin")
+eq(HME.Session.Rates().skins, before + 1, "the session counts it")
+check(HME.Learning.SKIN_SPELLS[1239001], "the new ID is remembered")
+-- Backstop: HarvestMate saw skinning loot and nothing was counted here.
+local n = HME.Session.Rates().skins
+RunTimers(10)
+HME.Signal("GATHER_LOOT", "skin", nil, { [2318] = 1 })
+RunTimers(1)
+eq(HME.Session.Rates().skins, n + 1, "HarvestMate's skinning loot counts once when HME missed it")
+-- ...but never twice when HME did count it.
+RunTimers(10)
+FireEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "cast", 1239001)
+LOOT_SOURCE = "Creature-0-1-2-3-1126-00F0F0F1"
+FireEvent("LOOT_OPENED")
+HME.Signal("GATHER_LOOT", "skin", nil, { [2318] = 1 })
+RunTimers(1)
+eq(HME.Session.Rates().skins, n + 2, "no double count")
+C_Spell.GetSpellName = realName
+HME.Session.Stop("test")

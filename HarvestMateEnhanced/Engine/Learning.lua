@@ -211,14 +211,57 @@ local skinCastAt = -100
 local fishCastAt = -100
 local SKIN_SPELLS = { [8613] = true, [8617] = true, [8618] = true, [10768] = true }
 local FISH_SPELLS = { [7620] = true, [7731] = true, [7732] = true, [18248] = true }
+L.SKIN_SPELLS, L.FISH_SPELLS = SKIN_SPELLS, FISH_SPELLS
+
+-- WoW Forever's Skinning cast has a spell ID of its own: the first real-client
+-- session counted no skins at all (Gatherpedia's leather counts went up, HME's
+-- skin log stayed empty). A cast is a skin when its spell has Skinning's name;
+-- the ID is then remembered. Same for Fishing.
+local spellName = {}
+local function SpellName(id)
+    -- Only names are kept: spell data can arrive late, so a miss is asked again.
+    if not spellName[id] then
+        local name
+        if C_Spell and C_Spell.GetSpellName then
+            local ok, n = pcall(C_Spell.GetSpellName, id)
+            name = ok and Str(n) or nil
+        elseif GetSpellInfo then
+            local ok, n = pcall(GetSpellInfo, id)
+            name = ok and Str(n) or nil
+        end
+        spellName[id] = name
+    end
+    return spellName[id]
+end
+local function SameName(set, spellID)
+    local name = SpellName(spellID)
+    if not name then return false end
+    for known in pairs(set) do
+        if SpellName(known) == name then
+            set[spellID] = true
+            return true
+        end
+    end
+    return false
+end
+function L.IsSkinSpell(spellID) return SKIN_SPELLS[spellID] or SameName(SKIN_SPELLS, spellID) end
+function L.IsFishSpell(spellID) return FISH_SPELLS[spellID] or SameName(FISH_SPELLS, spellID) end
+
+L.detect = { skins = 0, backstop = 0, gatherSkins = 0 }   -- for /hme diag
 
 HME.On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
     if unit ~= "player" then return end
     spellID = Num(spellID)
     if not spellID then return end
-    if SKIN_SPELLS[spellID] then skinCastAt = HME.Now() end
-    if FISH_SPELLS[spellID] then fishCastAt = HME.Now() end
+    if L.IsSkinSpell(spellID) then skinCastAt = HME.Now() end
+    if L.IsFishSpell(spellID) then fishCastAt = HME.Now() end
 end, "player")
+
+-- HarvestMate's cast tracker knows a skinning cast by its own rules (and
+-- learns new spell IDs). Its start counts as a skin cast too.
+HME.Listen("GATHER_START", function(prof)
+    if prof == "skin" then skinCastAt = HME.Now() end
+end)
 
 local moneyAtOpen
 local lootSource
@@ -292,6 +335,8 @@ local function OnLoot()
             rec.items[id] = (rec.items[id] or 0) + 1
         end
         HME.db.obs.mobs[npcID] = true
+        L.detect.skins = L.detect.skins + 1
+        L.lastSkinAt = now
         HME.Signal("BEAST_SKINNED", npcID, items, g)
     else
         Note("loot", npcID, items, guid and "corpse" or "no source")
@@ -403,6 +448,22 @@ local function Count(items)
     end
 end
 HME.Listen("GATHER_LOOT", function(_, _, counts) Count(counts) end)
+
+-- Backstop: HarvestMate saw skinning loot, but no skin was counted here
+-- (an unknown cast, or a loot window without a named source). Counted once,
+-- without a creature, so the session and goals still see it.
+HME.Listen("GATHER_LOOT", function(prof, _, counts)
+    if prof ~= "skin" then return end
+    L.detect.gatherSkins = L.detect.gatherSkins + 1
+    local at = HME.Now()
+    HME.Soon("skin-backstop" .. at, 0.5, function()
+        if (L.lastSkinAt or -100) >= at - 3 then return end
+        L.detect.backstop = L.detect.backstop + 1
+        L.lastSkinAt = HME.Now()
+        Note("skin", nil, counts, "HarvestMate's skinning loot (no creature named)")
+        HME.Signal("BEAST_SKINNED", nil, counts or {}, nil)
+    end)
+end)
 HME.Listen("BEAST_SKINNED", function(_, items) Count(items) end)
 HME.Listen("FISH_CAUGHT", function(items) Count(items) end)
 
