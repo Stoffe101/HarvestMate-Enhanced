@@ -125,16 +125,45 @@ function ST.Elsewhere(fromMap, skill, safe, n)
     return out
 end
 
--- Your target: { level, color, req, why } or nil when there is nothing to say.
+-- Your target: { level, color, req, why, name, fight, known } or nil when
+-- there is nothing to say. Three different questions, kept apart:
+--   color/req  can this level be skinned at your skill, and is it a point
+--              (the game's colours; a guide, not a promise per skin);
+--   fight      can you reasonably kill it: its level against yours, elite;
+--   known      is this creature skinnable at all: you skinned it ("you"),
+--              the bundled beast list has it ("data"), or neither ("unknown":
+--              plenty of beasts give no skin, and level alone never says).
 function ST.Target(skill)
     if not (UnitExists and UnitExists("target")) then return nil end
     if UnitIsPlayer and UnitIsPlayer("target") then return nil end
     local level = HME.Num(UnitLevel and UnitLevel("target"))
     if not level then return nil end
-    if level < 1 then return { level = "??", color = "red", why = "far above you" } end
+    local name = UnitName and HME.Str((UnitName("target"))) or nil
+    local npc
+    if UnitGUID and HME.Learning and HME.Learning.NpcIDFromGUID then
+        local ok, guid = pcall(UnitGUID, "target")
+        npc = ok and HME.Learning.NpcIDFromGUID(guid) or nil
+    end
+    local known = "unknown"
+    local rec = npc and HME.db and HME.db.obs and HME.db.obs.skins and HME.db.obs.skins[npc]
+    if rec and (rec.n or 0) > 0 then known = "you"
+    elseif npc and HME.Learning.Npc and HME.Learning.Npc(npc) then known = "data" end
+    local classif = UnitClassification and HME.Str(UnitClassification("target")) or nil
+    local elite = classif == "elite" or classif == "rareelite" or classif == "worldboss"
+    if level < 1 then
+        return { level = "??", color = "red", why = "far above you", name = name, fight = "no", known = known, skins = rec and rec.n }
+    end
     local req = SM.SkinReq(level)
-    return { level = level, color = SM.Color(skill, req), req = req }
+    local mine = HME.Player.Level and HME.Player.Level() or level
+    local diff = level - mine
+    local fight = (elite and diff > -6) and "elite" or (diff >= 5 and "no" or (diff >= 3 and "risky" or "yes"))
+    return { level = level, color = SM.Color(skill, req), req = req, name = name, fight = fight, known = known,
+        skins = rec and rec.n, elite = elite }
 end
+ST.FIGHT_SAYS = { yes = "you can fight it", risky = "risky: a few levels above you", no = "too strong for you",
+    elite = "elite: bring help" }
+ST.KNOWN_SAYS = { you = "skinnable: you skinned it", data = "skinnable: in the beast list",
+    unknown = "not in the beast list: may give no skin" }
 
 local function Paint(color, text) return "|cff" .. (SM.HEX[color] or "ffffff") .. text .. "|r" end
 local function Range(b) return b[1] == b[2] and tostring(b[1]) or (b[1] .. "-" .. b[2]) end
@@ -149,7 +178,7 @@ function ST.Lines()
     local safe = ST.SafeLevel(profile)
     local lines = {}
     local function add(s) lines[#lines + 1] = s end
-    add(("|cffedf0f2Skinning %d|r |cff78808c/ %d|r"):format(skill, max or 0))
+    add(("|cfff2f0e6Skinning %d|r |cff999b8f/ %d|r"):format(skill, max or 0))
     local shown = 0
     for _, c in ipairs({ "orange", "yellow", "green" }) do
         local b = bands[c] and Cut(bands[c], safe)
@@ -162,9 +191,9 @@ function ST.Lines()
         add(Paint("grey", "Nothing you can fight gives a point now: train, or level up."))
     end
     if bands.orange and bands.orange[2] > safe then
-        add(("|cff78808cOrange goes up to %d; above %d is too high for you now.|r"):format(bands.orange[2], safe))
+        add(("|cff999b8fOrange goes up to %d; above %d is too high for you now.|r"):format(bands.orange[2], safe))
     end
-    if bands.greyTo then add(("|cff78808cLevel %d and below: no points.|r"):format(bands.greyTo)) end
+    if bands.greyTo then add(("|cff999b8fLevel %d and below: no points.|r"):format(bands.greyTo)) end
     local nextLevel, req, away = ST.Next(skill)
     if nextLevel then
         if max and req > max then
@@ -177,7 +206,7 @@ function ST.Lines()
     local here = ST.ZoneBeasts(zone, skill, safe)
     local zoneName = (zone and HME.ZoneData.Name(zone)) or "this zone"
     if #here == 0 then
-        add(("|cff78808c%s: no beast in those levels in the bundled data.|r"):format(zoneName))
+        add(("|cff999b8f%s: no beast in those levels in the bundled data.|r"):format(zoneName))
         for _, z in ipairs(ST.Elsewhere(zone, skill, safe)) do
             local e = z.best
             add(("Closest: %s, %s (about %s)"):format(z.name,
@@ -237,7 +266,8 @@ end
 local function Build()
     f = CreateFrame("Frame", "HarvestMateEnhancedSkinLevels", UIParent)
     f:SetSize(W, 120)
-    f:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -220, -320)
+    -- Beside the farming HUD by default (0.3.0 put it under the HUD's box).
+    f:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -500, -190)
     f:SetFrameStrata("MEDIUM")
     f:SetClampedToScreen(true)
     f:SetMovable(true)
@@ -249,10 +279,10 @@ local function Build()
     f.head:SetPoint("TOPLEFT", 0, -2)
     f.head:SetPoint("TOPRIGHT", 0, -2)
     f.head:SetHeight(18)
-    T.HeaderStrip(f.head, "SKINNING")
+    T.HeaderStrip(f.head, "Skinning")
     f.head.logo:SetTexture("Interface\\Icons\\INV_Misc_Pelt_Wolf_01")
     f.head.logo:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    f.close = T.FlatButton(f.head, "×", 18, 18, "ghost")
+    f.close = T.FlatButton(f.head, "×", 22, 20, "ghost")
     f.close:SetPoint("RIGHT", -4, 0)
     f.close:SetScript("OnClick", function() ST.Toggle(false) end)
     T.Tooltip(f.close, "Hide", "Open it again from the Dashboard's Skinning card, the Skinning leveling guide, "
@@ -263,14 +293,14 @@ local function Build()
 
     -- Two big numbers: the highest level you can skin, and the levels to kill.
     local half = (W - 20) / 2
-    f.maxLabel = T.Text(f, "MAX LEVEL", "label", nil, 9)
+    f.maxLabel = T.Text(f, "Highest level", "label", nil, 11)
     f.max = T.Text(f, "", "display", nil, 26)
     f.max:SetWordWrap(false)
-    f.maxSay = T.Text(f, "you can skin", "meta", nil, 10)
-    f.killLabel = T.Text(f, "BEST LEVELS", "label", nil, 9)
+    f.maxSay = T.Text(f, "you can skin", "meta", nil, 11)
+    f.killLabel = T.Text(f, "Best levels", "label", nil, 11)
     f.kill = T.Text(f, "", "display", nil, 26)
     f.kill:SetWordWrap(false)
-    f.killSay = T.Text(f, "", "meta", nil, 10)
+    f.killSay = T.Text(f, "", "meta", nil, 11)
     f.killSay:SetWidth(half - 4)
     f.killSay:SetWordWrap(false)
     f.half = half
@@ -288,8 +318,8 @@ local function Build()
         c:SetHeight(8)
         f.cells[i] = c
     end
-    f.stripLo = T.Text(f, "", "meta", nil, 9)
-    f.stripHi = T.Text(f, "", "meta", nil, 9)
+    f.stripLo = T.Text(f, "", "meta", nil, 11)
+    f.stripHi = T.Text(f, "", "meta", nil, 11)
     f.stripHi:SetJustifyH("RIGHT")
 
     f.next = T.Text(f, "", "small")
@@ -301,7 +331,7 @@ local function Build()
     f.divider = f:CreateTexture(nil, "BORDER")
     f.divider:SetHeight(1)
     f.divider:SetColorTexture(unpack(T.C.line))
-    f.zone = T.Text(f, "", "label", nil, 9)
+    f.zone = T.Text(f, "", "label", nil, 11)
     f.zone:SetWidth(W - 20)
     f.zone:SetWordWrap(false)
     f.places = T.Text(f, "", "small")
@@ -310,6 +340,9 @@ local function Build()
     f.target = T.Text(f, "", "small")
     f.target:SetWidth(W - 20)
     f.target:SetWordWrap(false)
+    f.target2 = T.Text(f, "", "meta")
+    f.target2:SetWidth(W - 20)
+    f.target2:SetWordWrap(true)
 
     f:SetScript("OnDragStart", function(self)
         if not (HME.settings and HME.settings.hudLocked) then self:StartMoving() end
@@ -338,7 +371,7 @@ function ST.Shown() return f ~= nil and f:IsShown() end
 function ST.Text()
     if not (f and f:IsShown()) then return "" end
     local parts = {}
-    for _, fs in ipairs({ f.skill, f.maxLabel, f.max, f.maxSay, f.killLabel, f.kill, f.killSay, f.alt, f.cap, f.stripLo, f.stripHi, f.next, f.zone, f.places, f.target }) do
+    for _, fs in ipairs({ f.skill, f.maxLabel, f.max, f.maxSay, f.killLabel, f.kill, f.killSay, f.alt, f.cap, f.stripLo, f.stripHi, f.next, f.zone, f.places, f.target, f.target2 }) do
         if fs:IsShown() and (fs:GetText() or "") ~= "" then parts[#parts + 1] = fs:GetText() end
     end
     return table.concat(parts, "\n")
@@ -358,13 +391,13 @@ function ST.Update()
     end
     if not f then Build() end
     local y = -28
-    f.skill:SetText(("%d |cff78808c/ %d|r"):format(m.skill, m.max or 0))
+    f.skill:SetText(("%d |cff999b8f/ %d|r"):format(m.skill, m.max or 0))
 
     -- The highest level you can skin, and what to kill
     local col2 = 10 + f.half
     Place(f.maxLabel, y)
     Place(f.killLabel, y, col2)
-    y = y - 13
+    y = y - 16
     f.max:SetText(tostring(m.bands.maxLevel))
     f.max:SetTextColor(T.C.text[1], T.C.text[2], T.C.text[3])
     Place(f.max, y)
@@ -464,10 +497,10 @@ function ST.Update()
     local lines = {}
     local function Name(e) return Paint(e.color, ("%s %s"):format(e.name, e.min == e.max and e.min or (e.min .. "-" .. e.max))) end
     if #m.here > 0 then
-        f.zone:SetText(m.zoneName:upper())
+        f.zone:SetText(m.zoneName)
         for i = 1, math.min(ST.ZONE_BEASTS, #m.here) do lines[#lines + 1] = Name(m.here[i]) end
     else
-        f.zone:SetText((m.zoneName .. ": none in range · closest"):upper())
+        f.zone:SetText(m.zoneName .. ": none in range, the closest")
         for _, z in ipairs(m.elsewhere or {}) do
             lines[#lines + 1] = ("%s  %s"):format(z.name, K_Paint("· " .. HME.U.Duration(z.secs), T.HEX.text3))
             lines[#lines + 1] = "   " .. Name(z.best)
@@ -483,12 +516,20 @@ function ST.Update()
     -- Your target
     local t = m.target
     f.target:SetShown(t ~= nil)
+    f.target2:SetShown(t ~= nil)
     if t then
         local say = t.why or (t.color == "red" and ("needs %d Skinning"):format(t.req)) or (t.color == "grey" and "no points")
             or ST.SAYS[t.color] or ""
-        f.target:SetText(("Target  %s  %s"):format(Paint(t.color, "level " .. t.level), K_Paint(say, T.HEX.text2)))
+        f.target:SetText(("%s  %s  %s"):format(Paint(t.color, t.name or "Target"), K_Paint("level " .. t.level, T.HEX.text2),
+            K_Paint(say, T.HEX.text2)))
         Place(f.target, y)
-        y = y - 16
+        y = y - 17
+        local fightHex = (t.fight == "yes") and T.HEX.text3 or T.HEX.warning
+        local knownHex = (t.known == "unknown") and T.HEX.warning or T.HEX.text3
+        f.target2:SetText(K_Paint(ST.FIGHT_SAYS[t.fight or "yes"] or "", fightHex) .. "  ·  "
+            .. K_Paint(ST.KNOWN_SAYS[t.known or "unknown"] or "", knownHex))
+        Place(f.target2, y)
+        y = y - (f.target2:GetStringHeight() or 14) - 4
     end
     f:SetHeight(-y + 6)
     f:Show()

@@ -8,13 +8,20 @@
 local _, ns = ...
 local HME = ns.HME
 local T = ns.Theme
+local C = T.C
 local K = HME.Kit
 
 local PAGE_W = 738
 
 HME.Pages.guides = function(body, page)
     local ui = HME.char.ui
-    ui.guideProf = ui.guideProf or "Herbalism"
+    -- Open on a profession this character has (0.3.0 always began at Herbalism).
+    if not ui.guideProf or not HME.Player.Professions()[ui.guideProf] then
+        for _, p in ipairs(K.PROFS) do
+            if HME.Player.Professions()[p] then ui.guideProf = p break end
+        end
+        ui.guideProf = ui.guideProf or "Herbalism"
+    end
     local bracketKey
 
     local profs = K.Segments(body, K.PROFS, {}, function() return ui.guideProf end, function(k)
@@ -43,13 +50,34 @@ HME.Pages.guides = function(body, page)
         "A small live display of the highest beast level you can skin and the levels that give points.", "primary")
     status.levels:SetPoint("LEFT", status.trainers, "RIGHT", 8, 0)
 
-    -- Range buttons (one per guide bracket)
+    -- The journey, 1 to 300: one button per guide bracket, and under them a
+    -- track filled to your skill, with a marker where you are and ticks where
+    -- you must train.
     local ranges = CreateFrame("Frame", nil, body)
     ranges:SetPoint("TOPLEFT", 0, -130)
-    ranges:SetSize(PAGE_W, 22)
+    ranges:SetSize(PAGE_W, 40)
     ranges.buttons = {}
+    ranges.track = K.Bar(ranges, PAGE_W, 6)
+    ranges.track.text:Hide()
+    ranges.track:SetPoint("BOTTOMLEFT", 0, 2)
+    ranges.ticks = {}
+    for i, rank in ipairs(HME.Player.RANKS) do
+        if rank.from > 0 then
+            local t = ranges:CreateTexture(nil, "OVERLAY")
+            t:SetSize(2, 12)
+            t:SetPoint("BOTTOMLEFT", PAGE_W * rank.from / 300, -1)
+            t:SetColorTexture(C.brass[1], C.brass[2], C.brass[3], 0.9)
+            ranges.ticks[i] = t
+        end
+    end
+    ranges.you = ranges:CreateTexture(nil, "OVERLAY", nil, 2)
+    ranges.you:SetSize(12, 12)
+    ranges.you:SetTexture(T.ART .. "Pip")
+    ranges.you:SetVertexColor(1, 1, 1, 1)
+    T.Tooltip(ranges, "Your journey", "The bar is 1 to 300; brass ticks are where you train the next rank (50, 125, "
+        .. "200). Click a range for its guide.")
 
-    local guide = T.Card(body, "Guide", 0, -160, PAGE_W, 354)
+    local guide = T.Card(body, "Guide", 0, -178, PAGE_W, 336)
     local scroll = T.ScrollArea(guide, 300)
     scroll:ClearAllPoints()
     scroll:SetPoint("TOPLEFT", 12, -28)
@@ -101,36 +129,50 @@ HME.Pages.guides = function(body, page)
         -- Brackets
         local brackets = ns.Guides and ns.Guides:Brackets(prof) or {}
         if not bracketKey then bracketKey = st.bracketKey or (brackets[1] and brackets[1].key) end
-        local bw = math.floor(PAGE_W / math.max(1, #brackets))
+        -- Widths follow each bracket's share of 1-300 (at least room for its label).
+        local raw, sum = {}, 0
         for i, b in ipairs(brackets) do
+            raw[i] = math.max(70, PAGE_W * ((b.max or 0) - (b.min or 0)) / 300)
+            sum = sum + raw[i]
+        end
+        local x = 0
+        for i, b in ipairs(brackets) do
+            local bw = raw[i] * PAGE_W / math.max(1, sum)
             local btn = ranges.buttons[i]
             if not btn then
-                btn = K.Button(ranges, "", bw - 4, 22)
+                btn = K.Button(ranges, "", bw - 4, 26)
+                btn.autoFit = false
                 ranges.buttons[i] = btn
             end
             btn:SetWidth(bw - 4)
             btn:ClearAllPoints()
-            btn:SetPoint("LEFT", (i - 1) * bw, 0)
-            btn:SetText(b.key)
+            btn:SetPoint("TOPLEFT", x, 0)
+            x = x + bw
+            btn:SetText((b.key:gsub("%-", "–")))
             btn:SetScript("OnClick", function() bracketKey = b.key; page.Refresh() end)
             btn:SetKind(b.key == bracketKey and "primary" or "secondary")
             btn:Show()
         end
         for i = #brackets + 1, #ranges.buttons do ranges.buttons[i]:Hide() end
+        local skill = st.skill or 0
+        ranges.track:Set(skill, 300, K.PROF_COLOR[prof] or C.accent, "", 300)
+        ranges.you:ClearAllPoints()
+        ranges.you:SetPoint("CENTER", ranges.track, "LEFT", PAGE_W * math.min(300, skill) / 300, 0)
+        ranges.you:SetShown(not st.missing)
         local bracket = ns.Guides and bracketKey and ns.Guides:Bracket(prof, bracketKey)
         local lines = {}
         if bracket then
             local mine = st.skill and st.skill >= bracket.min and st.skill < bracket.max
-            lines[#lines + 1] = ("|cffedf0f2%s|r   |cff78808cskill %d-%d%s|r"):format(bracket.title or "", bracket.min, bracket.max,
+            lines[#lines + 1] = ("|cfff2f0e6%s|r   |cff999b8fskill %d-%d%s|r"):format(bracket.title or "", bracket.min, bracket.max,
                 mine and "  ·  you are here" or "")
             if bracket.short then lines[#lines + 1] = bracket.short end
             lines[#lines + 1] = ""
-            if bracket.catches then lines[#lines + 1] = "|cff78808cWhat you'll find|r  " .. bracket.catches end
-            if bracket.train then lines[#lines + 1] = "|cff78808cTraining|r  " .. bracket.train end
-            if bracket.gear then lines[#lines + 1] = "|cff78808cGear|r  " .. bracket.gear end
-            if bracket.tips then lines[#lines + 1] = "|cff78808cTips|r  " .. bracket.tips end
+            if bracket.catches then lines[#lines + 1] = "|cff999b8fWhat you'll find|r  " .. bracket.catches end
+            if bracket.train then lines[#lines + 1] = "|cff999b8fTraining|r  " .. bracket.train end
+            if bracket.gear then lines[#lines + 1] = "|cff999b8fGear|r  " .. bracket.gear end
+            if bracket.tips then lines[#lines + 1] = "|cff999b8fTips|r  " .. bracket.tips end
             lines[#lines + 1] = ""
-            lines[#lines + 1] = "|cff78808cWhere to go|r (" .. HME.Player.Faction() .. ")"
+            lines[#lines + 1] = "|cff999b8fWhere to go|r (" .. HME.Player.Faction() .. ")"
         elseif ns.Guides then
             lines[#lines + 1] = ns.Guides:Intro(prof) or ""
         end
@@ -142,7 +184,7 @@ HME.Pages.guides = function(body, page)
             r:ClearAllPoints()
             r:SetPoint("TOPLEFT", 0, y)
             local hasRoute = ns.Guides:HasRoute(spot)
-            r.text:SetText(("%s  |cff78808c%s%s|r"):format(spot.label or spot.zone or "?", spot.zone or "",
+            r.text:SetText(("%s  |cff999b8f%s%s|r"):format(spot.label or spot.zone or "?", spot.zone or "",
                 hasRoute and "  ·  recorded route" or ""))
             r.go.spot, r.nav.spot = spot, spot
             r.go:SetShown(hasRoute)

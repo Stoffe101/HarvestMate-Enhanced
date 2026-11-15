@@ -96,7 +96,7 @@ HME.Pages.setup = function(body, page)
     function page.Refresh()
         local lines = {}
         for _, f in ipairs(HME.SetupFindings()) do
-            lines[#lines + 1] = (f[1] and "|cff4fd68c✓|r " or "|cfff2c452•|r ") .. f[2]
+            lines[#lines + 1] = (f[1] and "|cff8fcc5c✓|r " or "|cfffacc5c•|r ") .. f[2]
         end
         find.text:SetText(table.concat(lines, "\n"))
         for _, w in ipairs({ nav, terrain, map, hud }) do w:Refresh() end

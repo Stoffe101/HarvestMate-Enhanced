@@ -1,8 +1,11 @@
 -- HarvestMate Enhanced: UI/HUD.lua
 -- The farming HUD: a small movable box while a session runs or a farm is
--- followed: gold an hour, skill-ups, counts, the next stop, pause/end.
--- Compact mode is one line. Hidden in combat if you like a clean screen
--- (it is never in the way of protected frames: it is a plain frame).
+-- followed. Three sizes (the chevron in its title row cycles them, as does
+-- Settings): compact shows what you gather, skill-ups, gold an hour and your
+-- goal; normal adds your materials and where the route is; detailed adds
+-- the prediction check, records and the time split. When nothing has been
+-- recognised for a while it says so instead of showing quiet zeros.
+-- A plain frame: never in the way of protected frames, and never acts.
 -- Copyright (C) 2026 HarvestMate Enhanced contributors. GPL-3.0-or-later.
 
 local _, ns = ...
@@ -18,46 +21,83 @@ local f
 local hidden = false
 
 local C = T.C
-local KPI_Y = -26
+local SIZES = { "compact", "normal", "detailed" }
+local WIDTH = { compact = 252, normal = 268, detailed = 300 }
+H.DEFAULT = { "TOPRIGHT", "TOPRIGHT", -220, -190 }
+
+-- What the session is mostly about: skins, nodes or catches.
+local function Main(r, g)
+    local prof = g and g.prof
+    if prof == "Skinning" or (r.skins or 0) > 0 or (r.kills or 0) > 0 then return "skins", r.skins or 0, "skin" end
+    if prof == "Fishing" or (r.catches or 0) > 0 then return "catches", r.catches or 0, "catch" end
+    if prof == "Herbalism" or prof == "Mining" or (r.nodes or 0) > 0 then return "nodes", r.nodes or 0, "node" end
+    if HME.Player.Professions().Skinning then return "skins", r.skins or 0, "skin" end
+    return "gathered", (r.nodes or 0) + (r.catches or 0), "gather"
+end
 
 local function Build()
     f = CreateFrame("Frame", "HarvestMateEnhancedHUD", UIParent)
-    f:SetSize(240, 80)
-    f:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -220, -220)
+    f:SetSize(WIDTH.normal, 90)
+    f:SetPoint(H.DEFAULT[1], UIParent, H.DEFAULT[2], H.DEFAULT[3], H.DEFAULT[4])
     f:SetFrameStrata("MEDIUM")
     f:SetClampedToScreen(true)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
     f.shadow = T.Shadow(f, 10)
-    T.Panel(f, 0.88)
+    T.Panel(f, 0.9)
     f.head = CreateFrame("Frame", nil, f)
-    f.head:SetPoint("TOPLEFT", 0, -2)
-    f.head:SetPoint("TOPRIGHT", 0, -2)
-    f.head:SetHeight(18)
-    T.HeaderStrip(f.head, "FARMING")
-    f.state = T.Text(f.head, "", "label")
-    f.state:SetPoint("RIGHT", -8, 0)
+    f.head:SetPoint("TOPLEFT", 0, -3)
+    f.head:SetPoint("TOPRIGHT", 0, -3)
+    f.head:SetHeight(22)
+    T.HeaderStrip(f.head, "Farming")
+    f.size = T.FlatButton(f.head, "", 22, 20, "ghost")
+    f.size:SetPoint("RIGHT", -3, 0)
+    f.size.arrow = T.MenuArrow(f.size, 5)
+    f.size:SetScript("OnClick", function()
+        local cur = (HME.settings.hudSize or "normal")
+        local nxt = "normal"
+        for i, k in ipairs(SIZES) do if k == cur then nxt = SIZES[i % #SIZES + 1] end end
+        HME.settings.hudSize = nxt
+        H.Update()
+    end)
+    T.Tooltip(f.size, "HUD size", "Compact, normal or detailed. Also in Settings.")
+    f.state = T.Text(f.head, "", "label", nil, 11)
+    f.state:SetPoint("RIGHT", f.size, "LEFT", -4, 0)
     f.state:SetJustifyH("RIGHT")
-    -- Three live numbers: gold an hour, skill-ups an hour, time.
+    -- Three live numbers.
     f.kpi = {}
-    for i, label in ipairs({ "GOLD / H", "SKILL / H", "FARMED" }) do
+    for i = 1, 3 do
         local col = CreateFrame("Frame", nil, f)
-        col:SetSize(70, 34)
-        col.value = T.Text(col, "", "strong", nil, 15)
+        col:SetSize(76, 40)
+        col.value = T.Text(col, "", "display", nil, 18)
         col.value:SetPoint("TOPLEFT", 0, 0)
+        col.value:SetPoint("RIGHT", 0, 0)
         col.value:SetWordWrap(false)
-        col.label = T.Text(col, label, "label", nil, 9)
-        col.label:SetPoint("TOPLEFT", 0, -19)
+        col.label = T.Text(col, "", "meta", nil, 11)
+        col.label:SetPoint("TOPLEFT", 0, -23)
+        col.label:SetPoint("RIGHT", 0, 0)
+        col.label:SetWordWrap(false)
         f.kpi[i] = col
     end
-    f.big = T.Text(f, "", "strong", C.text, 13)
-    f.big:SetPoint("TOPLEFT", 10, KPI_Y)
+    -- The first open goal: name, count and a thin bar.
+    f.goal = CreateFrame("Frame", nil, f)
+    f.goal:SetHeight(22)
+    f.goal.name = T.Text(f.goal, "", "small", C.text2)
+    f.goal.name:SetPoint("TOPLEFT", 0, 0)
+    f.goal.name:SetWordWrap(false)
+    f.goal.num = T.Text(f.goal, "", "small")
+    f.goal.num:SetPoint("TOPRIGHT", 0, 0)
+    f.goal.num:SetJustifyH("RIGHT")
+    f.goal.bar = K.Bar(f.goal, 200, 4)
+    f.goal.bar.text:Hide()
+    f.goal.bar:SetPoint("BOTTOMLEFT", 0, 0)
+    f.big = T.Text(f, "", "strong", C.text, 14)
+    f.big:SetPoint("TOPLEFT", 12, -32)
     f.big:SetWordWrap(false)
     f.text = T.Text(f, "", "small", C.text2)
-    f.text:SetPoint("TOPLEFT", 10, KPI_Y - 40)
-    f.text:SetWidth(220)
     f.text:SetWordWrap(true)
+    if f.text.SetSpacing then f.text:SetSpacing(2) end
     f:SetScript("OnDragStart", function(self)
         if not (HME.settings and HME.settings.hudLocked) then self:StartMoving() end
     end)
@@ -73,7 +113,8 @@ local function Build()
             HME.Session.Stop("manual")
         end
     end)
-    T.Tooltip(f, "Farming HUD", "Drag to move. Right-click: pause or resume. Middle-click: end the session. /hme hud hides it.")
+    T.Tooltip(f, "Farming HUD", "Drag to move (Settings can lock it). Right-click: pause or resume. Middle-click: end the "
+        .. "session. The chevron changes its size. /hme hud hides it.")
     local pos = HME.char and HME.char.ui.hud
     if type(pos) == "table" and pos[1] then
         f:ClearAllPoints()
@@ -89,8 +130,8 @@ local function Build()
     end)
 end
 
--- Sizes: "compact" one line; "normal" adds counts and the farm; "detailed"
--- adds goal progress, farming vs trip gold and the time split.
+function H.Frame() return f end
+
 function H.Update()
     local s = HME.settings
     local want = s and s.hud and not hidden and (HME.Session.Current() or HME.Guidance.Active())
@@ -102,79 +143,108 @@ function H.Update()
     local size = s.hudSize or (s.hudCompact and "compact") or "normal"
     local r = HME.Session.Rates()
     local g = HME.Guidance.Active()
-    local width = size == "detailed" and 300 or 240
-    local colW = (width - 20) / 3
+    local width = WIDTH[size] or WIDTH.normal
+    f:SetWidth(width)
+    local inner = width - 24
+    -- Title row: farming time and state.
+    local state
+    if r and r.paused then state = K.Paint("Paused", T.HEX.warning)
+    elseif r then state = U.Duration(r.farmSecs or 0) .. (g and K.Paint("  ·  guided", T.HEX.accent) or "")
+    elseif g then state = K.Paint("guided", T.HEX.accent) end
+    f.state:SetText(state or "")
+    local y = -30
+    local colW = inner / 3
     for i, col in ipairs(f.kpi) do
         col:ClearAllPoints()
-        col:SetPoint("TOPLEFT", 10 + (i - 1) * colW, KPI_Y)
-        col:SetWidth(colW - 4)
+        col:SetPoint("TOPLEFT", 12 + (i - 1) * colW, y)
+        col:SetWidth(colW - 6)
         col:SetShown(r ~= nil)
     end
     f.big:SetShown(r == nil)
+    local lines, warn = {}, nil
     if r then
-        f.kpi[1].value:SetText((r.gph or 0) > 0 and K.Money(r.gph) or "–")
-        f.kpi[1].value:SetTextColor(C.gold[1], C.gold[2], C.gold[3])
-        f.kpi[2].value:SetText(("%.0f"):format(r.sph or 0))
+        local label, n, noun = Main(r, g)
+        local per = (r.farmSecs or 0) >= 300 and n > 0 and (" · %s/h"):format(U.Thousands(n / math.max(1, r.farmSecs) * 3600)) or ""
+        f.kpi[1].value:SetText(U.Thousands(n))
+        f.kpi[1].value:SetTextColor(C.text[1], C.text[2], C.text[3])
+        f.kpi[1].label:SetText(label .. per)
+        f.kpi[2].value:SetText(tostring(r.skillups or 0))
         f.kpi[2].value:SetTextColor(C.accent[1], C.accent[2], C.accent[3])
-        f.kpi[3].value:SetText(U.Duration(r.farmSecs or r.secs or 0))
-        f.state:SetText(r.paused and K.Paint("PAUSED", T.HEX.warning) or (g and K.Paint("GUIDED", T.HEX.accent) or ""))
+        f.kpi[2].label:SetText("skill-ups" .. ((r.skillups or 0) > 0 and (" · %s/h"):format(U.Thousands(r.sph or 0)) or ""))
+        local gph = (r.gph or 0) > 0 and (r.farmSecs or 0) >= 300
+        f.kpi[3].value:SetText(gph and K.Money(r.gph, true) or "–")
+        T.FitText(f.kpi[3].value, colW - 6, "display", 18, 12)
+        f.kpi[3].value:SetTextColor(C.gold[1], C.gold[2], C.gold[3])
+        f.kpi[3].label:SetText("gold/h, est.")
+        y = y - 44
+        if n == 0 and (r.farmSecs or 0) >= 600 and not r.paused then
+            warn = K.Paint(("No %ss recognised in %s."):format(noun, U.Duration(r.farmSecs)), T.HEX.warning)
+                .. " /hme diag shows what HME saw."
+        end
     else
         f.big:SetText(g and g.name or "Session not started")
-        f.state:SetText(g and K.Paint("GUIDED", T.HEX.accent) or "")
+        y = y - 24
     end
-    local lines = {}
+    -- The first open goal, in every size.
+    local goal
+    for _, gl in ipairs(HME.Goals.List()) do
+        if not gl.doneAt then goal = gl break end
+    end
+    if goal then
+        local p = HME.Goals.Progress(goal)
+        f.goal:ClearAllPoints()
+        f.goal:SetPoint("TOPLEFT", 12, y)
+        f.goal:SetWidth(inner)
+        f.goal.name:SetWidth(inner - 70)
+        f.goal.name:SetText(goal.name or "Goal")
+        f.goal.num:SetText(goal.type == "value" and K.Money(p.have or 0, true) or ("%s/%s"):format(U.Thousands(p.have or 0), U.Thousands(p.target or 0)))
+        f.goal.bar:SetWidth(inner)
+        f.goal.bar:Set((p.fraction or 0) * 100, 100, C.accent, "", 100)
+        f.goal:Show()
+        y = y - 28
+    else
+        f.goal:Hide()
+    end
+    if warn then lines[#lines + 1] = warn end
     if size ~= "compact" then
-        if r then
-            lines[#lines + 1] = ("%d nodes  ·  %d skins  ·  %d catches"):format(r.nodes, r.skins, r.catches)
-        end
-        if g then lines[#lines + 1] = g.phaseText or "" end
-        local owner = HME.Guidance.ArrowOwner()
-        if g and owner then lines[#lines + 1] = "|cff78808cArrow: " .. owner .. "|r" end
-    end
-    if size ~= "compact" and r then
-        -- What you get, and against the prediction once there is enough to judge.
-        local live = HME.Session.Live()
+        local live = r and HME.Session.Live()
         if live then
-            local top = live.items[1]
-            if top then
-                local exp = top.expectedPerHour and (" vs %.0f expected"):format(top.expectedPerHour) or ""
-                lines[#lines + 1] = ("%s: %d (%.0f/h%s)"):format(top.name, top.n, top.perHour, exp)
+            for i = 1, math.min(size == "detailed" and 3 or 2, #live.items) do
+                local it = live.items[i]
+                local exp = it.expectedPerHour and K.Paint((" (expected %s)"):format(U.Thousands(it.expectedPerHour)), T.HEX.text3) or ""
+                lines[#lines + 1] = ("%s  %s  ·  %s/h%s"):format(it.name, K.Paint(U.Thousands(it.n), T.HEX.text),
+                    U.Thousands(it.perHour), exp)
             end
-            if live.skins > 0 or live.kills > 0 then
-                lines[#lines + 1] = ("%d kills · %d skins%s%s"):format(live.kills, live.skins,
-                    live.avgKill and (" · %.0f s a kill"):format(live.avgKill) or "",
+            if size == "detailed" and (live.skins > 0 or live.kills > 0) then
+                lines[#lines + 1] = ("%d kills%s%s"):format(live.kills, live.avgKill and (" · %.0f s a kill"):format(live.avgKill) or "",
                     live.betweenSkins and (" · a skin every %.0f s"):format(live.betweenSkins) or "")
             end
-            if size == "detailed" and live.verdict then lines[#lines + 1] = live.verdict.text end
-            local cmp = size == "detailed" and HME.Records.Compare()
-            if cmp then lines[#lines + 1] = cmp.text end
+        end
+        if g then
+            if g.mode ~= "free" and g.stops and g.stops > 0 and g.phase == "farm" then
+                lines[#lines + 1] = ("Route: stop %d of %d"):format(g.stop or 1, g.stops)
+            elseif g.phaseText then
+                lines[#lines + 1] = g.phaseText
+            end
+            local owner = HME.Guidance.ArrowOwner()
+            if owner then lines[#lines + 1] = K.Paint("Arrow: " .. owner, T.HEX.text3) end
         end
     end
-    if size == "detailed" then
-        if r then
-            lines[#lines + 1] = ("Trip incl. %s travel: %s/h  ·  combat %s, gathering %s, idle %s"):format(U.Duration(r.travelSecs),
-                K.Money(r.tripGph), U.Duration(r.combatSecs), U.Duration(r.gatherSecs), U.Duration(r.idleSecs))
-        end
-        for _, goal in ipairs(HME.Goals.List()) do
-            if not goal.doneAt then
-                local p = HME.Goals.Progress(goal)
-                lines[#lines + 1] = ("Goal %s: %d%%"):format(goal.name, p.fraction * 100)
-                break
-            end
-        end
-        for prof, v in pairs(HME.Player.Professions()) do
-            if g and g.prof == prof then lines[#lines + 1] = ("%s %d/%d"):format(prof, v.rank, v.max) end
-        end
+    if size == "detailed" and r then
+        local live = HME.Session.Live()
+        if live and live.verdict then lines[#lines + 1] = live.verdict.text end
+        local cmp = HME.Records.Compare()
+        if cmp then lines[#lines + 1] = cmp.text end
+        lines[#lines + 1] = K.Paint(("Trip with %s travel: %s/h · combat %s, gathering %s, idle %s"):format(U.Duration(r.travelSecs),
+            K.Money(r.tripGph, true), U.Duration(r.combatSecs), U.Duration(r.gatherSecs), U.Duration(r.idleSecs)), T.HEX.text3)
     end
     f.text:SetText(table.concat(lines, "\n"))
     f.text:SetShown(#lines > 0)
-    local top = r and 64 or 46
-    local h = top + (#lines > 0 and ((f.text:GetStringHeight() or 12) + 10) or 0)
     f.text:ClearAllPoints()
-    f.text:SetPoint("TOPLEFT", 10, -(top - 2))
-    f:SetHeight(size == "compact" and top or h)
-    f:SetWidth(width)
-    f.text:SetWidth(width - 20)
+    f.text:SetPoint("TOPLEFT", 12, y - 2)
+    f.text:SetWidth(inner)
+    local h = -y + 8 + (#lines > 0 and ((f.text:GetStringHeight() or 12) + 6) or 0)
+    f:SetHeight(h)
     f:Show()
 end
 
@@ -185,3 +255,4 @@ end
 
 HME.Listen("SESSION_CHANGED", function() H.Update() end)
 HME.Listen("GUIDANCE_CHANGED", function() H.Update() end)
+HME.Listen("GOALS_CHANGED", function() H.Update() end)

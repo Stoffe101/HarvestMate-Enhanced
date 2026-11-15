@@ -247,7 +247,7 @@ HME.Pages.stats = function(body, page)
                 local done = r.earned >= r.total
                 local value = type(r.value) == "number" and r.value or 0
                 items[#items + 1] = {
-                    (done and "|cff4fd68c" or "|cffedf0f2") .. (okN and name or "?") .. "|r  |cff78808c" .. (r.category or "") .. "|r",
+                    (done and "|cff8fcc5c" or "|cfff2f0e6") .. (okN and name or "?") .. "|r  |cff999b8f" .. (r.category or "") .. "|r",
                     okD and desc or "",
                     ("%d of %d tiers"):format(r.earned, r.total),
                     ("%s / %s"):format(math.floor(value), tostring(r.threshold or "")),

@@ -21,17 +21,21 @@ HME.Pages.trainers = function(body, page)
         page.Refresh()
     end, 100)
     seg:SetPoint("TOPLEFT", 0, 0)
-    local note = K.Label(body, "", { template = "GameFontDisableSmall", width = PAGE_W })
-    note:SetPoint("TOPLEFT", 0, -30)
+    local note = K.Label(body, "", { template = "small", color = T.C.text2, width = PAGE_W, wrap = false })
+    note:SetPoint("TOPLEFT", 2, -34)
 
     local list = K.List(body, {
-        width = PAGE_W, height = 460, rowHeight = 34, empty = "No trainers listed.",
+        width = PAGE_W, height = 456, rowHeight = 50, empty = "No trainers listed.",
         makeRow = function(row)
-            row.a = K.Label(row, "", { template = "GameFontHighlight", width = 300, wrap = false })
-            row.a:SetPoint("TOPLEFT", 8, -4)
-            row.b = K.Label(row, "", { template = "GameFontDisableSmall", width = 420, wrap = false })
-            row.b:SetPoint("TOPLEFT", 8, -19)
-            row.go = K.Button(row, "Navigate", 90, 20, function(self)
+            row.icon = row:CreateTexture(nil, "ARTWORK")
+            row.icon:SetSize(26, 26)
+            row.icon:SetPoint("LEFT", 12, 0)
+            row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            row.a = K.Label(row, "", { template = "strong", width = PAGE_W - 170, wrap = false })
+            row.a:SetPoint("TOPLEFT", 48, -8)
+            row.b = K.Label(row, "", { template = "small", color = T.C.text2, width = PAGE_W - 170, wrap = false })
+            row.b:SetPoint("TOPLEFT", 48, -27)
+            row.go = K.Button(row, "Navigate", 96, 26, function(self)
                 local e = self.entry
                 local mapID = e and ns.Zones and ns.Zones:MapID(e.zone)
                 if mapID and e.x then
@@ -39,18 +43,19 @@ HME.Pages.trainers = function(body, page)
                 else
                     HME.Print("no position is known for " .. tostring(e and e.name))
                 end
-            end)
-            row.go:SetPoint("RIGHT", -8, 0)
+            end, "Forever-GPS plans the trip when it is installed; otherwise HME's arrow points the way.")
+            row.go:SetPoint("RIGHT", -12, 0)
         end,
         fillRow = function(row, e)
             local Tr = ns.Trainers
-            row.a:SetText(("%s  |cff78808c%s %s|r"):format(e.name, e.prof or "", e.kind == "trainer" and (e.rank or "") or (e.kind or "")))
+            row.icon:SetTexture(K.PROF_ICON[e.prof or ""] or "Interface\\Icons\\INV_Misc_Book_11")
+            row.a:SetText(("%s  |cff999b8f%s %s|r"):format(e.name, e.prof or "", e.kind == "trainer" and (e.rank or "") or (e.kind or "")))
             row.b:SetText(Tr:WhereText(e) .. (e.x and ("  ·  " .. Tr:CoordsText(e)) or "") .. (e.note and ("  ·  " .. e.note) or ""))
             row.go.entry = e
             row.go:SetShown(e.x ~= nil)
         end,
     })
-    list:SetPoint("TOPLEFT", 0, -50)
+    list:SetPoint("TOPLEFT", 0, -56)
 
     HME.Pages.trainersSet = function(prof)
         ui.trainerProf = prof or "All"

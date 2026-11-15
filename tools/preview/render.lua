@@ -438,7 +438,10 @@ local function Frame(o, origin, out, alpha, depth)
         local offscreen = (rect.l < -1 or rect.b < -1 or rect.r > R.SCREEN_W + 1 or rect.t > R.SCREEN_H + 1) and o ~= UIParent
             and Parent(o) == UIParent
         if offscreen then R.WARN["off screen: a top-level frame reaches past the screen edge"] = true end
-        out[#out + 1] = ('<div class="%s" style="%s%s">'):format(cls, Box(rect, origin), clip)
+        -- Top-level frames are tagged: text in different ones may overlap (one
+        -- floats above the other), text in the same one may not.
+        local top = depth == 0 and (' data-top="%s"'):format(tostring(rawget(o, "__name") or o):gsub('"', "")) or ""
+        out[#out + 1] = ('<div class="%s"%s style="%s%s">'):format(cls, top, Box(rect, origin), clip)
     end
     table.sort(regions, function(x, y)
         local lx, ly = LAYER[rawget(x, "__layer") or "ARTWORK"] or 3, LAYER[rawget(y, "__layer") or "ARTWORK"] or 3
@@ -492,10 +495,11 @@ document.fonts.ready.then(function(){
     var r=t.getBoundingClientRect(); var txt=t.textContent.trim(); if(!txt||!visible(r))return;
     var box=t.parentElement; if(getComputedStyle(box).overflow==='hidden'){var q=box.getBoundingClientRect(); r={left:r.left,top:r.top,right:Math.min(r.right,q.right),bottom:r.bottom};}
     var c=clipOf(t); if(c){var l=Math.max(r.left,c.left),tp=Math.max(r.top,c.top),rr=Math.min(r.right,c.right),b=Math.min(r.bottom,c.bottom); if(rr-l<2||b-tp<2)return; r={left:l,top:tp,right:rr,bottom:b};}
-    items.push({el:t,r:r,txt:txt});
+    var tp=t.closest('[data-top]'); items.push({el:t,r:r,txt:txt,top:tp?tp.getAttribute('data-top'):''});
   });
   var bad=[];
   for(var i=0;i<items.length;i++)for(var j=i+1;j<items.length;j++){
+    if(items[i].top!==items[j].top)continue;
     var a=items[i].r,b=items[j].r; var w=Math.min(a.right,b.right)-Math.max(a.left,b.left), h=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
     if(w>2&&h>2){bad.push([items[i],items[j]]);items[i].el.classList.add('bad');items[j].el.classList.add('bad');}
   }
@@ -514,7 +518,7 @@ document.fonts.ready.then(function(){
     var r=t.getBoundingClientRect(); if(!visible(r)||!t.textContent.trim())return;
     var box=t.closest('.fs'); var cs=getComputedStyle(box); var px=parseFloat(cs.fontSize)*zoom();
     if(px<10.5) tiny.push(t.textContent.trim().slice(0,40)+' ('+px.toFixed(1)+'px)');
-    var m=cs.color.match(/[\d.]+/g); if(m){var L=(0.2126*m[0]+0.7152*m[1]+0.0722*m[2])/255; var a=m[3]!==undefined?+m[3]:1; var op=parseFloat(cs.opacity); if(L*a*op<0.30) dim.push(t.textContent.trim().slice(0,40));}
+    var m=cs.color.match(/[\d.]+/g); if(m){var L=(0.2126*m[0]+0.7152*m[1]+0.0722*m[2])/255; var a=m[3]!==undefined?+m[3]:1; var op=parseFloat(cs.opacity); if(L*a*op<0.30&&!t.closest('.btn')) dim.push(t.textContent.trim().slice(0,40));}
   });
   document.querySelectorAll('.btn').forEach(function(b){
     var r=b.getBoundingClientRect(); if(!visible(r))return;

@@ -32,7 +32,7 @@ local BASE = "Interface\\AddOns\\" .. tostring(ADDON) .. "\\"
 T.LOGO = BASE .. brand.logo
 T.ART = BASE .. "Media\\UI\\"
 -- Chat lines start with the logo and the addon's name in the accent colour
-T.CHAT_PREFIX = "|T" .. T.LOGO .. ":0|t |cff4fd68c" .. T.NAME .. "|r"
+T.CHAT_PREFIX = "|T" .. T.LOGO .. ":0|t |cff8fcc5c" .. T.NAME .. "|r"
 
 ---------------------------------------------------------------------------
 -- Tokens

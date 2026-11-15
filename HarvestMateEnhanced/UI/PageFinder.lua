@@ -199,7 +199,8 @@ HME.Pages.finder = function(body, page)
             row.sub:SetPoint("TOPLEFT", 30, -27)
             row.pips = K.Pips(row)
             row.pips:SetPoint("TOPLEFT", 30, -48)
-            row.sub2 = K.Label(row, "", { template = "meta", width = tw - 46, wrap = false })
+            -- The third line runs under the number column too.
+            row.sub2 = K.Label(row, "", { template = "meta", width = LIST_W - 30 - 46 - 22, wrap = false })
             row.sub2:SetPoint("LEFT", row.pips, "RIGHT", 6, 0)
             row.num = K.Label(row, "", { template = "display", size = 19, width = NUM_W, wrap = false, justify = "RIGHT" })
             row.num:SetPoint("TOPRIGHT", -12, -9)
@@ -209,15 +210,19 @@ HME.Pages.finder = function(body, page)
         fillRow = function(row, r)
             row.rank:SetText(r.rank)
             row.mark:SetShown(marked[r.key] ~= nil)
+            -- Zone and part of it; when both don't fit, the part goes under.
+            local tw = LIST_W - 30 - NUM_W - 22
             row.title:SetText(r.zone .. "  " .. K.Paint(r.subarea, T.HEX.text3))
-            row.sub:SetText(page.SubLine(r, row.sub, LIST_W - 30 - NUM_W - 22))
+            local partBelow = T.StringWidth(row.title) > tw
+            if partBelow then row.title:SetText(r.zone) end
+            row.sub:SetText(page.SubLine(r, row.sub, tw))
             local num, unit, color = page.Primary(r)
             row.num:SetText(num)
             T.FitText(row.num, NUM_W, "display", 19, 13)
             row.num:SetTextColor(color[1], color[2], color[3])
             row.unit:SetText(unit)
             row.pips:Set(page.ConfLevel(r), K.ConfHex(r.confidence and r.confidence.label))
-            row.sub2:SetText(page.RowFacts(r))
+            row.sub2:SetText((partBelow and (K.Paint(r.subarea or "", T.HEX.text3) .. "  ·  ") or "") .. page.RowFacts(r))
         end,
         onClick = function(r, _, button)
             if button == "RightButton" then
@@ -403,7 +408,7 @@ HME.Pages.finder = function(body, page)
     -- Under the name: risk and travel, in the risk's colour.
     function page.RowFacts(r)
         local risk = r.risk and K.Paint(r.risk.label or "?", r.risk.hex) or "?"
-        local travel = r.travel and (U.Duration(r.travel) .. " away") or "travel ?"
+        local travel = r.travel and U.Duration(r.travel) or "travel ?"
         local measured = r.evidence and r.evidence.level == "measured" and ("  ·  " .. K.Paint("measured", T.HEX.accent)) or ""
         return risk .. "  ·  " .. travel .. measured
     end
@@ -466,8 +471,8 @@ HME.Pages.finder = function(body, page)
     function page.BeastTitle(e)
         local hex = e.color and K.DIFF_HEX[e.color] or "ffffff"
         local lv = e.min == e.max and ("level %d"):format(e.min) or ("level %d-%d"):format(e.min, e.max)
-        local which = #beastIDs > 1 and ("|cff78808c%s:|r "):format(ItemName(e.itemID)) or ""
-        return ("%s|cff%s%s|r  |cff78808c%s|r"):format(which, hex, e.name or "?", lv)
+        local which = #beastIDs > 1 and ("|cff999b8f%s:|r "):format(ItemName(e.itemID)) or ""
+        return ("%s|cff%s%s|r  |cff999b8f%s|r"):format(which, hex, e.name or "?", lv)
     end
 
     function page.BeastSub(e)
@@ -781,11 +786,11 @@ HME.Pages.finder = function(body, page)
             elseif col.key == "loop" then s = U.Yards(v)
             else s = ("%.0f"):format(v) end
             local b = cmp.best[col.key]
-            if b and b.index == i then s = (b.sure and "|cff4fd68c" or "|cfff2c452") .. s .. "|r" end
+            if b and b.index == i then s = (b.sure and "|cff8fcc5c" or "|cfffacc5c") .. s .. "|r" end
             return s
         end
         for i, r in ipairs(rows) do
-            lines[#lines + 1] = ("|cffedf0f2%d. %s (%s)|r  %s, %s"):format(i, r.zone, r.subarea, r.confidence.label .. " confidence",
+            lines[#lines + 1] = ("|cfff2f0e6%d. %s (%s)|r  %s, %s"):format(i, r.zone, r.subarea, r.confidence.label .. " confidence",
                 r.evidence and r.evidence.level or "")
             for _, col in ipairs(HME.Recommend.COMPARE_COLUMNS) do
                 lines[#lines + 1] = ("    %s: %s"):format(col.label, cell(col, i, r))
@@ -795,7 +800,7 @@ HME.Pages.finder = function(body, page)
                 lines[#lines + 1] = ("    Your history: %.1f h, %s/h"):format(st.hours, K.Money((st.value or 0) / st.hours))
             end
         end
-        for _, n in ipairs(cmp.notes) do lines[#lines + 1] = "|cff78808c" .. n .. "|r" end
+        for _, n in ipairs(cmp.notes) do lines[#lines + 1] = "|cff999b8f" .. n .. "|r" end
         d.text:SetText(table.concat(lines, "\n"))
         scroll:SetContent(DW, (d.text:GetStringHeight() or 300) + 10)
     end

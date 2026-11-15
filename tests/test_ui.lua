@@ -266,7 +266,7 @@ check(box.skill:GetText():find("^125 "), "the skill, top right: " .. box.skill:G
 eq(box.kill:GetText(), "21-25", "orange levels first, large")
 check(text:find("or 18-20", 1, true), "then yellow: " .. text)
 check(text:find("Next: level 26 at 130 Skinning", 1, true) and text:find("(+5)", 1, true), "the next level")
-check(text:find("ARATHI HIGHLANDS: NONE IN RANGE", 1, true), "Arathi's beasts are all higher: " .. text)
+check(text:find("Arathi Highlands: none in range", 1, true), "Arathi's beasts are all higher: " .. text)
 check(text:find("Wetlands", 1, true), "so it names the closest zones that have them: " .. text)
 -- A skill-up that unlocks a level: the box moves on and chat says so.
 ClearLog()
@@ -284,6 +284,20 @@ check(ST.Text():find("level 27|r") and ST.Text():find("needs 135 Skinning", 1, t
 UNIT_LEVELS = { target = 24 }
 FireEvent("PLAYER_TARGET_CHANGED")
 check(ST.Text():find("level 24|r", 1, true) and ST.Text():find("a point every skin", 1, true), "orange target")
+-- Three questions kept apart: the level's colour, the fight, and whether this beast is skinnable at all.
+UNIT_GUIDS = { target = "Creature-0-1-2-3-1126-000000AB" }
+FireEvent("PLAYER_TARGET_CHANGED")
+local tt = ST.Target(HME.Player.Professions().Skinning.rank)
+eq(tt.known, HME.Learning.Npc(1126) and "data" or "unknown", "a beast in the bundled list is known skinnable")
+eq(tt.fight, "yes", "level 24 is no fight for level 40")
+UNIT_GUIDS = { target = "Creature-0-1-2-3-99999-000000AB" }
+UNIT_LEVELS = { target = 46 }
+FireEvent("PLAYER_TARGET_CHANGED")
+tt = ST.Target(HME.Player.Professions().Skinning.rank)
+eq(tt.known, "unknown", "a creature in no list is never called skinnable for its level alone")
+eq(tt.fight, "no", "six levels above you: too strong")
+check(ST.Text():find("may give no skin", 1, true) and ST.Text():find("too strong", 1, true), "both said: " .. ST.Text())
+UNIT_GUIDS = nil
 UnitExists = realExists
 UNIT_LEVELS = nil
 -- Too low to fight the orange levels: capped, and said.
