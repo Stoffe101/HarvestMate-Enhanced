@@ -121,6 +121,14 @@ check(_G.HarvestMateEnhancedSearch and _G.HarvestMateEnhancedSearch:IsShown(), "
 HME.Header.ShowBell(HME.Window.frame)
 check(_G.HarvestMateEnhancedNotices:IsShown(), "bell list shown")
 eq(N.Unread(), 0, "opening it marks read")
+local pop = _G.HarvestMateEnhancedNotices
+check(pop.close and pop.close:IsShown(), "a close button")
+Click(pop.close)
+check(not pop:IsShown(), "× closes it")
+Click(HME.Header.bell)
+check(pop:IsShown(), "the bell opens it")
+Click(HME.Header.bell)
+check(not pop:IsShown(), "the bell again closes it")
 
 STEP("slash: find, review, notices")
 ClearLog()

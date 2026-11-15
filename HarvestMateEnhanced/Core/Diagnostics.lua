@@ -167,6 +167,11 @@ function D.Lines()
         for _, k in ipairs(HME.MapOverlay.LAYERS) do if HME.MapOverlay.Layer(k) then on[#on + 1] = k end end
         Add("Map layers: %s; HUD Copilot line %s", #on > 0 and table.concat(on, ", ") or "none",
             HME.settings.hudCopilot and "on" or "off")
+        -- 0.7.1
+        local last = HME.Flights and HME.Flights.last
+        Add("Flights: automatic %s; last flight map: %s; node tooltips %s, %s", HME.settings.autoFlight and "on" or "off",
+            last and (last.node and "took one" or tostring(last.skipped or last.why)) or "not opened",
+            tostring(HME.settings.worldTooltipPlace), tostring(HME.settings.worldTooltipDetail))
     end
     -- Loot decisions (creature IDs only)
     local recent = HME.Learning.recent or {}

@@ -136,8 +136,11 @@ local function RefreshCurrent()
     local page = win.pages[win.currentTab]
     if page and page.Refresh then HME.Try(page.Refresh) end
 end
+-- (0.7.1: COPILOT_CHANGED too. The Dashboard's "Copilot suggests" card used to
+-- keep the old advice after a skill-up: the window redrew on PLAYER_CHANGED,
+-- before the Copilot had planned again, and never after.)
 for _, sig in ipairs({ "UI_REFRESH", "PLAYER_CHANGED", "SESSION_CHANGED", "ROUTES_CHANGED", "GUIDANCE_CHANGED",
-    "SETTINGS", "LEARNED" }) do
+    "SETTINGS", "LEARNED", "COPILOT_CHANGED" }) do
     HME.Listen(sig, function() HME.Soon("window-refresh", 0.2, RefreshCurrent) end)
 end
 

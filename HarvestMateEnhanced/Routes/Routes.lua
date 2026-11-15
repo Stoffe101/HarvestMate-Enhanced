@@ -871,7 +871,32 @@ end
 
 function GP:SetRouteShown(route, on)
     route.shown = on and true or false
+    -- (0.7.1) your own choice: HME no longer hides it when you stop following it
+    route.userShown = on and true or nil
     self:Changed()
+end
+
+-- A route HME made for you (a planned farm, a guide's route) that you did not
+-- show yourself: drawn only while you follow it (0.7.1).
+function GP:AutoShown(route)
+    return route and not route.userShown and not route.edited and (route.planned ~= nil or route.source == "Gatherpedia guide")
+end
+
+-- Once (0.7.1): planned and guide routes left drawn by earlier versions,
+-- except the one being followed, are hidden. Your own routes are untouched.
+function GP:HideLeftovers()
+    if self.db.leftoversHidden then return 0 end
+    self.db.leftoversHidden = true
+    local g = HME.Guidance and HME.Guidance.Active()
+    local n = 0
+    for _, r in ipairs(self.db.routes) do
+        if r.shown and self:AutoShown(r) and not (g and g.routeID == r.id) then
+            r.shown = false
+            n = n + 1
+        end
+    end
+    if n > 0 then self:Changed() end
+    return n
 end
 
 function GP:SetRouteColor(route, r, g, b)
@@ -1849,6 +1874,7 @@ HME.On("PLAYER_LOGIN", function()
     GP:SetupWorldMap()
     GP:SetupMinimap()
     GP:ListenToGatherMate()
+    if GP.db then HME.Try(function() GP:HideLeftovers() end) end
     if not (HME.Migrate and HME.Migrate.Loaded("GatherPathForever")) then
         SLASH_HMEGATHERPATH1 = "/gpf"
         SLASH_HMEGATHERPATH2 = "/gatherpath"

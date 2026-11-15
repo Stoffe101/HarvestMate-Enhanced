@@ -184,7 +184,10 @@ function P.Create(result, goal, done)
         sight = result.prof == "Skinning" and 0 or P.DETECT,
         planned = Describe(result, goal),
     })
-    if route then P.WhenBuilt(route, done) end
+    if route then
+        route.shown = false   -- (drawn when you follow it; 0.7.1)
+        P.WhenBuilt(route, done)
+    end
     return route
 end
 

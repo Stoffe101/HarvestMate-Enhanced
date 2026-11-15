@@ -153,3 +153,14 @@ Install Forever-GPS from the branch `feature/public-api` for 37-44 and 54-56 (RE
 116. [ ] **Session path.** Farm 10+ minutes, Stop farming: the review has Show the path; the map shows your path with "10 min" marks and a dot per skin.
 117. [ ] **HUD Copilot line.** Settings, Copilot on the HUD: one "Copilot: ..." line on the HUD; off again: the HUD is as before (0.5.0's layout).
 118. [ ] `/hme diag` has Danger map, Price history, Characters and Map layers lines with counts only.
+
+### 0.7.1
+119. [ ] **The corpse tooltip.** Kill and skin a beast with Soft Target Interact on: the tooltip over the corpse is short (name with your numbers, "N more to the next color") and in the bottom right corner, not the middle. Try Settings, Node and corpse tooltips: "Where the game puts it" and "Off".
+120. [ ] **Start farming → Forever-GPS.** Start a farm from the Copilot or the Farm Finder: Forever-GPS starts the journey within a second or two (before: several seconds).
+121. [ ] **Flights.** Settings, Take flights automatically, on. Start a farm in another zone with a flight on the way, walk to the flight master and talk to it: HME says "flying to ..." and you take off. If you get "Interface action failed because of an AddOn" instead, press the "Fly to ..." button on the flight map, and tell me.
+122. [ ] **Shift at the flight master**: nothing is taken; you choose.
+123. [ ] **Stopped routes leave the map**: follow a farm, Stop farming, follow another: only the new one is drawn on the world map and minimap.
+124. [ ] **The bell**: open the notifications, close them with ×, and with the bell again.
+125. [ ] **Copilot after a skill-up**: with the Dashboard open, skin until your skill crosses a multiple of 5: within a few seconds the "Copilot suggests" card is from the new skill (Herbalism and Mining too, if you have them).
+126. [ ] **The levels box** (`/hme sl`): the zone line with its beast levels, "Highest here:", and for a herbalist or miner "Herbs:" or "Ore:" with "next ... at N". Compact (the chevron): the zone in one line.
+127. [ ] Everything at your UI scale: the levels box and the notifications list inside the screen, nothing cut.

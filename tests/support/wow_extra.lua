@@ -135,7 +135,11 @@ function CreateVector2D(x, y) return { x = x, y = y, GetXY = function(self) retu
 C_NamePlate = { GetNamePlateForUnit = function() return nil end, GetNamePlates = function() return {} end }
 C_Spell = { GetSpellName = function() return nil end, GetSpellInfo = function() return nil end }
 C_GamePad = nil
-TooltipDataProcessor = { AddTooltipPostCall = function() end }
+POSTCALLS = {}
+TooltipDataProcessor = { AddTooltipPostCall = function(kind, fn)
+    POSTCALLS[kind] = POSTCALLS[kind] or {}
+    table.insert(POSTCALLS[kind], fn)
+end }
 Enum.TooltipDataType = { Unit = 2, Item = 0, Object = 8 }
 GameTooltip.AddLine = function() end
 GameTooltip.AddDoubleLine = function() end

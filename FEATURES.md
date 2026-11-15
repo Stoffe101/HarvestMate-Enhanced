@@ -95,6 +95,11 @@ Status key: **New** (HME), **Kept** (from upstream, unchanged in behaviour), **I
 - Session path on the map from the session review.
 - Optional Copilot line on the HUD.
 
+## Added in 0.7.1 (implemented; real-client validation pending)
+- Take flights automatically (Forever-GPS's planned flight, else the master nearest HME's destination), off by default.
+- The levels box: the zone, its highest skinnable beasts, the best herbs and ore for your skill.
+- Node and corpse tooltips: short and in the corner (settings for both).
+
 ## Partly implemented
 - Hunting styles: Guided, Adaptive and Free guidance plus the risk mode and material goal cover them; there is no separate "cluster" planner.
 - Heatmaps: density, your gathering and skill-up potential; no profitability heatmap.

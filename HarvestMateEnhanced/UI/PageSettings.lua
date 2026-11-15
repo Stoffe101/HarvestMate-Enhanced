@@ -200,6 +200,23 @@ HME.Pages.settings = function(body, page)
     Switch("Skinning levels", "A small box that says which beast levels give Skinning points now, the next level you can skin, "
         .. "beasts in this zone in those levels and your target's colour. Updates as you skin. Also /hme skinlevels.",
         function() return S().skinLevels end, function(v) HME.SkinTracker.Toggle(v) end)
+    Switch("Take flights automatically", "At a flight master's map, take the flight Forever-GPS's journey plans, or the "
+        .. "one that lands closest to where HME is leading you (at least 400 yards closer). You still walk to the flight master "
+        .. "and talk to it; hold Shift as you do to choose yourself. Off by default. Also /hme flights on|off.",
+        function() return S().autoFlight == true end, function(v) S().autoFlight = v end)
+    Drop("Node and corpse tooltips", "The game's soft-target tooltip for a node or a corpse is drawn next to it: while "
+        .. "skinning, the middle of the screen. In the corner: moved to the bottom right, like other tooltips. Where the game "
+        .. "puts it: unchanged. Off: the game's soft-target tooltip is turned off (your mouse-over tooltips stay).",
+        { "corner", "game", "off" }, { corner = "In the corner", game = "Where the game puts it", off = "Off" },
+        function() return S().worldTooltipPlace end, function(k)
+            local was = S().worldTooltipPlace
+            S().worldTooltipPlace = k
+            if k == "off" then HME.WorldTip.SetSoftTooltip(false) elseif was == "off" then HME.WorldTip.SetSoftTooltip(true) end
+        end)
+    Drop("... their HME lines", "Short: your skill numbers and how far to the next colour. Full: also skill-up ranges, "
+        .. "drops and value (as before 0.7.1). Mouse-over tooltips and the minimap always show everything.",
+        { "short", "full" }, { short = "Short", full = "Full" },
+        function() return S().worldTooltipDetail end, function(k) S().worldTooltipDetail = k end)
     Switch("Spawn pins for the farm", "Pins on the world map for the farm you preview or follow.", function() return S().nodePins end,
         function(v) S().nodePins = v end)
     Switch("Spawn pins always", "Pins for your gathering professions on every map (busier).", function() return S().nodePinsAlways end,

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.1 (development build, unreleased)
+
+From your reports after installing 0.7.0. Tested headless only; nothing of it has been run in the game yet (docs/MANUAL_TESTING.md items 119-127).
+
+### Fixed
+- **The skinning tooltip sat in the middle of the screen** (your screenshot). It is the game's soft-target tooltip for the corpse (Soft Target Interact is on), drawn next to the corpse, and HarvestMate's lines made it seven lines tall. It now keeps the title with your numbers and "N more to the next color", and moves to the bottom right corner when it is in the middle of the screen. Settings, Map and guidance: "Node and corpse tooltips" (in the corner, where the game puts it, or the game's soft-target tooltip off) and "... their HME lines" (short or full). Done around HarvestMate's own code, which stays as upstream wrote it.
+- **The notifications list could not be closed** except with Escape: it has a × now, and the bell opens and closes it.
+- **A route you stopped stayed on the map** when you picked another: routes HME makes (planned farms, guide routes) are drawn only while you follow them; your own routes, and ones you showed on the Routes page, stay as you set them. Planned routes left drawn by earlier versions are hidden once.
+- **The Dashboard's "Copilot suggests" kept old advice after a skill-up** (any profession): the window redrew before the Copilot had planned again, and not after. It now redraws when the Copilot changes. Tested for Skinning, Herbalism, Mining and Fishing.
+- **Starting a route was slow to reach Forever-GPS**: Forever-GPS planned all five of its ways before starting a journey HME asked for; it now starts with the first (Forever-GPS change, on its branch).
+
+### New
+- **Take flights automatically** (Settings, off by default; `/hme flights on|off`). At a flight master's map, HME takes the flight Forever-GPS's journey plans next, or else the one that lands closest to where HME is leading you (at least 400 yards and a third nearer). You still walk there and talk to the flight master; hold Shift as you do to choose yourself; never in combat; said in chat. If the game refuses an addon taking a flight, a "Fly to ..." button on the flight map does it with your click.
+- **The Skinning levels box** shows the zone you are in with its beast levels, the highest-level beasts there you can skin, and for a herbalist or miner the best herbs and ore there for your skill and the next one you will be able to gather. Compact size: the zone and its highest beast in one line. A herbalist or miner without Skinning gets the box too ("Gathering").
+
 ## 0.7.0 (development build, unreleased)
 
 What 0.6.0 left from its brief. Tested headless only (unit and integration tests, rendered previews, benchmarks); nothing of 0.7.0 has been run in the game yet: docs/MANUAL_TESTING.md items 105-118.

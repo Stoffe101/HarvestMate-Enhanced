@@ -315,7 +315,16 @@ PROFS[1] = nil
 HME.Player.Refresh()
 ClearLog()
 SlashCmdList.HARVESTMATEENHANCED("sl on")
-check(not ST.Shown() and Said("doesn't know Skinning"), "no Skinning: nothing shown, and said")
+-- (0.7.1) a miner without Skinning: the box with the zone and its ore.
+check(ST.Shown() and ST.Text():find("Gathering", 1, true) and ST.Text():find("Ore:", 1, true), "a miner: the zone's ore: " .. ST.Text())
+local all = PROFS
+PROFS = {}
+HME.Player.Refresh()
+SlashCmdList.HARVESTMATEENHANCED("sl off")
+ClearLog()
+SlashCmdList.HARVESTMATEENHANCED("sl on")
+check(not ST.Shown() and Said("knows none of"), "no gathering profession: nothing shown, and said")
+PROFS = all
 PROFS[1] = saved
 HME.Player.Refresh()
 SlashCmdList.HARVESTMATEENHANCED("sl off")
@@ -384,4 +393,38 @@ do
     check(shown and _G.HarvestMateEnhancedRouteInspector:IsShown(), "the inspector opens over the Routes page")
     HME.Window.frame:Hide()
     check(not _G.HarvestMateEnhancedRouteInspector:IsShown() or not HME.Window.frame:IsShown(), "and goes with the window")
+end
+
+STEP("the levels box: the zone, its highest skinnable beasts, the best herbs and ore (0.7.1)")
+do
+    local ST = HME.SkinTracker
+    PLAYER.map, PLAYER.x, PLAYER.y = 1424, 0.5, 0.5   -- Hillsbrad
+    PROFS = { { line = 393, rank = 143, max = 225 }, { line = 182, rank = 120, max = 150 }, nil, nil }
+    CHAR.level = 41
+    HME.Player.Refresh()
+    HME.settings.skinLevelsCompact = false
+    ST.Toggle(true)
+    local m = ST.Model()
+    check(m.zoneName == "Hillsbrad Foothills", "the zone: " .. tostring(m.zoneName))
+    check(m.top and #m.top >= 1, "the highest beasts here you can skin")
+    for i = 2, #m.top do check(m.top[i].level <= m.top[i - 1].level, "highest first") end
+    for _, e in ipairs(m.top) do check(e.level <= HME.SkillModel.MaxSkinLevel(143), "only levels you can skin") end
+    local herbs
+    for _, z in ipairs(m.nodes) do if z.prof == "Herbalism" then herbs = z end end
+    check(herbs and #herbs.list >= 1, "herbs here")
+    for _, e in ipairs(herbs.list) do check(e.req <= 120, e.name .. " is gatherable at 120") end
+    local order = { orange = 1, yellow = 2, green = 3, grey = 4 }
+    for i = 2, #herbs.list do check(order[herbs.list[i].color] >= order[herbs.list[i - 1].color], "most points first") end
+    if herbs.next then check(herbs.next.req > 120, "the next herb needs more skill") end
+    local text = ST.Text()
+    check(text:find("Highest here:", 1, true), "said in the box")
+    check(text:find("Herbs:", 1, true), "herbs in the box")
+    check(not text:find("Ore:", 1, true), "no ore line without Mining")
+    HME.settings.skinLevelsCompact = true
+    ST.Update()
+    text = ST.Text()
+    check(text:find("Hillsbrad Foothills", 1, true) and text:find(": up to", 1, true),
+        "compact: the zone and the highest beast: " .. (text:gsub("%c", " | ")))
+    HME.settings.skinLevelsCompact = false
+    ST.Toggle(false)
 end

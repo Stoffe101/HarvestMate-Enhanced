@@ -8,7 +8,12 @@
 --   - the next level you will be able to skin and how many points away;
 --   - beasts in this zone in those levels (bundled spawn data: where they
 --     appear, not where they are now);
---   - your target's level and colour.
+--   - your target's level and colour;
+--   - (0.7.1) the zone you are in with its beast levels, the highest-level
+--     beasts there you can skin, and for a herbalist or miner the best herbs
+--     and ore there for your skill and the next one you will be able to
+--     gather (bundled spawn data, by how many points they give you). A
+--     character without Skinning gets the box with the zone and its nodes.
 -- It updates on every skill-up, level-up, zone change and target change, and
 -- says so in chat when a higher level becomes skinnable. A plain frame:
 -- nothing protected, nothing automated.
@@ -92,6 +97,70 @@ function ST.ZoneBeasts(mapID, skill, safe)
         if a.count ~= b.count then return a.count > b.count end
         return a.name < b.name
     end)
+    return out
+end
+
+-- The highest-level beasts here you can skin (0.7.1): { { name, level, min,
+-- max, color, fight } }, highest first, up to n. level is the highest of its
+-- levels you can skin; fight is false above what is sensible for you now.
+ST.ZONE_TOP = 2
+function ST.ZoneTop(mapID, skill, safe, n)
+    local out = {}
+    if not mapID then return out end
+    local can = SM.MaxSkinLevel(skill)
+    local Corr = HME.Corrections
+    local seen = {}
+    for _, b in ipairs(HME.Spawns.BeastPoints(mapID)) do
+        local blocked = Corr and Corr.BeastBlocked(b.npcID, mapID)
+        if not blocked and not seen[b.name] and HME.Spawns.Skinnable(b.npcID) ~= false and not b.elite and b.min <= can then
+            seen[b.name] = true
+            local level = math.min(b.max, can)
+            out[#out + 1] = { name = b.name, level = level, min = b.min, max = b.max, color = SM.Color(skill, SM.SkinReq(level)),
+                fight = level <= safe }
+        end
+    end
+    table.sort(out, function(a, b)
+        if a.level ~= b.level then return a.level > b.level end
+        return a.name < b.name
+    end)
+    for i = #out, (n or ST.ZONE_TOP) + 1, -1 do out[i] = nil end
+    return out
+end
+
+-- The best herbs or ore here for your skill (0.7.1): { list = { { name, req,
+-- color, count } }, next = { name, req } }: the ones you can gather, by the
+-- points they give (orange first) and then the skill they need (highest
+-- first), up to n; and the lowest one here you cannot gather yet.
+ST.ZONE_NODES = 3
+local NODE_ORDER = { orange = 1, yellow = 2, green = 3, grey = 4 }
+function ST.ZoneNodes(mapID, prof, skill, n)
+    local out = { list = {} }
+    if not (mapID and skill) then return out end
+    local byName = {}
+    for _, e in ipairs(HME.Spawns.DbNodes(prof, mapID)) do
+        local name = e[1] or e.name
+        if name then
+            local req = HME.Spawns.Required(prof, name) or e[3] or 1
+            local count = HME.U.PackedCount and HME.U.PackedCount(e[4] or e.packed) or 1
+            local x = byName[name]
+            if x then x.count = x.count + count else byName[name] = { name = name, req = req, count = count } end
+        end
+    end
+    for _, x in pairs(byName) do
+        if x.req <= skill then
+            x.color = SM.Color(skill, x.req)
+            out.list[#out.list + 1] = x
+        elseif not out.next or x.req < out.next.req then
+            out.next = { name = x.name, req = x.req }
+        end
+    end
+    table.sort(out.list, function(a, b)
+        local oa, ob = NODE_ORDER[a.color] or 5, NODE_ORDER[b.color] or 5
+        if oa ~= ob then return oa < ob end
+        if a.req ~= b.req then return a.req > b.req end
+        return a.name < b.name
+    end)
+    for i = #out.list, (n or ST.ZONE_NODES) + 1, -1 do out.list[i] = nil end
     return out
 end
 
@@ -238,10 +307,34 @@ local W = 264
 local STRIP_MAX = 28
 
 -- What the box shows, as data (ST.Lines is the same as text).
+-- The zone part of the box (0.7.1): name, beast levels, herbs and ore.
+local function ZoneModel(m, profile)
+    local zone = profile.mapID and HME.Geo.ZoneOf(profile.mapID)
+    m.zone = zone
+    m.zoneName = (zone and HME.ZoneData.Name(zone)) or "this zone"
+    m.zoneLevels = zone and HME.Geo.ZoneLevels(zone)
+    m.nodes = {}
+    for _, prof in ipairs({ "Herbalism", "Mining" }) do
+        local s = profile.skills and profile.skills[prof]
+        if s and zone then
+            local z = ST.ZoneNodes(zone, prof, s.rank)
+            z.prof = prof
+            if #z.list > 0 or z.next then m.nodes[#m.nodes + 1] = z end
+        end
+    end
+end
+
 function ST.Model()
     local profile = HME.Player.Profile()
     local sk = profile.skills and profile.skills.Skinning
-    if not sk then return nil end
+    if not sk then
+        -- (0.7.1) a herbalist or miner without Skinning: the zone and its nodes.
+        local s = profile.skills or {}
+        if not (s.Herbalism or s.Mining) then return nil end
+        local m = { gatherOnly = true }
+        ZoneModel(m, profile)
+        return m
+    end
     local skill, max = sk.rank, sk.max
     local bands = ST.Bands(skill)
     local safe = ST.SafeLevel(profile)
@@ -255,8 +348,9 @@ function ST.Model()
     end
     local nextLevel, req, away = ST.Next(skill)
     if nextLevel then m.next = { level = nextLevel, req = req, away = away, train = max and req > max } end
-    local zone = profile.mapID and HME.Geo.ZoneOf(profile.mapID)
-    m.zoneName = (zone and HME.ZoneData.Name(zone)) or "this zone"
+    ZoneModel(m, profile)
+    local zone = m.zone
+    m.top = ST.ZoneTop(zone, skill, safe)
     m.here = ST.ZoneBeasts(zone, skill, safe)
     if #m.here == 0 then m.elsewhere = ST.Elsewhere(zone, skill, safe) end
     m.target = ST.Target(skill)
@@ -347,6 +441,10 @@ local function Build()
     f.places = T.Text(f, "", "small")
     f.places:SetWidth(W - 20)
     f.places:SetWordWrap(true)
+    -- (0.7.1) compact: the zone in one line
+    f.zoneSum = T.Text(f, "", "small")
+    f.zoneSum:SetWidth(W - 20)
+    f.zoneSum:SetWordWrap(true)
     f.target = T.Text(f, "", "small")
     f.target:SetWidth(W - 20)
     f.target:SetWordWrap(false)
@@ -381,7 +479,7 @@ function ST.Shown() return f ~= nil and f:IsShown() end
 function ST.Text()
     if not (f and f:IsShown()) then return "" end
     local parts = {}
-    for _, fs in ipairs({ f.skill, f.maxLabel, f.max, f.maxSay, f.killLabel, f.kill, f.killSay, f.alt, f.cap, f.stripLo, f.stripHi, f.next, f.zone, f.places, f.target, f.target2 }) do
+    for _, fs in ipairs({ f.head.text, f.skill, f.maxLabel, f.max, f.maxSay, f.killLabel, f.kill, f.killSay, f.alt, f.cap, f.stripLo, f.stripHi, f.next, f.zoneSum, f.zone, f.places, f.target, f.target2 }) do
         if fs:IsShown() and (fs:GetText() or "") ~= "" then parts[#parts + 1] = fs:GetText() end
     end
     return table.concat(parts, "\n")
@@ -400,6 +498,10 @@ function ST.Update()
         return
     end
     if not f then Build() end
+    if m.gatherOnly then return ST.UpdateGather(m) end
+    f.head.text:SetText("Skinning")
+    f.head.logo:SetTexture("Interface\\Icons\\INV_Misc_Pelt_Wolf_01")
+    for _, w in ipairs({ f.maxLabel, f.max, f.maxSay, f.killLabel, f.kill, f.killSay }) do w:Show() end
     local y = -28
     f.skill:SetText(("%d |cff999b8f/ %d|r"):format(m.skill, m.max or 0))
 
@@ -504,6 +606,16 @@ function ST.Update()
         f.nextBar:Hide()
     end
 
+    -- (0.7.1) compact: the zone and the highest beast you can skin there, in one line
+    f.zoneSum:SetShown(compact == true)
+    if compact then
+        local top = m.top and m.top[1]
+        f.zoneSum:SetText(("%s%s"):format(K_Paint(m.zoneName, T.HEX.text2),
+            top and (": up to " .. Paint(top.color, ("%s %d"):format(top.name, top.level))) or ""))
+        Place(f.zoneSum, y)
+        y = y - (f.zoneSum:GetStringHeight() or 13) - 4
+    end
+
     -- Where (full only)
     f.divider:SetShown(not compact)
     f.zone:SetShown(not compact)
@@ -516,8 +628,9 @@ function ST.Update()
     y = y - 9
     local lines = {}
     local function Name(e) return Paint(e.color, ("%s %s"):format(e.name, e.min == e.max and e.min or (e.min .. "-" .. e.max))) end
+    local zoneTitle = m.zoneName .. (m.zoneLevels and (" · beasts %d-%d"):format(m.zoneLevels[1], m.zoneLevels[2]) or "")
     if #m.here > 0 then
-        f.zone:SetText(m.zoneName)
+        f.zone:SetText(zoneTitle)
         for i = 1, math.min(ST.ZONE_BEASTS, #m.here) do lines[#lines + 1] = Name(m.here[i]) end
     else
         f.zone:SetText(m.zoneName .. ": none in range, the closest")
@@ -527,6 +640,15 @@ function ST.Update()
         end
         if #lines == 0 then lines[1] = K_Paint("No beast in those levels in the bundled data.", T.HEX.text3) end
     end
+    -- (0.7.1) the highest-level beasts here you can skin, and the nodes for a herbalist or miner
+    if m.top and #m.top > 0 then
+        local parts = {}
+        for _, e in ipairs(m.top) do
+            parts[#parts + 1] = Paint(e.color, ("%s %d"):format(e.name, e.level)) .. (e.fight and "" or K_Paint(" (high)", T.HEX.warning))
+        end
+        lines[#lines + 1] = K_Paint("Highest here: ", T.HEX.text3) .. table.concat(parts, ", ")
+    end
+    for _, line in ipairs(ST.NodeLines(m)) do lines[#lines + 1] = line end
     Place(f.zone, y)
     y = y - 14
     f.places:SetText(table.concat(lines, "\n"))
@@ -556,12 +678,58 @@ function ST.Update()
     f:Show()
 end
 
+-- "Herbs: Silverleaf, Peacebloom · next Mageroyal at 50" lines (0.7.1).
+local NODE_WORD = { Herbalism = "Herbs", Mining = "Ore" }
+function ST.NodeLines(m)
+    local out = {}
+    for _, z in ipairs(m.nodes or {}) do
+        local parts = {}
+        for _, e in ipairs(z.list) do parts[#parts + 1] = Paint(e.color, e.name) end
+        local line = K_Paint((NODE_WORD[z.prof] or z.prof) .. ": ", T.HEX.text3)
+            .. (#parts > 0 and table.concat(parts, ", ") or K_Paint("none you can gather yet", T.HEX.text3))
+        if z.next then line = line .. K_Paint((" · next %s at %d"):format(z.next.name, z.next.req), T.HEX.text3) end
+        out[#out + 1] = line
+    end
+    return out
+end
+
+-- The box for a herbalist or miner without Skinning (0.7.1): the zone and its nodes.
+function ST.UpdateGather(m)
+    f.head.text:SetText("Gathering")
+    f.head.logo:SetTexture(m.nodes[1] and m.nodes[1].prof == "Mining" and "Interface\\Icons\\Trade_Mining"
+        or "Interface\\Icons\\Trade_Herbalism")
+    for _, w in ipairs({ f.maxLabel, f.max, f.maxSay, f.killLabel, f.kill, f.killSay, f.alt, f.cap, f.strip, f.stripLo, f.stripHi,
+        f.next, f.nextBar, f.target, f.target2, f.zoneSum, f.divider }) do w:Hide() end
+    local profile = HME.Player.Profile()
+    local skills = {}
+    for _, p in ipairs({ "Herbalism", "Mining" }) do
+        local s = profile.skills[p]
+        if s then skills[#skills + 1] = ("%d"):format(s.rank) end
+    end
+    f.skill:SetText(table.concat(skills, " · "))
+    local y = -28
+    f.zone:SetText(m.zoneName .. (m.zoneLevels and (" · levels %d-%d"):format(m.zoneLevels[1], m.zoneLevels[2]) or ""))
+    f.zone:Show()
+    Place(f.zone, y)
+    y = y - 14
+    local lines = ST.NodeLines(m)
+    if #lines == 0 then lines[1] = K_Paint("No herbs or ore here in the bundled data.", T.HEX.text3) end
+    f.places:SetText(table.concat(lines, "\n"))
+    f.places:Show()
+    Place(f.places, y)
+    y = y - (f.places:GetStringHeight() or (#lines * 13)) - 8
+    f:SetHeight(-y + 6)
+    f:Show()
+end
+
 function ST.Toggle(on)
     if not HME.settings then return end
     if on == nil then on = not HME.settings.skinLevels end
     HME.settings.skinLevels = on and true or false
     ST.Update()
-    if on and not ST.Lines() then HME.Print("Skinning levels: this character doesn't know Skinning.") end
+    if on and not ST.Model() then
+        HME.Print("Skinning levels: this character knows none of Skinning, Herbalism and Mining.")
+    end
 end
 
 -- A higher level became skinnable: say so once.

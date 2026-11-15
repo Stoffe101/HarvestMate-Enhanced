@@ -18,6 +18,7 @@ local function Help()
         "/hme find <text>  search everything (materials, creatures, zones, routes, trainers...)",
         "/hme review  the last session's review   ·   /hme notices  the notification list in chat",
         "/hme ready  check bags, repairs, rank cap and risk for the Copilot's farm   ·   /hme danger  this zone's record",
+        "/hme flights on|off  take flights automatically at a flight master (see Settings)",
         "/hme farm skin|herb|mine|fish [level|profit]  open the Farm Finder on it",
         "/hme stop  stop following the farm   ·   /hme nav  navigate to it",
         "/hme here  guide the loop beside another Forever-GPS journey   ·   /hme giveback  hand the arrow back",
@@ -189,6 +190,18 @@ function cmds.ready()
     HME.Print(("%s in %s:"):format(pick.r.prof or "?", pick.r.zone or "?"))
     for _, l in ipairs(HME.Ready.Lines(res)) do print("  " .. l) end
     return res
+end
+function cmds.flights(rest)
+    if rest == "on" or rest == "off" then HME.settings.autoFlight = rest == "on" end
+    HME.Print(("taking flights automatically is %s. %s"):format(HME.settings.autoFlight and "on" or "off",
+        HME.settings.autoFlight and "Talk to a flight master while HME or Forever-GPS leads you somewhere; hold Shift to choose yourself."
+            or "/hme flights on turns it on."))
+    local last = HME.Flights.last
+    if last and (last.node or last.why) then
+        print(("  last flight map: %s"):format(last.node and ("flew to " .. last.node.name .. " (" .. (last.why or "") .. ")")
+            or ("did not fly: " .. tostring(last.skipped or last.why))))
+    end
+    return HME.settings.autoFlight
 end
 function cmds.danger()
     local mapID, x, y = HME.Player.Position()

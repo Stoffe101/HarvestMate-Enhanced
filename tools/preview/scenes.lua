@@ -453,6 +453,25 @@ do
     HME.settings.skinLevelsCompact = false
     UnitExists, UNIT_LEVELS, UNIT_GUIDS = realExists, nil, nil
     FireEvent("PLAYER_TARGET_CHANGED")
+    -- 0.7.1: a skinner who is also a herbalist and a miner; then a herbalist without Skinning.
+    local keepProfs = PROFS
+    Profs({ Skinning = { 143, 225 }, Herbalism = { 120, 150 }, Mining = { 110, 150 } })
+    HME.Player.Refresh()
+    HME.SkinTracker.Update()
+    if box then Write("skinlevels-gatherer", "Skinning levels with herbs and ore here (0.7.1)", "Skinning levels", { around = box, pad = 16 }) end
+    HME.settings.skinLevelsCompact = true
+    HME.SkinTracker.Update()
+    if box then Write("skinlevels-compact-zone", "Skinning levels, compact, with the zone line (0.7.1)", "Skinning levels",
+        { around = box, pad = 16 }) end
+    HME.settings.skinLevelsCompact = false
+    Profs({ Herbalism = { 120, 150 } })
+    HME.Player.Refresh()
+    HME.SkinTracker.Update()
+    if box then Write("skinlevels-herbalist", "The box for a herbalist without Skinning (0.7.1)", "Skinning levels",
+        { around = box, pad = 16 }) end
+    PROFS = keepProfs
+    HME.Player.Refresh()
+    HME.SkinTracker.Update()
 end
 
 -----------------------------------------------------------------------------

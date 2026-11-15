@@ -126,7 +126,7 @@ function G.Start(route, result)
     s.stop = 1
     s.startedAt = HME.Now()
     if result then s.result = { prof = result.prof, targets = result.targets } end
-    route.shown = true
+    route.shown = true   -- (hidden again when you stop following it, if HME made it: G.Stop)
     local entry, dist = Entry(route)
     if entry and dist <= G.ARRIVE_YARDS then
         G.BeginFarm(entry.index)
@@ -593,6 +593,12 @@ end
 function G.Stop()
     local s = State()
     if not s or not s.routeID then return end
+    -- 0.7.1: a route HME made for this trip leaves the map with it (it stays on the Routes page).
+    local route = Route(s.routeID)
+    if route and HME.Routes and HME.Routes:AutoShown(route) then
+        route.shown = false
+        HME.Routes:Changed()
+    end
     if s.owner == "fgps" and HME.FGPS then HME.FGPS.Forget() elseif HME.FGPS and HME.char then HME.FGPS.Forget() end
     if s.owner == "tomtom" and HME.TomTomBridge then HME.TomTomBridge.Clear() end
     Unhold(s)   -- Forever-GPS's arrow comes back for its own journey

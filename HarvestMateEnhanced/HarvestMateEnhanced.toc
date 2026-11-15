@@ -2,7 +2,7 @@
 ## Title: HarvestMate Enhanced
 ## Notes: All-in-one gathering for WoW Forever: where to level Herbalism, Mining, Skinning and Fishing, farms ranked for skill or gold, routes on the map, hunting circuits, one-key gathering and session stats.
 ## Author: HarvestMate Enhanced contributors (with HarvestMate by AndreiBerkut, Gatherpedia by Curs3d221, GatherPath Forever by severd8)
-## Version: 0.7.0
+## Version: 0.7.1
 ## IconTexture: Interface\AddOns\HarvestMateEnhanced\Media\Logo
 ## AllowLoadGameType: forever
 ## OptionalDeps: GatherMate2, Questie, ForeverGPS, Auctionator, TradeSkillMaster, TomTom, HarvestMate, Gatherpedia, GatherPathForever
@@ -33,6 +33,7 @@ Gather\Locale\zhTW.lua
 Core\DB.lua
 Core\Migrate.lua
 Core\Player.lua
+UI\WorldTip.lua
 
 # Data (Gatherpedia's files are vendored unchanged)
 Data\Zones.lua
@@ -99,6 +100,7 @@ Engine\Economy.lua
 Engine\Ready.lua
 Engine\Alts.lua
 Engine\Trail.lua
+Engine\Flights.lua
 
 # HarvestMate's gathering engine, continued (needs the session)
 Gather\Stats.lua

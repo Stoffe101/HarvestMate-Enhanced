@@ -74,3 +74,9 @@ Everything in HME has only run against the headless fake client. Layout, texture
 - **The map layer button** sits at the top left of the world map's canvas; another addon's button may share that spot (in-game check 109).
 - **Snapping** uses HME's merged nodes (bundled spawns, your gathers, GatherMate2); a node the data places wrongly snaps wrongly. Snap can be turned off on the editor bar.
 
+## 0.7.1
+
+- **Taking flights automatically** uses the game's `TakeTaxiNode`. Whether WoW Forever lets an addon call it without your click is not known until it is tried in the game; if it does not, the "Fly to ..." button does it with your click (in-game check 121). Flights to a master you have not learned are never chosen. Without a Forever-GPS journey, "closest" is a straight line on the continent, not the time the flight takes.
+- **The tooltip in the corner**: HME moves the game's soft-target tooltip when it sits in the middle of the screen. If the game places it again every frame, it may still flicker back; Settings can then turn the soft-target tooltip off (your mouse-over tooltips stay). A tooltip your UI anchors to the cursor is left alone.
+- **The levels box's herbs and ore** come from the bundled spawn data for the zone, not GatherMate2's, and are ranked by the points they give you; a herb with very few spawn points can still be listed.
+

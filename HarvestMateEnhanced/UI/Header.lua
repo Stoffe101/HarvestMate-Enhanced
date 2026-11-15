@@ -108,8 +108,12 @@ local function BuildBell(win)
     local W = POP_W + 40
     f.title = K.Label(f, "Notifications", { template = "strong" })
     f.title:SetPoint("TOPLEFT", 12, -10)
+    -- 0.7.1: it can be closed (×, the bell again, Escape); before only Escape closed it.
+    f.close = K.Button(f, "×", 28, 24, function() f:Hide() end, "Close", "ghost")
+    f.close.autoFit = false
+    f.close:SetPoint("TOPRIGHT", -6, -5)
     f.clear = K.Button(f, "Clear", 60, 22, function() HME.Notify.Clear() H.ShowBell(win) end, "Empties the list.", "ghost")
-    f.clear:SetPoint("TOPRIGHT", -8, -6)
+    f.clear:SetPoint("RIGHT", f.close, "LEFT", -4, 0)
     f.rows = {}
     for i = 1, 7 do
         local r = CreateFrame("Frame", nil, f)
@@ -134,6 +138,16 @@ local function BuildBell(win)
     if win.HookScript then win:HookScript("OnHide", function() f:Hide() end) end
     bellPop = f
     return f
+end
+
+-- The bell opens the list, and closes it when it is open.
+function H.ToggleBell(win)
+    if bellPop and bellPop:IsShown() then
+        bellPop:Hide()
+        return false
+    end
+    H.ShowBell(win)
+    return true
 end
 
 function H.ShowBell(win)
@@ -257,7 +271,7 @@ function H.Attach(win)
     T.Tooltip(box, "Search everything", "Materials, creatures, zones, your routes, trainers, milestones, profiles, goals, "
         .. "your quests and pages. Enter opens the first.")
     H.box = box
-    local bell = K.Button(header, "", 46, 28, function() H.ShowBell(win) end, nil, "ghost")
+    local bell = K.Button(header, "", 46, 28, function() H.ToggleBell(win) end, nil, "ghost")
     bell.autoFit = false
     bell:SetPoint("RIGHT", header, "RIGHT", -46, 0)
     T.Tooltip(bell, "Notifications", "What HME wanted to tell you: goals, training, bags, better farms, session reviews.")

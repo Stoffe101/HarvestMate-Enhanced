@@ -101,6 +101,10 @@ DB.SETTINGS = {
     -- 0.7.0
     hudCopilot = false,          -- the Copilot's top card as one line on the farming HUD (off: the HUD stays as in 0.5.0)
     editorSnap = true,           -- the route editor snaps new and moved waypoints to known nodes
+    -- 0.7.1
+    worldTooltipPlace = "corner", -- the soft-target tooltip of a node or corpse: "corner", "game" or "off"
+    worldTooltipDetail = "short", -- its HME lines: "short" (numbers, next colour) or "full"
+    autoFlight = false,          -- take the flight that brings you closest to where HME is leading (Engine/Flights.lua)
 }
 
 local CHAR_DEFAULTS = {
