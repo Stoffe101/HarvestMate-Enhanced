@@ -96,7 +96,17 @@ NODES[1].state = 1   -- the game says nothing about where you are
 HME.FGPS.APIv2 = function() return { PlannedFlight = function() return { fromID = 2, toID = 4 } end } end
 node = Open()
 check(node and node.name ~= "Sentinel Hill, Westfall", "where you are is unknown: the plan is not trusted")
+check(F.last.planSkipped and F.last.planSkipped:find("which flight master you are at"), tostring(F.last.planSkipped))
 NODES[1].state = currentState
+
+STEP("a plan that does not say where it flies from is not trusted")
+HME.FGPS.APIv2 = function() return { PlannedFlight = function() return { toID = 4 } end } end
+node = Open()   -- you are at Stormwind (node 2), and the plan has no departure
+check(node and node.name == "Darkshire, Duskwood", "HME's own choice instead: " .. tostring(node and node.name))
+check(F.last.planSkipped and F.last.planSkipped:find("did not say which flight master"), tostring(F.last.planSkipped))
+HME.FGPS.APIv2 = function() return { PlannedFlight = function() return { fromID = 2, toID = 4 } end } end
+node = Open()
+eq(node.name, "Sentinel Hill, Westfall", "with the departure known and matching, the plan applies again")
 HME.FGPS.APIv2 = realAPI
 
 STEP("not when flying lands no nearer")

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.3 (development build, unreleased)
+
+One edge case you found in 0.7.2's flight check, from reading the code (not seen in the game). Tested headless only.
+
+### Fixed
+- **A planned flight that did not say where it leaves from was still taken.** 0.7.2 trusted Forever-GPS's planned flight when the plan had no departure flight master. Now the plan is used only when both are known, the master the journey flies from and the master you are at, and they are the same. Otherwise HME's own choice decides, and `/hme flights` says why the plan was not used (no departure in the plan, the flight map does not say where you are, or another master).
+
 ## 0.7.2 (development build, unreleased)
 
 Two problems you found in 0.7.1's automatic flights. Tested headless only.

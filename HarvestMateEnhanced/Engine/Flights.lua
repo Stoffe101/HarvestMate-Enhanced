@@ -6,7 +6,8 @@
 --   1. the flight Forever-GPS's journey plans next (API.PlannedFlight, by the
 --      game's taxi node ids): exactly the way it planned, but only at the
 --      master it plans to fly from (0.7.2: checked against the master whose map
---      is open; anywhere else the plan does not apply and 2. decides);
+--      is open; 0.7.3: both must be known. Anywhere else, or when either is not
+--      known, the plan does not apply and 2. decides);
 --   2. otherwise the flight master you can fly to that lands closest to where
 --      HME is leading you (the farm's first stop, a guide's place), when it
 --      lands at least 400 yards closer and a third nearer than you are now.
@@ -101,14 +102,19 @@ function F.Choose()
     if api and type(api.PlannedFlight) == "function" then
         local ok, plan = pcall(api.PlannedFlight)
         if ok and type(plan) == "table" and plan.toID then
-            -- Only from the master the journey flies from: at another one the plan does not apply.
-            local fromHere = plan.fromID == nil or (here and here.nodeID ~= nil and here.nodeID == plan.fromID)
-            if fromHere then
+            -- Only from the master the journey flies from, and only when both ends say
+            -- which master that is (0.7.3: a plan without a departure was trusted).
+            local hereID = here and here.nodeID
+            if plan.fromID == nil then
+                F.planSkipped = "Forever-GPS did not say which flight master its flight leaves from"
+            elseif hereID == nil then
+                F.planSkipped = "the flight map does not say which flight master you are at"
+            elseif hereID ~= plan.fromID then
+                F.planSkipped = "Forever-GPS planned this flight from another flight master"
+            else
                 for _, n in ipairs(nodes) do
                     if n.nodeID == plan.toID then return n, "Forever-GPS's journey flies there" end
                 end
-            else
-                F.planSkipped = "Forever-GPS planned this flight from another flight master"
             end
         end
     end
