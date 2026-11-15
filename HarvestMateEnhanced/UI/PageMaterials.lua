@@ -189,6 +189,17 @@ HME.Pages.materials = function(body, page)
         if p and p.typical and p.source then
             lines[#lines + 1] = ("|cff999b8fPrice from|r  %s, %s"):format(p.source, HME.Prices.AgeText(p.age) or "age unknown")
         end
+        -- Sell, process or keep (0.6.0, Engine/Economy.lua), and your other characters' stock.
+        if e.id and HME.Economy then
+            lines[#lines + 1] = ""
+            lines[#lines + 1] = "|cff999b8fSell, process or keep|r  " .. K.Paint("(> the better choice now)", T.HEX.text3)
+            for _, l in ipairs(HME.Economy.Lines(e.id)) do lines[#lines + 1] = l end
+            local chars = HME.Bags and HME.Bags.MaterialLines(e.id) or {}
+            if #chars > 0 then
+                lines[#lines + 1] = "|cff999b8fYour characters|r  " .. K.Paint("(as last seen; another character's bags are not live)", T.HEX.text3)
+                for i, l in ipairs(chars) do if i <= 5 then lines[#lines + 1] = "  " .. l end end
+            end
+        end
         lines[#lines + 1] = ""
         lines[#lines + 1] = "|cff999b8fWhere it is|r  " .. K.Paint("(> your zone; ×N what you gathered there)", T.HEX.text3)
         local Zones = ns.Zones

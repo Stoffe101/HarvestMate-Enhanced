@@ -28,7 +28,7 @@ local U = HME.U
 local DB = {}
 HME.DBM = DB
 
-DB.SCHEMA = 3
+DB.SCHEMA = 4
 
 -- Limits on what grows with play. Old entries go first.
 DB.LIMITS = {
@@ -155,6 +155,14 @@ DB.UPGRADES = {
         if db.corrections ~= nil and type(db.corrections) ~= "table" then db.corrections = nil end
         db.upgradedFrom2 = true
     end,
+    -- 0.5.0 -> 0.6.0: new sections start empty (your characters' materials,
+    -- per character: notices and the Copilot's feedback). Session history keeps
+    -- its predictions, which the prediction ledger reads as they are. Nothing
+    -- is removed or rewritten.
+    [4] = function(db)
+        if db.chars ~= nil and type(db.chars) ~= "table" then db.chars = nil end
+        db.upgradedFrom3 = true
+    end,
 }
 
 -- Area totals were per account before 0.3.0. When the journal shows one
@@ -271,6 +279,17 @@ function DB.Sanitize(saved)
             fixed = fixed + 1
         end
     end
+    -- 0.6.0: your characters' materials ({ [name] = { bags, bank, ... } }).
+    if saved.chars ~= nil then
+        if type(saved.chars) ~= "table" then
+            saved.chars = nil
+            fixed = fixed + 1
+        else
+            keepTables(saved.chars, function(e)
+                return (e.bags == nil or type(e.bags) == "table") and (e.bank == nil or type(e.bank) == "table")
+            end)
+        end
+    end
     for k, v in pairs(DB.SETTINGS) do
         if type(saved.settings[k]) ~= type(v) then
             saved.settings[k] = type(v) == "table" and U.Copy(v) or v
@@ -297,6 +316,17 @@ function DB.PrepareChar(saved)
         saved.recording = nil
     end
     if type(saved.plan.skills) ~= "table" then saved.plan.skills = {} end
+    -- 0.6.0: notices (text only) and the Copilot's state.
+    if saved.notices ~= nil and type(saved.notices) ~= "table" then saved.notices = nil end
+    for i = #(saved.notices or {}), 1, -1 do
+        local n = saved.notices[i]
+        if type(n) ~= "table" or type(n.text) ~= "string" then table.remove(saved.notices, i) end
+    end
+    if saved.copilot ~= nil and type(saved.copilot) ~= "table" then saved.copilot = nil end
+    if saved.copilot then
+        if type(saved.copilot.dismissed) ~= "table" then saved.copilot.dismissed = {} end
+        if type(saved.copilot.notInterested) ~= "table" then saved.copilot.notInterested = {} end
+    end
     if type(saved.eff.kill) ~= "table" then saved.eff.kill = {} end
     for k, st in pairs(saved.stats) do
         if type(st) ~= "table" or type(st.hours) ~= "number" then saved.stats[k] = nil end

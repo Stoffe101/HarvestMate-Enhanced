@@ -175,7 +175,7 @@ local v2 = {
     routes = { routes = { { id = 1, mapID = 1433, name = "Kept", points = { 0.1, 0.1, 0.2, 0.2, 0.3, 0.1 }, kinds = {} } } },
 }
 local up2 = HME.DBM.Prepare(v2)
-eq(up2.schema, 3, "schema 3")
+eq(up2.schema, HME.DBM.SCHEMA, "the current schema")
 eq(up2.settings.hudSize, "detailed", "settings kept")
 eq(up2.settings.combinedPriority, "equal", "new settings get their defaults")
 eq(up2.routes.routes[1].name, "Kept", "routes untouched")
@@ -224,3 +224,22 @@ local added = HME.DBM.ApplyImport(payload)
 eq(added.routes, 1, "only the valid route")
 check(HME.db.routes.routes[before + 1].imported, "marked imported")
 check(not HME.DBM.ReadImport(string.rep("x", 2000001)), "over 2 MB refused")
+
+STEP("schema 4 (0.6.0): a 0.5.0 save keeps everything; new sections are checked")
+local v5 = { schema = 3, settings = { hudSize = "compact", riskMode = "safer" },
+    sessions = { { t = 1, secs = 900, farmSecs = 900, value = 10, counts = { skin = 5 }, skillups = 2,
+        areas = { { key = "Skinning@1424:3:10", secs = 900, skins = 5, predicted = { skins = 30 } } } } },
+    stats = { ["Skinning@1424:3:10"] = { hours = 0.25, sessions = 1 } }, chars = "broken" }
+local up4 = HME.DBM.Prepare(v5)
+eq(up4.schema, HME.DBM.SCHEMA)
+eq(up4.settings.hudSize, "compact", "settings kept")
+eq(up4.settings.riskMode, "safer")
+eq(up4.sessions[1].areas[1].predicted.skins, 30, "predictions kept for the ledger")
+eq(up4.chars, nil, "a broken characters section is dropped, nothing else")
+eq(up4.settings.sessionReview, true, "new settings get their defaults")
+local ok4 = HME.DBM.Prepare({ schema = 3, chars = { ["Alt-Realm"] = { bags = { [2318] = 4 } }, bad = "x", worse = { bags = 5 } } })
+check(ok4.chars["Alt-Realm"] and ok4.chars.bad == nil and ok4.chars.worse == nil, "only well-formed characters kept")
+local ch = HME.DBM.PrepareChar({ notices = { { text = "ok", cat = "goal" }, "junk", { cat = "x" } }, copilot = { dismissed = 5 } })
+eq(#ch.notices, 1, "only notices with text")
+eq(type(ch.copilot.dismissed), "table", "copilot state repaired")
+

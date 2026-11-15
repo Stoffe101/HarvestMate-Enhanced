@@ -93,6 +93,7 @@ Engine\Bestiary.lua
 Engine\Notify.lua
 Engine\Review.lua
 Engine\Search.lua
+Engine\Economy.lua
 
 # HarvestMate's gathering engine, continued (needs the session)
 Gather\Stats.lua

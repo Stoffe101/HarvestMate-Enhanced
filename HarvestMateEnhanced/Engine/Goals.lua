@@ -379,6 +379,12 @@ function Profiles.Save(name, state)
     if name == "" then return nil, "a name is needed" end
     local p = { name = name:sub(1, 40), prof = state.prof, goal = state.goal, risk = state.risk, material = state.material,
         minutes = state.minutes, filters = U.Copy(state.filters), routeID = state.routeID, mode = state.mode }
+    -- 0.6.0: the rest of the workspace, so one click puts everything back.
+    local s = HME.settings or {}
+    local co = HME.Copilot and HME.Copilot.State() or {}
+    p.workspace = { copilotMode = state.copilotMode or co.mode, copilotMinutes = state.copilotMinutes or co.minutes,
+        hudSize = state.hudSize or s.hudSize, mapDetail = state.mapDetail or s.mapDetail, riskMode = state.riskMode or s.riskMode,
+        skinLevels = state.skinLevels, priceMode = state.priceMode or s.priceMode, notify = state.notify and U.Copy(state.notify) or nil }
     local list = PList()
     for i, old in ipairs(list) do
         if old.name == p.name then
@@ -403,6 +409,22 @@ end
 function Profiles.Apply(p)
     if p.minutes then HME.settings.sessionMinutes = p.minutes end
     if p.mode then HME.settings.huntMode = p.mode end
+    local w = type(p.workspace) == "table" and p.workspace or nil
+    if w then
+        local s = HME.settings
+        if w.hudSize == "compact" or w.hudSize == "normal" or w.hudSize == "detailed" then s.hudSize = w.hudSize end
+        if w.mapDetail then s.mapDetail = w.mapDetail end
+        if w.riskMode then s.riskMode = w.riskMode end
+        if w.priceMode then s.priceMode = w.priceMode end
+        if w.skinLevels ~= nil then s.skinLevels = w.skinLevels and true or false end
+        if type(w.notify) == "table" then s.notify = U.Copy(w.notify) end
+        if HME.Copilot then
+            if w.copilotMode then HME.Copilot.SetMode(w.copilotMode) end
+            if w.copilotMinutes ~= nil then HME.Copilot.SetMinutes(w.copilotMinutes) end
+        end
+        HME.Signal("SETTINGS")
+        if HME.HUD and HME.HUD.Refresh then HME.Try(HME.HUD.Refresh) end
+    end
     if p.routeID and HME.Guidance.Route(p.routeID) then
         HME.Guidance.Start(HME.Guidance.Route(p.routeID))
         return "route"
